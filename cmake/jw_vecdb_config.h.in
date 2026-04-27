@@ -1,0 +1,51 @@
+/*
+ * jw_vecdb_config.h.in - JinWo Vector DB 配置头文件
+ * 由 CMake 自动生成，请勿手动修改
+ */
+
+#ifndef JW_VECDB_CONFIG_H
+#define JW_VECDB_CONFIG_H
+
+/* 版本信息 */
+#define JW_VECDB_VERSION_MAJOR @JW_VERSION_MAJOR@
+#define JW_VECDB_VERSION_MINOR @JW_VERSION_MINOR@
+#define JW_VECDB_VERSION_PATCH @JW_VERSION_PATCH@
+#define JW_VECDB_VERSION "@JW_VERSION@"
+
+/* 编译配置 */
+#define JW_BUILD_SHARED @BUILD_SHARED_LIBS@
+#define JW_BUILD_STATIC @JW_BUILD_STATIC@
+#define JW_BUILD_EXAMPLES @JW_BUILD_EXAMPLES@
+#define JW_BUILD_TESTS @JW_BUILD_TESTS@
+#define JW_ENABLE_SIMD @JW_ENABLE_SIMD@
+#define JW_DEBUG_MODE @JW_DEBUG_MODE@
+
+/* 平台检测 */
+#ifdef _WIN32
+    #define JW_WIN32 1
+#elif __APPLE__
+    #define JW_APPLE 1
+#elif __linux__
+    #define JW_LINUX 1
+#elif __ANDROID__
+    #define JW_ANDROID 1
+#elif __unix__
+    #define JW_UNIX 1
+#endif
+
+/* 编译器检测 */
+#ifdef __GNUC__
+    #define JW_GCC 1
+#elif __clang__
+    #define JW_CLANG 1
+#elif _MSC_VER
+    #define JW_MSVC 1
+#endif
+
+/* SIMD 支持 */
+#define JW_ENABLE_SSE @JW_ENABLE_SSE@
+#define JW_ENABLE_AVX @JW_ENABLE_AVX@
+#define JW_ENABLE_AVX2 @JW_ENABLE_AVX2@
+#define JW_ENABLE_NEON @JW_ENABLE_NEON@
+
+#endif /* JW_VECDB_CONFIG_H */

@@ -1,0 +1,607 @@
+/*
+ * jw_vecdb.c - JinWo VecDB 主接口实现
+ * 
+ * Copyright 2026 北京金幄科技有限公司
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+#include "jw_vecdb.h"
+#include "jw_string.h"
+#include "jw_stdio.h"
+
+/*
+ * =============================================================================
+ * 内部结构定义
+ * =============================================================================
+ */
+
+/* 数据库结构 */
+struct jw_vecdb_t {
+    /* 配置 */
+    jw_vecdb_config_t config;
+    
+    /* 内存池 */
+    jw_arena_t *arena;
+    
+    /* Collection管理 */
+    jw_collection_t **collections;
+    jw_size_t collection_count;
+    jw_size_t collection_capacity;
+    
+    /* 存储 */
+    jw_storage_t *storage;
+    
+    /* 统计 */
+    jw_vecdb_stats_t stats;
+    
+    /* 状态 */
+    jw_bool_t is_open;
+    jw_uint64_t open_time;
+    
+    /* 错误信息 */
+    jw_status_t last_error;
+    char error_msg[256];
+    
+    /* 锁 */
+    jw_rwlock_t *lock;
+};
+
+/* 全局日志回调 */
+static jw_log_callback g_log_callback = NULL;
+static void *g_log_user_data = NULL;
+
+/*
+ * =============================================================================
+ * 版本与构建信息
+ * =============================================================================
+ */
+
+JW_API jw_str_t jw_vecdb_version(void)
+{
+    static jw_str_t version_str = JW_STR_NULL;
+    static jw_str_t version = jw_str("JinWo VecDB " JW_VERSION_STRING);
+    if (version_str.ptr == NULL) {
+        version_str = version;
+    }
+    return version_str;
+}
+
+JW_API jw_str_t jw_vecdb_build_info(void)
+{
+    static jw_str_t build_info_str = JW_STR_NULL;
+    static jw_str_t build_info = jw_str(
+        "JinWo VecDB " JW_VERSION_STRING "\n"
+        "Platform: "
+#ifdef JW_WIN32
+    "Windows"
+#elif defined(JW_LINUX)
+    "Linux"
+#elif defined(JW_ANDROID)
+    "Android"
+#elif defined(JW_IOS)
+    "iOS"
+#elif defined(JW_MACOS)
+    "macOS"
+#else
+    "Unknown"
+#endif
+    "\n"
+    "Compiler: "
+#if defined(__GNUC__)
+    "GCC " __VERSION__
+#elif defined(__clang__)
+    "Clang " __clang_version__
+#elif defined(_MSC_VER)
+    "MSVC"
+#else
+    "Unknown"
+#endif
+    "\n"
+    "Build Date: " __DATE__ " " __TIME__
+    );
+    if (build_info_str.ptr == NULL) {
+        build_info_str = build_info;
+    }
+    return build_info_str;
+}
+
+/*
+ * =============================================================================
+ * 数据库生命周期
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_open(const jw_str_t *path,
+                                  jw_uint32_t flags,
+                                  jw_vecdb_t **db)
+{
+    jw_vecdb_config_t config = JW_VECDB_CONFIG_DEFAULT;
+    if (path && path->ptr) {
+        config.db_path = *path;
+    }
+    config.create_if_missing = (flags & JW_VECDB_CREATE) != 0;
+    config.read_only = (flags & JW_VECDB_READONLY) != 0;
+    
+    return jw_vecdb_open_ex(&config, db);
+}
+
+JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
+                                     jw_vecdb_t **db)
+{
+    if (db == NULL) {
+        return JW_INVALID_PARAM;
+    }
+    
+    *db = NULL;
+    
+    /* 分配数据库结构 */
+    jw_vecdb_t *database = (jw_vecdb_t *)jw_calloc(1, sizeof(jw_vecdb_t));
+    if (database == NULL) {
+        return JW_OUT_OF_MEMORY;
+    }
+    
+    /* 复制配置 */
+    if (config != NULL) {
+        database->config = *config;
+    } else {
+        jw_vecdb_config_t default_config = JW_VECDB_CONFIG_DEFAULT;
+        database->config = default_config;
+    }
+    
+    /* 创建内存池 */
+    jw_size_t arena_size = database->config.arena_size;
+    if (arena_size == 0) {
+        arena_size = 64 * 1024 * 1024;  /* 默认64MB */
+    }
+
+    jw_arena_t *arena = NULL;
+    jw_status_t arena_status = jw_arena_create(4096 * 1024, &arena);
+    if (arena_status != JW_SUCCESS || arena == NULL) {
+        jw_free(database);
+        return JW_OUT_OF_MEMORY;
+    }
+    database->arena = arena;
+
+    /* 初始化读写锁 */
+    jw_rwlock_t *rwlock = NULL;
+    jw_status_t status = jw_rwlock_create(NULL, NULL, &rwlock);
+    if (status != JW_SUCCESS || rwlock == NULL) {
+        jw_arena_destroy(database->arena);
+        jw_free(database);
+        return status;
+    }
+    database->lock = rwlock;
+    
+    /* 初始化Collection数组 */
+    database->collection_capacity = 16;
+    database->collections = jw_arena_calloc(database->arena,
+                                            database->collection_capacity,
+                                            sizeof(jw_collection_t*));
+    
+    if (database->collections == NULL) {
+        jw_rwlock_destroy(database->lock);
+        jw_arena_destroy(database->arena);
+        jw_free(database);
+        return JW_OUT_OF_MEMORY;
+    }
+    
+    /* 如果是文件数据库，打开存储 */
+    if (database->config.db_path.ptr != NULL &&
+        database->config.storage_mode != JW_STORAGE_MEMORY) {
+
+        jw_storage_config_t storage_config = JW_STORAGE_CONFIG_DEFAULT;
+        storage_config.path = database->config.db_path;
+        storage_config.mode = database->config.read_only
+                            ? JW_STORAGE_READ
+                            : JW_STORAGE_READWRITE;
+
+        if (database->config.create_if_missing) {
+            storage_config.mode = JW_STORAGE_CREATE;
+        }
+        
+        database->storage = jw_storage_create(database->arena, &storage_config);
+        if (database->storage == NULL) {
+            /* 内存数据库可以没有存储 */
+        }
+    }
+    
+    /* 设置状态 */
+    database->is_open = JW_TRUE;
+    database->open_time = jw_time_now();
+    
+    jw_memset(&database->stats, 0, sizeof(database->stats));
+    
+    *db = database;
+    return JW_SUCCESS;
+}
+
+JW_API jw_status_t jw_vecdb_close(jw_vecdb_t *db)
+{
+    if (db == NULL || !db->is_open) {
+        return JW_INVALID_PARAM;
+    }
+    
+    /* 获取写锁 */
+    jw_rwlock_wrlock(db->lock);
+    
+    /* 关闭所有Collection */
+    for (jw_size_t i = 0; i < db->collection_count; i++) {
+        if (db->collections[i] != NULL) {
+            jw_collection_destroy(db->collections[i]);
+            db->collections[i] = NULL;
+        }
+    }
+    
+    /* 关闭存储 */
+    if (db->storage != NULL) {
+        jw_storage_close(db->storage);
+        db->storage = NULL;
+    }
+    
+    db->is_open = JW_FALSE;
+    
+    jw_rwlock_wrunlock(db->lock);
+    jw_rwlock_destroy(db->lock);
+    
+    /* 销毁内存池 */
+    if (db->arena != NULL) {
+        jw_arena_destroy(db->arena);
+    }
+    
+    jw_free(db);
+    
+    return JW_SUCCESS;
+}
+
+JW_API jw_status_t jw_vecdb_sync(jw_vecdb_t *db)
+{
+    if (db == NULL || !db->is_open) {
+        return JW_INVALID_PARAM;
+    }
+    
+    if (db->storage != NULL) {
+        return jw_storage_sync(db->storage);
+    }
+    
+    return JW_SUCCESS;
+}
+
+JW_API jw_bool_t jw_vecdb_is_open(const jw_vecdb_t *db)
+{
+    return (db != NULL && db->is_open);
+}
+
+/*
+ * =============================================================================
+ * Collection 管理
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_create_collection(jw_vecdb_t *db,
+                                               const jw_str_t *name,
+                                               jw_dim_t dim,
+                                               jw_collection_t **coll)
+{
+    jw_collection_config_t config = JW_COLLECTION_CONFIG_DEFAULT;
+    config.name = *name;
+    config.dimension = dim;
+    
+    return jw_vecdb_create_collection_ex(db, &config, coll);
+}
+
+JW_API jw_status_t jw_vecdb_create_collection_ex(jw_vecdb_t *db,
+                                                  const jw_collection_config_t *config,
+                                                  jw_collection_t **coll)
+{
+    if (db == NULL || !db->is_open || config == NULL || config->name.ptr == NULL) {
+        return JW_INVALID_PARAM;
+    }
+    
+    /* 检查是否已存在 */
+    jw_str_t config_name = config->name;
+    if (jw_vecdb_has_collection(db, &config_name)) {
+        return JW_ALREADY_EXISTS;
+    }
+    
+    jw_rwlock_wrlock(db->lock);
+    
+    /* 扩展数组 */
+    if (db->collection_count >= db->collection_capacity) {
+        jw_size_t new_capacity = db->collection_capacity * 2;
+        jw_collection_t **new_collections = jw_arena_calloc(db->arena,
+                                                            new_capacity,
+                                                            sizeof(jw_collection_t*));
+        if (new_collections == NULL) {
+            jw_rwlock_wrunlock(db->lock);
+            return JW_OUT_OF_MEMORY;
+        }
+        
+        jw_memcpy(new_collections, db->collections,
+               db->collection_count * sizeof(jw_collection_t*));
+        db->collections = new_collections;
+        db->collection_capacity = new_capacity;
+    }
+    
+    /* 创建Collection */
+    jw_collection_t *collection = jw_collection_create(db->arena, config);
+    if (collection == NULL) {
+        jw_rwlock_wrunlock(db->lock);
+        return JW_UNKNOWN_ERROR;
+    }
+    
+    db->collections[db->collection_count++] = collection;
+    db->stats.collection_count = db->collection_count;
+    
+    jw_rwlock_wrunlock(db->lock);
+    
+    if (coll != NULL) {
+        *coll = collection;
+    }
+    
+    return JW_SUCCESS;
+}
+
+JW_API jw_collection_t *jw_vecdb_get_collection(jw_vecdb_t *db,
+                                                 const jw_str_t *name)
+{
+    if (db == NULL || !db->is_open || name == NULL || name->ptr == NULL) {
+        return NULL;
+    }
+    
+    jw_rwlock_rdlock(db->lock);
+    
+    jw_collection_t *found = NULL;
+    for (jw_size_t i = 0; i < db->collection_count; i++) {
+        const char *coll_name = jw_collection_get_name(db->collections[i]);
+        jw_str_t coll_name_str = jw_str(coll_name);
+        if (jw_strcmp(&coll_name_str, name) == 0) {
+            found = db->collections[i];
+            break;
+        }
+    }
+    
+    jw_rwlock_rdunlock(db->lock);
+    
+    return found;
+}
+
+JW_API jw_status_t jw_vecdb_drop_collection(jw_vecdb_t *db,
+                                             const jw_str_t *name)
+{
+    if (db == NULL || !db->is_open || name == NULL || name->ptr == NULL) {
+        return JW_INVALID_PARAM;
+    }
+    
+    jw_rwlock_wrlock(db->lock);
+    
+    jw_status_t status = JW_NOT_FOUND;
+    
+    for (jw_size_t i = 0; i < db->collection_count; i++) {
+        const char *coll_name = jw_collection_get_name(db->collections[i]);
+        jw_str_t coll_name_str = jw_str(coll_name);
+        if (jw_strcmp(&coll_name_str, name) == 0) {
+            jw_collection_destroy(db->collections[i]);
+            
+            /* 移动后面的元素 */
+            for (jw_size_t j = i; j < db->collection_count - 1; j++) {
+                db->collections[j] = db->collections[j + 1];
+            }
+            db->collections[db->collection_count - 1] = NULL;
+            db->collection_count--;
+            db->stats.collection_count = db->collection_count;
+            
+            status = JW_SUCCESS;
+            break;
+        }
+    }
+    
+    jw_rwlock_wrunlock(db->lock);
+    
+    return status;
+}
+
+JW_API jw_bool_t jw_vecdb_has_collection(const jw_vecdb_t *db,
+                                          const jw_str_t *name)
+{
+    return jw_vecdb_get_collection((jw_vecdb_t *)db, name) != NULL;
+}
+
+JW_API jw_size_t jw_vecdb_list_collections(const jw_vecdb_t *db,
+                                            jw_str_t *names,
+                                            jw_size_t capacity)
+{
+    if (db == NULL || !db->is_open) {
+        return 0;
+    }
+    
+    jw_rwlock_rdlock(db->lock);
+    
+    jw_size_t count = db->collection_count;
+    if (names != NULL && capacity > 0) {
+        count = (count < capacity) ? count : capacity;
+        for (jw_size_t i = 0; i < count; i++) {
+            const char *coll_name = jw_collection_get_name(db->collections[i]);
+            names[i] = jw_str(coll_name);
+        }
+    }
+    
+    jw_rwlock_rdunlock(db->lock);
+    
+    return count;
+}
+
+/*
+ * =============================================================================
+ * 便捷操作 API
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_insert(jw_vecdb_t *db,
+                                    const jw_str_t *coll_name,
+                                    jw_cvec_t vec,
+                                    jw_dim_t dim,
+                                    jw_vid_t *vid)
+{
+    jw_collection_t *coll = jw_vecdb_get_collection(db, coll_name);
+    if (coll == NULL) {
+        /* 自动创建 */
+        jw_status_t status = jw_vecdb_create_collection(db, coll_name, dim, &coll);
+        if (status != JW_SUCCESS) {
+            return status;
+        }
+    }
+    
+    return jw_collection_insert(coll, vec, vid);
+}
+
+JW_API jw_size_t jw_vecdb_search(jw_vecdb_t *db,
+                                  const jw_str_t *coll_name,
+                                  jw_cvec_t query,
+                                  jw_dim_t dim,
+                                  jw_size_t k,
+                                  jw_search_result_t *results)
+{
+    jw_collection_t *coll = jw_vecdb_get_collection(db, coll_name);
+    if (coll == NULL) {
+        return 0;
+    }
+    
+    jw_search_options_t options = {
+        .k = k,
+        .filter = NULL,
+        .include_vectors = JW_FALSE,
+        .include_meta = JW_FALSE
+    };
+    
+    jw_search_result_ex_t *ex_results = jw_arena_alloc(db->arena, 
+                                                       k * sizeof(jw_search_result_ex_t));
+    if (ex_results == NULL) {
+        return 0;
+    }
+    
+    jw_size_t count = jw_collection_search(coll, query, &options, ex_results);
+    
+    /* 转换为简单结果 */
+    for (jw_size_t i = 0; i < count && i < k; i++) {
+        results[i].id = ex_results[i].vid;
+        results[i].score = ex_results[i].score;
+    }
+    
+    return count;
+}
+
+/*
+ * =============================================================================
+ * 统计与诊断
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_get_stats(const jw_vecdb_t *db,
+                                       jw_vecdb_stats_t *stats)
+{
+    if (db == NULL || stats == NULL) {
+        return JW_INVALID_PARAM;
+    }
+    
+    jw_rwlock_rdlock(db->lock);
+    *stats = db->stats;
+    jw_rwlock_rdunlock(db->lock);
+    
+    return JW_SUCCESS;
+}
+
+JW_API void jw_vecdb_reset_stats(jw_vecdb_t *db)
+{
+    if (db != NULL) {
+        jw_memset(&db->stats, 0, sizeof(db->stats));
+        db->stats.collection_count = db->collection_count;
+    }
+}
+
+JW_API void jw_vecdb_print_info(const jw_vecdb_t *db)
+{
+    if (db == NULL) {
+        jw_printf("Database: NULL\n");
+        return;
+    }
+    
+    jw_printf("JinWo VecDB Information\n");
+    jw_printf("=======================\n");
+    jw_printf("Version:     %s\n", JW_VERSION_STRING);
+    jw_printf("Path:        %s\n", db->config.db_path.ptr ? db->config.db_path.ptr : "(memory)");
+    jw_printf("Status:      %s\n", db->is_open ? "Open" : "Closed");
+    jw_printf("Collections: %zu\n", db->collection_count);
+    jw_printf("Memory:      %zu bytes\n", jw_arena_get_used_size(db->arena));
+    
+    if (db->collection_count > 0) {
+        jw_printf("\nCollections:\n");
+        for (jw_size_t i = 0; i < db->collection_count; i++) {
+            jw_collection_stats_t coll_stats;
+            jw_collection_get_stats(db->collections[i], &coll_stats);
+            jw_printf("  - %s: %zu vectors, %d dims\n",
+                   jw_collection_get_name(db->collections[i]),
+                   coll_stats.count,
+                   coll_stats.dim);
+        }
+    }
+}
+
+/*
+ * =============================================================================
+ * 错误处理
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_get_last_error(const jw_vecdb_t *db)
+{
+    return (db != NULL) ? db->last_error : JW_UNKNOWN_ERROR;
+}
+
+JW_API const char *jw_vecdb_get_error_message(const jw_vecdb_t *db)
+{
+    if (db != NULL && db->error_msg[0] != '\0') {
+        return db->error_msg;
+    }
+    return jw_strerror(db->last_error);
+}
+
+/*
+ * =============================================================================
+ * 全局配置
+ * =============================================================================
+ */
+
+JW_API void jw_vecdb_set_log_callback(jw_log_callback callback, void *user_data)
+{
+    g_log_callback = callback;
+    g_log_user_data = user_data;
+}
+
+JW_API jw_status_t jw_vecdb_set_allocator(jw_alloc_func alloc,
+                                           jw_realloc_func realloc,
+                                           jw_free_func free)
+{
+    jw_allocator_t allocator = {
+        .alloc = (void* (*)(jw_size_t, void*))alloc,
+        .realloc = (void* (*)(void*, jw_size_t, void*))realloc,
+        .free = (void (*)(void*, void*))free,
+        .user_data = NULL
+    };
+    
+    return jw_set_allocator(&allocator);
+}
+
+JW_API void jw_vecdb_set_simd_enabled(jw_bool_t enable)
+{
+    jw_set_simd_enabled(enable);
+}
+
+JW_API jw_bool_t jw_vecdb_is_simd_available(void)
+{
+    return jw_is_simd_available();
+}

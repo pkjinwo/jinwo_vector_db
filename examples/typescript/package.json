@@ -1,0 +1,20 @@
+{
+  "name": "jinwo-vecdb-typescript-demo",
+  "version": "1.0.0",
+  "description": "TypeScript demo for JinWo VecDB",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js"
+  },
+  "dependencies": {
+    "ffi-napi": "^4.0.3",
+    "ref-napi": "^3.0.3",
+    "ref-struct-napi": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/ffi-napi": "^4.0.6",
+    "@types/node": "^20.14.2",
+    "typescript": "^5.4.5"
+  }
+}

@@ -1,0 +1,10 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${exec_prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: jw_vecdb
+Description: JinWo VecDB - Embedded Vector Database
+Version: @PROJECT_VERSION@
+Libs: -L${libdir} -ljwvecdb
+Cflags: -I${includedir}/jwvecdb

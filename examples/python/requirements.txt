@@ -1,0 +1,6 @@
+# Python dependencies for JinWo VecDB demo
+# No external dependencies required
+# Uses built-in ctypes library
+
+# Optional: For better performance
+# numpy==1.26.0
