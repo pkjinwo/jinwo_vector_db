@@ -1,0 +1,7 @@
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/jinwo.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/edit_cache.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/rebuild_cache.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/list_install_components.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/install.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/install/local.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/build_temp/build/CMakeFiles/install/strip.dir
