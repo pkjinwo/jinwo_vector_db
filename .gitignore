@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+build_temp/
+wheelhouse/
+dist/
+*.egg-info/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+
+# IDE
+.idea/
+.vscode/
+*.swp
