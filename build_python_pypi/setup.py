@@ -17,7 +17,8 @@ class CMakeExtension(Extension):
 
     def __init__(self, name: str, sourcedir: str = "") -> None:
         super().__init__(name, sources=[])
-        self.sourcedir = os.fspath(Path(sourcedir).resolve())
+        # 指向 py_jinwo 目录（包含 CMakeLists.txt）
+        self.sourcedir = os.fspath((Path(__file__).parent / "jinwo_vecdb" / "py_jinwo").resolve())
 
 
 class CMakeBuild(build_ext):
