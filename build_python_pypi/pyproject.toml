@@ -45,7 +45,7 @@ include = ["jinwo_vecdb*"]
 jinwo_vecdb = ["*.py"]
 
 [tool.cibuildwheel]
-build = "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux* cp38-macosx* cp39-macosx* cp310-macosx* cp311-macosx* cp312-macosx* cp38-win* cp39-win* cp310-win* cp311-win* cp312-win*"
+build = "cp38-* cp39-* cp310-* cp311-* cp312-*"
 skip = "*-musllinux*"
 archs = ["x86_64", "aarch64", "arm64", "universal2"]
 
