@@ -9,7 +9,7 @@ import sys
 import subprocess
 import shutil
 from pathlib import Path
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 
 
@@ -72,13 +72,20 @@ SOURCE_FILES = [
     "src/jw_vecdb.c",
 ]
 
+ext_compile_args = ["-O2"]
+define_macros = []
+if sys.platform == "win32":
+    ext_compile_args = ["/O2"]
+    define_macros = [("JW_EXPORTS", None)]
+
 ext_modules = [
     Extension(
         "jinwo_vecdb._jinwo",
         sources=[REL_BINDING] + SOURCE_FILES,
         include_dirs=["include"],
         libraries=["m"] if sys.platform != "win32" else [],
-        extra_compile_args=["-O2"],
+        extra_compile_args=ext_compile_args,
+        define_macros=define_macros,
     ),
 ]
 
@@ -106,6 +113,8 @@ class clean_egg_info(_egg_info):
             pass
 
 setup(
+    name="jinwo_vecdb",
+    packages=find_packages(include=["jinwo_vecdb*"]),
     ext_modules=ext_modules,
     zip_safe=False,
     cmdclass={'egg_info': clean_egg_info},
