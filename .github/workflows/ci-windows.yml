@@ -19,7 +19,7 @@ jobs:
       uses: pypa/cibuildwheel@v2.21.3
       env:
         CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-        CIBW_ARCHS_WINDOWS: "AMD64 x86 ARM64"
+        CIBW_ARCHS_WINDOWS: "AMD64"
       with:
         package-dir: build_python_pypi
 
