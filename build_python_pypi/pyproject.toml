@@ -42,4 +42,4 @@ where = ["."]
 include = ["jinwo_vecdb*"]
 
 [tool.setuptools.package-data]
-jinwo_vecdb = ["*.py"]
+jinwo_vecdb = ["*.py", "py_jinwo/*"]

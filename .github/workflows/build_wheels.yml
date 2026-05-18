@@ -25,6 +25,7 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux*"
+          CIBW_BEFORE_BUILD_LINUX: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release -- -j$(nproc)
         with:
           package-dir: build_python_pypi
 
@@ -52,6 +53,7 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux*"
+          CIBW_BEFORE_BUILD_MACOS: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release -- -j4
         with:
           package-dir: build_python_pypi
 
@@ -73,6 +75,7 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux*"
+          CIBW_BEFORE_BUILD_WINDOWS: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir build && cd build && cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
         with:
           package-dir: build_python_pypi
 
