@@ -728,6 +728,13 @@ JW_API jw_bool_t jw_vec_almost_equal(jw_cvec_t a,
  * =============================================================================
  */
 
+/* 批量计算L2距离 */
+JW_API void jw_vec_batch_l2_distance(jw_cvec_t query,
+                                      jw_cvec_t *vectors,
+                                      jw_dim_t dim,
+                                      jw_size_t count,
+                                      jw_float32_t *distances);
+
 /* 批量计算距离 */
 JW_API void jw_vec_batch_distance(jw_cvec_t query,
                                    jw_cvec_t *vectors,

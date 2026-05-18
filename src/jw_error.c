@@ -12,6 +12,7 @@
 
 #include "jw_error.h"
 #include "jw_string.h"
+#include "jw_stdio.h"
 #include <stdio.h>
 #include <string.h>
 

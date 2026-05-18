@@ -6,6 +6,9 @@ set(CMAKE_C_STANDARD 99)
 # 获取项目根目录（build_python_pypi 的上一级）
 get_filename_component(PROJECT_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../.." ABSOLUTE)
 
+find_package(Python COMPONENTS Interpreter Development REQUIRED)
+message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
+
 include_directories(${PROJECT_ROOT}/include)
 include_directories(${PROJECT_ROOT}/src)
 
@@ -28,7 +31,9 @@ set(SOURCES
     ${PROJECT_ROOT}/src/jw_string.c
     ${PROJECT_ROOT}/src/jw_types.c
     ${PROJECT_ROOT}/src/jw_vecdb.c
+    ${PROJECT_ROOT}/src/jw_vector.c
 )
 
 add_library(jinwo_vecdb._jinwo MODULE ${SOURCES})
-target_link_libraries(jinwo_vecdb._jinwo m)
+target_link_libraries(jinwo_vecdb._jinwo PRIVATE m Python::Python)
+target_include_directories(jinwo_vecdb._jinwo PRIVATE ${Python_INCLUDE_DIRS})
