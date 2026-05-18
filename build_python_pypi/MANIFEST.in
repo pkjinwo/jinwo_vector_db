@@ -1,0 +1,6 @@
+recursive-include src *
+recursive-include include *
+recursive-include jinwo_vecdb/py_jinwo *
+include README.md
+global-exclude *.pyc
+global-exclude __pycache__

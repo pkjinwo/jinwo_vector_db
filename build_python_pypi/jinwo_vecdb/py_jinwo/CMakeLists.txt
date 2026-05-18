@@ -37,3 +37,10 @@ set(SOURCES
 add_library(jinwo_vecdb._jinwo MODULE ${SOURCES})
 target_link_libraries(jinwo_vecdb._jinwo PRIVATE m Python::Python)
 target_include_directories(jinwo_vecdb._jinwo PRIVATE ${Python_INCLUDE_DIRS})
+
+# When building on Windows, ensure symbols are exported (JW_API uses __declspec(dllexport)
+# when JW_EXPORTS is defined in include/jw_types.h). This prevents MSVC errors like
+# "definition of dllimport function not allowed" when defining functions marked with JW_API.
+if (WIN32)
+    target_compile_definitions(jinwo_vecdb._jinwo PRIVATE JW_EXPORTS)
+endif()
