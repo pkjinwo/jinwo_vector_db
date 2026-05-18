@@ -5,66 +5,50 @@ JinWo VecDB - 构建脚本
 """
 
 import os
-import sys
-import subprocess
 from pathlib import Path
 from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
 
 
-class CMakeExtension(Extension):
-    """使用 CMake 构建的扩展"""
+# 获取项目根目录
+ROOT_DIR = Path(__file__).parent.parent.resolve()
+SRC_DIR = ROOT_DIR / "src"
+INCLUDE_DIR = ROOT_DIR / "include"
 
-    def __init__(self, name: str, sourcedir: str = "") -> None:
-        super().__init__(name, sources=[])
-        # 指向 py_jinwo 目录（包含 CMakeLists.txt）
-        self.sourcedir = os.fspath((Path(__file__).parent / "jinwo_vecdb" / "py_jinwo").resolve())
+# C 源文件列表
+SOURCE_FILES = [
+    str(SRC_DIR / "jw_arena.c"),
+    str(SRC_DIR / "jw_collection.c"),
+    str(SRC_DIR / "jw_config.c"),
+    str(SRC_DIR / "jw_error.c"),
+    str(SRC_DIR / "jw_file.c"),
+    str(SRC_DIR / "jw_hash.c"),
+    str(SRC_DIR / "jw_index.c"),
+    str(SRC_DIR / "jw_lock.c"),
+    str(SRC_DIR / "jw_log.c"),
+    str(SRC_DIR / "jw_math.c"),
+    str(SRC_DIR / "jw_quant.c"),
+    str(SRC_DIR / "jw_sort.c"),
+    str(SRC_DIR / "jw_stdio.c"),
+    str(SRC_DIR / "jw_storage.c"),
+    str(SRC_DIR / "jw_string.c"),
+    str(SRC_DIR / "jw_types.c"),
+    str(SRC_DIR / "jw_vecdb.c"),
+]
 
-
-class CMakeBuild(build_ext):
-    """CMake 构建命令"""
-
-    def build_extension(self, ext: CMakeExtension) -> None:
-        build_temp = Path(self.build_temp).resolve()
-        build_lib = Path(self.build_lib).resolve()
-        build_temp.mkdir(parents=True, exist_ok=True)
-        build_lib.mkdir(parents=True, exist_ok=True)
-
-        cmake_args = [
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={build_lib}",
-            f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH={build_lib}",
-            f"-DPython_EXECUTABLE={sys.executable}",
-            "-DCMAKE_BUILD_TYPE=Release",
-        ]
-
-        if sys.platform.startswith("darwin"):
-            cmake_args += ["-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"]
-
-        build_cmd = ["cmake", str(ext.sourcedir)] + cmake_args
-        print(f"Running cmake from: {build_temp}")
-        print(f"Output directory: {build_lib}")
-        subprocess.run(build_cmd, cwd=build_temp, check=True)
-
-        if sys.platform == "win32":
-            build_cmd = ["cmake", "--build", ".", "--config", "Release", "--", "-j4"]
-        else:
-            build_cmd = ["cmake", "--build", ".", "--", "-j4"]
-        subprocess.run(build_cmd, cwd=build_temp, check=True)
-        
-        # 确保扩展文件在正确位置
-        ext_path = self.get_ext_fullpath(ext.name)
-        print(f"Extension path: {ext_path}")
-        
-        # 调试：检查输出文件
-        print(f"Output directory contents: {list(build_lib.rglob('*'))}")
-
+# Python 绑定源文件
+BINDING_SOURCE = str(Path(__file__).parent / "jinwo_vecdb" / "py_jinwo" / "py_jinwo.c")
 
 ext_modules = [
-    CMakeExtension("jinwo_vecdb._jinwo"),
+    Extension(
+        "jinwo_vecdb._jinwo",
+        sources=[BINDING_SOURCE] + SOURCE_FILES,
+        include_dirs=[str(INCLUDE_DIR)],
+        libraries=["m"],
+        extra_compile_args=["-O2"],
+    ),
 ]
 
 setup(
     ext_modules=ext_modules,
-    cmdclass={"build_ext": CMakeBuild},
     zip_safe=False,
 )
