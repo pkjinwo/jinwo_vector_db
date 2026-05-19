@@ -52,7 +52,20 @@
 #include "jw_math.h"
 #include <stdio.h>
 #include <fcntl.h>
+
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
+#include <io.h>
+#ifndef ssize_t
+typedef SSIZE_T ssize_t;
+#endif
+#define open  _open
+#define close _close
+#define read  _read
+#define write _write
+#define lseek _lseeki64
+#else
 #include <unistd.h>
+#endif
 
 /*
  * =============================================================================

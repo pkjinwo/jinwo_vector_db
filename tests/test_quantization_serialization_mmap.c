@@ -16,7 +16,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef JW_WIN32
 #include <unistd.h>
+#endif
 
 /* 测试参数 */
 #define TEST_DIM 64

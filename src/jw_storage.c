@@ -16,9 +16,96 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <sys/mman.h>
 #include <fcntl.h>
+
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
+#include <windows.h>
+#include <io.h>
+#include <direct.h>
+#include <stdint.h>
+
+typedef SSIZE_T ssize_t;
+
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void*)-1)
+#endif
+#ifndef PROT_READ
+#define PROT_READ 1
+#endif
+#ifndef PROT_WRITE
+#define PROT_WRITE 2
+#endif
+#ifndef MAP_SHARED
+#define MAP_SHARED 1
+#endif
+
+static void *jw_mmap_wrapper(void *addr, size_t length, int prot, int flags, int fd, jw_off_t offset)
+{
+    HANDLE hFile = (HANDLE)_get_osfhandle(fd);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return MAP_FAILED;
+    }
+
+    DWORD protect = (prot & PROT_WRITE) ? PAGE_READWRITE : PAGE_READONLY;
+    LARGE_INTEGER mapSize;
+    mapSize.QuadPart = length;
+    HANDLE hMap = CreateFileMappingA(hFile, NULL, protect, mapSize.HighPart, mapSize.LowPart, NULL);
+    if (hMap == NULL) {
+        return MAP_FAILED;
+    }
+
+    DWORD access = (prot & PROT_WRITE) ? FILE_MAP_WRITE : FILE_MAP_READ;
+    DWORD offsetLow = (DWORD)(offset & 0xFFFFFFFF);
+    DWORD offsetHigh = (DWORD)((offset >> 32) & 0xFFFFFFFF);
+    void *mapped = MapViewOfFile(hMap, access, offsetHigh, offsetLow, length);
+    CloseHandle(hMap);
+
+    if (mapped == NULL) {
+        return MAP_FAILED;
+    }
+
+    return mapped;
+}
+
+static int jw_munmap_wrapper(void *addr, size_t length)
+{
+    (void)length;
+    return UnmapViewOfFile(addr) ? 0 : -1;
+}
+
+static int jw_msync_wrapper(void *addr, size_t length, int flags)
+{
+    (void)flags;
+    return FlushViewOfFile(addr, length) ? 0 : -1;
+}
+
+static int jw_ftruncate_wrapper(int fd, jw_off_t length)
+{
+    return _chsize_s(fd, length);
+}
+
+static int jw_fsync_wrapper(int fd)
+{
+    return _commit(fd);
+}
+
+#define open _open
+#define close _close
+#define read _read
+#define write _write
+#define lseek _lseeki64
+#define unlink _unlink
+#define mkdir(path, mode) _mkdir(path)
+#define rmdir _rmdir
+#define mmap(a,b,c,d,e,f) jw_mmap_wrapper((a),(b),(c),(d),(e),(f))
+#define munmap(a,b) jw_munmap_wrapper((a),(b))
+#define msync(a,b,c) jw_msync_wrapper((a),(b),(c))
+#define ftruncate(a,b) jw_ftruncate_wrapper((a),(b))
+#define fsync(a) jw_fsync_wrapper((a))
+#else
+#include <sys/mman.h>
 #include <unistd.h>
+#endif
 
 /*
  * =============================================================================
