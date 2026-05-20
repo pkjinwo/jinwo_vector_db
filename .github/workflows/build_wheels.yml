@@ -25,7 +25,7 @@ jobs:
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux*"
-          CIBW_BEFORE_BUILD_LINUX: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release -- -j$(nproc)
+          CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         with:
           package-dir: build_python_pypi
 
@@ -52,8 +52,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.21.3
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          CIBW_SKIP: "*-musllinux*"
-          CIBW_BEFORE_BUILD_MACOS: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && cmake --build . --config Release -- -j4
+          CIBW_ARCHS_MACOS: "x86_64 arm64 universal2"
         with:
           package-dir: build_python_pypi
 
@@ -74,8 +73,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.21.3
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          CIBW_SKIP: "*-musllinux*"
-          CIBW_BEFORE_BUILD_WINDOWS: pip install cmake && cd build_python_pypi/jinwo_vecdb/py_jinwo && mkdir build && cd build && cmake .. -G "Visual Studio 17 2022" -A x64 && cmake --build . --config Release
+          CIBW_ARCHS_WINDOWS: "AMD64 x86 ARM64"
         with:
           package-dir: build_python_pypi
 

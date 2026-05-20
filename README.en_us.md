@@ -1,5 +1,3 @@
-[English](README.en_us.md) | [中文](README.md)
-
 # JinWo VecDB
 
 **JinWo VecDB** is an open-source, cross-platform, embedded vector database designed specifically for mobile and embedded devices.

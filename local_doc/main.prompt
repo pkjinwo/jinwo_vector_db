@@ -1,0 +1,24 @@
+1.帮忙设计C语言跨平台嵌入式向量数据库，供安卓，苹果，树莓派等移动平台开发集成（类似sqlite，BerkeleyDB）使用，也可以在windows，MacOS、Ubuntu、RedHat等Linux平台使用。
+2.我觉得像pisip一样定义pj_types.h这种通用类型定义文件开始吧。我现在自己注册了一个公司名叫北京金幄科技。pjsip定义int类型的时候是pj_int，给我的定义用jw_int。函数，类型定义，常量等，都用jw_开头。请帮忙设计类型定义文件吧。记得有注释，内容参考pjsip的types定义文件。
+3.我觉得是不是像pjsip一样，是不是要设计一个pj_pool来管理内存的malloc和free。
+4.我的信心来源于我自己写的这几篇文章：
+https://blog.csdn.net/ggggjatihc/article/details/150081733
+https://blog.csdn.net/ggggjatihc/article/details/160058732
+https://blog.csdn.net/ggggjatihc/article/details/160193329
+https://blog.csdn.net/ggggjatihc/article/details/160064884
+https://blog.csdn.net/ggggjatihc/article/details/160261673
+https://blog.csdn.net/ggggjatihc/article/details/160315151
+https://blog.csdn.net/ggggjatihc/article/details/160348194
+https://blog.csdn.net/ggggjatihc/article/details/160418889
+5.现在的向量数据库，主要是Go编写的，而且只考虑服务器平台。以后随着硬件性能提升，手机也可以像玩转sqlite一样玩转向量数据库。
+6.我刚开始设计向量数据库的时候，要不要像pjsip一样考虑进程锁和线程锁，以及socket的事件驱动模型
+7.我以前还接触过OpenSIPs的源代码。
+8.参考pjsip设计jw_pool里面的函数设计jw_strncpy、jw_memcpy、jw_malloc、jw_free等。
+9.基础设计参考pjsip，比如类型、内存管理、字符串、文件操作等。但拷贝引用的代码里面不得出现字符pjsip
+10.项目纯C实现- C99标准，无外部依赖，易于集成
+11.跨平台 - 支持 Linux, Android, iOS, macOS, Windows
+12.零配置** - 开箱即用，无需复杂配置
+13.高性能索引** - 支持 IVF 和 HNSW 索引算法
+14.SIMD加速** - 自动检测并使用 SSE/AVX/NEON 指令集
+
+

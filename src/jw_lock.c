@@ -27,7 +27,6 @@
 #else
     #include <pthread.h>
     #include <time.h>
-    #include <sched.h>
 #endif
 
 /* 自旋锁类型 */
@@ -287,7 +286,7 @@ JW_API jw_status_t jw_rwlock_trywrlock(jw_rwlock_t *rwlock)
     }
     
 #ifdef JW_WIN32
-    return JW_NOT_SUPPORTED;
+    return JW_UNSUPPORTED;
 #else
     int ret = pthread_rwlock_trywrlock(rwlock);
     if (ret == EBUSY) {
@@ -389,12 +388,10 @@ JW_API jw_status_t jw_spinlock_lock(jw_lock_t *lock)
     /* 使用GCC内置原子操作 */
     while (__sync_lock_test_and_set(spinlock, 1)) {
         while (*spinlock) {
-#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64) || defined(_M_IX86)
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
             __asm__ __volatile__("pause" ::: "memory");
-#elif defined(__aarch64__) || defined(__arm64__) || defined(__arm__)
-            __asm__ __volatile__("yield" ::: "memory");
 #else
-            sched_yield();
+            __sync_synchronize();
 #endif
         }
     }

@@ -23,6 +23,13 @@
 #include "jw_math.h"
 #include "jw_index.h"
 
+/* 前向声明 - 解决循环依赖 */
+JW_API void jw_vec_batch_l2_distance(jw_cvec_t query,
+                                      jw_cvec_t *vectors,
+                                      jw_dim_t dim,
+                                      jw_size_t count,
+                                      jw_float32_t *distances);
+
 /*
  * =============================================================================
  * SIMD 加速 (可选)
@@ -728,13 +735,6 @@ JW_API jw_bool_t jw_vec_almost_equal(jw_cvec_t a,
  * =============================================================================
  */
 
-/* 批量计算L2距离 */
-JW_API void jw_vec_batch_l2_distance(jw_cvec_t query,
-                                      jw_cvec_t *vectors,
-                                      jw_dim_t dim,
-                                      jw_size_t count,
-                                      jw_float32_t *distances);
-
 /* 批量计算距离 */
 JW_API void jw_vec_batch_distance(jw_cvec_t query,
                                    jw_cvec_t *vectors,
@@ -775,7 +775,9 @@ JW_API void jw_vec_batch_l2_distance(jw_cvec_t query,
                                       jw_size_t count,
                                       jw_float32_t *distances)
 {
-    jw_vec_batch_distance(query, vectors, dim, count, JW_METRIC_L2, distances);
+    for (jw_size_t i = 0; i < count; i++) {
+        distances[i] = jw_vec_l2_distance(query, vectors[i], dim);
+    }
 }
 
 /* 批量计算余弦相似度 */

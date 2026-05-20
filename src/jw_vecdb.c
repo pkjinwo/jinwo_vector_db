@@ -11,7 +11,6 @@
  */
 
 #include "jw_vecdb.h"
-#include "jw_collection.h"
 #include "jw_string.h"
 #include "jw_stdio.h"
 
@@ -569,30 +568,6 @@ JW_API const char *jw_vecdb_get_error_message(const jw_vecdb_t *db)
         return db->error_msg;
     }
     return jw_strerror(db->last_error);
-}
-
-JW_API const char *jw_vecdb_strerror(jw_status_t status)
-{
-    return jw_strerror(status);
-}
-
-JW_API jw_status_t jw_vecdb_insert_batch(jw_vecdb_t *db,
-                                          const jw_str_t *coll_name,
-                                          jw_cvec_t vectors,
-                                          jw_dim_t dim,
-                                          jw_size_t count,
-                                          jw_vid_t *vids)
-{
-    if (db == NULL || coll_name == NULL || vectors == NULL || dim == 0 || count == 0) {
-        return JW_INVALID_PARAM;
-    }
-
-    jw_collection_t *coll = jw_vecdb_get_collection(db, coll_name);
-    if (coll == NULL) {
-        return JW_NOT_FOUND;
-    }
-
-    return jw_collection_insert_batch(coll, vectors, count, vids);
 }
 
 /*

@@ -1,6 +1,14 @@
-recursive-include src *
-recursive-include include *
-recursive-include jinwo_vecdb/py_jinwo *
+include LICENSE
 include README.md
-global-exclude *.pyc
-global-exclude __pycache__
+include README.en_us.md
+include pyproject.toml
+include setup.py
+include CMakeLists.txt
+
+recursive-include src/jinwo_vecdb *.py *.h *.c
+recursive-include include *.h
+recursive-include docs *.md
+recursive-include examples *.md *.properties *.json *.txt
+recursive-include tests *.c *.txt
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]

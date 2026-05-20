@@ -1,5 +1,3 @@
-[English](README.en_us.md) | [中文](README.md)
-
 # JinWo VecDB (金幄向量数据库)
 
 **JinWo VecDB** 是一个开源、跨平台、嵌入式向量数据库，专为移动端和嵌入式设备设计。

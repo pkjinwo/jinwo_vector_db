@@ -1,17 +1,24 @@
-# Build artifacts
+# Build directories
 build/
 build_temp/
-wheelhouse/
-dist/
 *.egg-info/
 
 # Python
 __pycache__/
-*.py[cod]
-*.so
+*.pyc
+*.pyo
+*.pyd
 .Python
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Wheel files (we only commit source, not pre-built wheels)
+*.whl

@@ -6,9 +6,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -401,7 +401,7 @@ JW_API char **jw_file_list_dir(const jw_str_t *path, jw_arena_t *arena)
     if (!dir) {
         return NULL;
     }
-
+    
     /* 计算文件数量 */
     jw_size_t count = 0;
     struct dirent *entry;
@@ -411,17 +411,17 @@ JW_API char **jw_file_list_dir(const jw_str_t *path, jw_arena_t *arena)
         }
         count++;
     }
-
+    
     /* 重置目录指针 */
     rewinddir(dir);
-
+    
     /* 分配文件名数组 */
     char **files = jw_arena_calloc(arena, count + 1, sizeof(char *));
     if (!files) {
         closedir(dir);
         return NULL;
     }
-
+    
     /* 读取文件名 */
     jw_size_t idx = 0;
     while ((entry = readdir(dir)) != NULL) {
@@ -430,10 +430,10 @@ JW_API char **jw_file_list_dir(const jw_str_t *path, jw_arena_t *arena)
         }
         files[idx++] = strdup(entry->d_name);
     }
-
+    
     files[idx] = NULL;
     closedir(dir);
-
+    
     return files;
 }
 
