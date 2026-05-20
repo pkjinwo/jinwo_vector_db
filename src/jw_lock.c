@@ -255,7 +255,7 @@ JW_API jw_status_t jw_rwlock_tryrdlock(jw_rwlock_t *rwlock)
     
 #ifdef JW_WIN32
     /* Windows SRWLock不支持trylock */
-    return JW_UNSUPPORTED;
+    return JW_NOT_SUPPORTED;
 #else
     int ret = pthread_rwlock_tryrdlock(rwlock);
     if (ret == EBUSY) {
@@ -275,7 +275,7 @@ JW_API jw_status_t jw_rwlock_wrlock(jw_rwlock_t *rwlock)
     AcquireSRWLockExclusive(rwlock);
     return JW_SUCCESS;
 #else
-    int ret = pthread_rwlock_tryrdlock(rwlock);
+    int ret = pthread_rwlock_wrlock(rwlock);
     return (ret == 0) ? JW_SUCCESS : JW_UNKNOWN_ERROR;
 #endif
 }
@@ -287,7 +287,7 @@ JW_API jw_status_t jw_rwlock_trywrlock(jw_rwlock_t *rwlock)
     }
     
 #ifdef JW_WIN32
-    return JW_UNSUPPORTED;
+    return JW_NOT_SUPPORTED;
 #else
     int ret = pthread_rwlock_trywrlock(rwlock);
     if (ret == EBUSY) {
