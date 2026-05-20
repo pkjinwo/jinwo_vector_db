@@ -4,10 +4,16 @@ project(jinwo_vecdb C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-if(WIN32)
-    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-    set(BUILD_SHARED_LIBS ON)
-endif()
+# ============================================================
+# 2026-05-20: 修复 Windows 编译错误
+# 原因: BUILD_SHARED_LIBS ON 与 add_library(jinwo STATIC ...) 冲突
+#       导致所有函数被标记为 dllimport，但 STATIC 库不应该有导出
+# 备份: 
+# if(WIN32)
+#     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+#     set(BUILD_SHARED_LIBS ON)
+# endif()
+# ============================================================
 
 # 项目根目录（相对于 build_python 目录）
 set(PROJECT_ROOT ${CMAKE_SOURCE_DIR}/..)
