@@ -33,6 +33,7 @@ class CMakeBuild(build_ext):
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={build_lib}",
             f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH={build_lib}",
             f"-DPython_EXECUTABLE={sys.executable}",
+            f"-DPython_ROOT_DIR={sys.prefix}",
             "-DCMAKE_BUILD_TYPE=Release",
         ]
 
