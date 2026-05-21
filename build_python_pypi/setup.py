@@ -41,16 +41,26 @@ class CMakeBuild(build_ext):
         elif sys.platform == "win32":
             cmake_args += ["-G", "Visual Studio 17 2022", "-A", "x64"]
 
+        def _run_cmake(cmd, cwd, step_name):
+            """运行 cmake，成功时简洁输出，失败时打印详细错误"""
+            result = subprocess.run(cmd, cwd=cwd,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True)
+            if result.returncode != 0:
+                # 提取含 error/fatal 的行，最多取后 20 行确保出现在日志末尾
+                lines = result.stdout.splitlines()
+                key_lines = [l for l in lines if 'error' in l.lower() or 'fatal' in l.lower()]
+                if not key_lines:
+                    key_lines = lines[-20:]
+                print("--- cmake {} FAILED ---".format(step_name))
+                for l in key_lines:
+                    print(l)
+                raise RuntimeError("cmake {} failed (exit {})".format(step_name, result.returncode))
+            print("cmake {} OK".format(step_name))
+
         build_cmd = ["cmake", str(ext.sourcedir)] + cmake_args
-        print(f"Running cmake from: {build_temp}")
-        print(f"Output directory: {build_lib}")
-        print(f"Command: {' '.join(build_cmd)}")
-        result = subprocess.run(build_cmd, cwd=build_temp,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True)
-        print(result.stdout)
-        if result.returncode != 0:
-            raise RuntimeError(f"cmake configure failed (exit {result.returncode})")
+        print("cmake configure: {} -> {}".format(ext.sourcedir, build_temp))
+        _run_cmake(build_cmd, build_temp, "configure")
 
         # ============================================================
         # 2026-05-21: 修复 Windows MSBuild 并行编译参数
@@ -60,13 +70,7 @@ class CMakeBuild(build_ext):
             build_cmd = ["cmake", "--build", ".", "--config", "Release", "--", "/m"]
         else:
             build_cmd = ["cmake", "--build", ".", "--", "-j4"]
-        print(f"Running: {' '.join(build_cmd)}")
-        result = subprocess.run(build_cmd, cwd=build_temp,
-                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True)
-        print(result.stdout)
-        if result.returncode != 0:
-            raise RuntimeError(f"cmake build failed (exit {result.returncode})")
+        _run_cmake(build_cmd, build_temp, "build")
         
         # 确保扩展文件在正确位置
         ext_path = self.get_ext_fullpath(ext.name)
