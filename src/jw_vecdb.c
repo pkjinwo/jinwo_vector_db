@@ -13,6 +13,7 @@
 #include "jw_vecdb.h"
 #include "jw_string.h"
 #include "jw_stdio.h"
+#include <stdio.h>
 
 /*
  * =============================================================================
