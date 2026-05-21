@@ -609,7 +609,7 @@ JW_API jw_status_t jw_vecdb_insert_batch(jw_vecdb_t *db,
     for (i = 0; i < count; i++) {
         jw_vid_t vid;
         status = jw_collection_insert(coll,
-            (jw_cvec_t)((jw_float_t*)vectors + i * (jw_size_t)dim),
+            (jw_cvec_t)((const jw_float32_t*)vectors + i * (jw_size_t)dim),
             vids ? &vids[i] : &vid);
         if (status != JW_SUCCESS) {
             return status;
