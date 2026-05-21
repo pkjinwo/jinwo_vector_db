@@ -31,9 +31,6 @@ class CMakeBuild(build_ext):
         build_lib.mkdir(parents=True, exist_ok=True)
 
         python_include = sysconfig.get_path('include')
-        python_libdir = sysconfig.get_config_var('LIBDIR') or os.path.join(sys.prefix, 'lib')
-        python_ldlib = sysconfig.get_config_var('LDLIBRARY') or ''
-        python_lib = os.path.join(python_libdir, python_ldlib) if python_ldlib else ''
 
         cmake_args = [
             f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={build_lib}",
@@ -46,10 +43,6 @@ class CMakeBuild(build_ext):
             cmake_args.insert(-1, f"-DPython_INCLUDE_DIR={python_include}")
         else:
             print(f"Python include not found: {python_include}")
-        if python_lib and os.path.exists(python_lib):
-            cmake_args.insert(-1, f"-DPython_LIBRARY={python_lib}")
-        else:
-            print(f"Python library not found: {python_lib} (LDLIBRARY={python_ldlib}, LIBDIR={python_libdir})")
 
         if sys.platform.startswith("darwin"):
             cmake_args += ["-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"]

@@ -48,9 +48,9 @@ set(PYBIND_SOURCES
 )
 
 # 获取 Python 扩展名和目录
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
-message(STATUS "Python extension suffix: ${Python_EXTENSION_SUFFIX}")
-message(STATUS "Python library: ${Python_LIBRARIES}")
+# Development.Module: 构建 Python 扩展模块（不需要 Python_LIBRARIES）
+find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+message(STATUS "Python extension suffix: ${Python_SOABI}")
 message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
 
 # 设置输出目录（由 setup.py 通过 -DCMAKE_LIBRARY_OUTPUT_DIRECTORY 传入）
@@ -77,7 +77,7 @@ target_compile_definitions(jinwo PUBLIC JW_STATIC)
 
 # 构建 Python 绑定
 add_library(_jinwo MODULE ${PYBIND_SOURCES})
-target_link_libraries(_jinwo jinwo Python::Python)
+target_link_libraries(_jinwo jinwo Python::Module)
 target_include_directories(_jinwo PRIVATE ${Python_INCLUDE_DIRS})
 
 # 设置 Python 模块输出名称
