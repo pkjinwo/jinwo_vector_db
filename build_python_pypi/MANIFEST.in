@@ -5,10 +5,14 @@ include pyproject.toml
 include setup.py
 include CMakeLists.txt
 
-recursive-include src/jinwo_vecdb *.py *.h *.c
+# Python binding sources (C extension + Python files)
+recursive-include jinwo_vecdb *.py *.h *.c
+
+# Core C library sources
+recursive-include src *.c *.h
+
+# Public headers
 recursive-include include *.h
-recursive-include docs *.md
-recursive-include examples *.md *.properties *.json *.txt
-recursive-include tests *.c *.txt
+
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]

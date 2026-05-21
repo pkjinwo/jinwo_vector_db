@@ -10,6 +10,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ============================================================
+  # Source distribution
+  # ============================================================
+  build_sdist:
+    name: Build source distribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare sdist tree
+        run: |
+          # sdist 需要根目录的 C 源码、头文件、LICENSE
+          cp -r src build_python_pypi/
+          cp -r include build_python_pypi/
+          cp LICENSE build_python_pypi/
+          cp README.en_us.md build_python_pypi/ 2>/dev/null || true
+
+      - name: Build sdist
+        run: |
+          python -m pip install build
+          python -m build --sdist --outdir dist build_python_pypi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  # ============================================================
+  # Linux wheels (x86_64 + aarch64)
+  # ============================================================
   build_linux:
     name: Build Linux wheels
     runs-on: ubuntu-latest
@@ -29,18 +61,16 @@ jobs:
         with:
           package-dir: build_python_pypi
 
-      - name: Build source distribution
-        if: github.event_name == 'release'
-        run: |
-          python -m pip install build
-          python -m build --sdist --paths build_python_pypi
-
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist-linux-${{ matrix.arch }}
           path: ./wheelhouse/*
+          if-no-files-found: ignore
 
+  # ============================================================
+  # macOS wheels (x86_64 + arm64 + universal2)
+  # ============================================================
   build_macos:
     name: Build macOS wheels
     runs-on: macos-latest
@@ -62,6 +92,9 @@ jobs:
           name: dist-macos
           path: ./wheelhouse/*
 
+  # ============================================================
+  # Windows wheels (AMD64 + x86 + ARM64)
+  # ============================================================
   build_windows:
     name: Build Windows wheels
     runs-on: windows-latest
@@ -83,9 +116,12 @@ jobs:
           name: dist-windows
           path: ./wheelhouse/*
 
+  # ============================================================
+  # Publish to PyPI (仅 Release 时触发)
+  # ============================================================
   publish:
     name: Publish to PyPI
-    needs: [build_linux, build_macos, build_windows]
+    needs: [build_sdist, build_linux, build_macos, build_windows]
     runs-on: ubuntu-latest
     if: github.event_name == 'release'
 
@@ -96,6 +132,9 @@ jobs:
           path: dist
           pattern: "dist-*"
           merge-multiple: true
+
+      - name: Show files to publish
+        run: ls -la dist/
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
