@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 typedef SSIZE_T ssize_t;
+typedef int mode_t;
 
 #ifndef MAP_FAILED
 #define MAP_FAILED ((void*)-1)
@@ -407,7 +408,7 @@ JW_API jw_status_t jw_storage_sync(jw_storage_t *storage)
     
     if (storage->config.type == JW_STORAGE_TYPE_MMAP && storage->data != NULL) {
         /* MMAP同步 */
-        if (msync(storage->data, storage->data_size, MS_SYNC) < 0) {
+        if (msync(storage->data, storage->data_size, 0) < 0) {
             return JW_UNKNOWN_ERROR;
         }
     } else if (storage->fd >= 0) {
@@ -506,7 +507,7 @@ JW_API jw_status_t jw_storage_write(jw_storage_t *storage,
         /* 同步到磁盘 */
         if (storage->config.sync_on_write) {
             /* 同步整个映射区域，确保地址是页面对齐的 */
-            if (msync(storage->data, storage->data_capacity, MS_SYNC) < 0) {
+            if (msync(storage->data, storage->data_capacity, 0) < 0) {
                 status = JW_UNKNOWN_ERROR;
             }
         }

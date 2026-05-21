@@ -64,9 +64,10 @@ static void *g_log_user_data = NULL;
 JW_API jw_str_t jw_vecdb_version(void)
 {
     static jw_str_t version_str = JW_STR_NULL;
-    static jw_str_t version = jw_str("JinWo VecDB " JW_VERSION_STRING);
+    static const char *version_buf = "JinWo VecDB " JW_VERSION_STRING;
     if (version_str.ptr == NULL) {
-        version_str = version;
+        version_str.ptr = (char*)version_buf;
+        version_str.slen = sizeof("JinWo VecDB " JW_VERSION_STRING) - 1;
     }
     return version_str;
 }
@@ -74,38 +75,38 @@ JW_API jw_str_t jw_vecdb_version(void)
 JW_API jw_str_t jw_vecdb_build_info(void)
 {
     static jw_str_t build_info_str = JW_STR_NULL;
-    static jw_str_t build_info = jw_str(
-        "JinWo VecDB " JW_VERSION_STRING "\n"
-        "Platform: "
-#ifdef JW_WIN32
-    "Windows"
-#elif defined(JW_LINUX)
-    "Linux"
-#elif defined(JW_ANDROID)
-    "Android"
-#elif defined(JW_IOS)
-    "iOS"
-#elif defined(JW_MACOS)
-    "macOS"
-#else
-    "Unknown"
-#endif
-    "\n"
-    "Compiler: "
-#if defined(__GNUC__)
-    "GCC " __VERSION__
-#elif defined(__clang__)
-    "Clang " __clang_version__
-#elif defined(_MSC_VER)
-    "MSVC"
-#else
-    "Unknown"
-#endif
-    "\n"
-    "Build Date: " __DATE__ " " __TIME__
-    );
+    static char build_info_buf[512];
     if (build_info_str.ptr == NULL) {
-        build_info_str = build_info;
+#if defined(_WIN32) || defined(_WIN64)
+        const char *platform = "Windows";
+#elif defined(JW_LINUX)
+        const char *platform = "Linux";
+#elif defined(JW_ANDROID)
+        const char *platform = "Android";
+#elif defined(JW_IOS)
+        const char *platform = "iOS";
+#elif defined(JW_MACOS)
+        const char *platform = "macOS";
+#else
+        const char *platform = "Unknown";
+#endif
+#if defined(__GNUC__)
+        const char *compiler = "GCC";
+#elif defined(__clang__)
+        const char *compiler = "Clang";
+#elif defined(_MSC_VER)
+        const char *compiler = "MSVC";
+#else
+        const char *compiler = "Unknown";
+#endif
+        int len = snprintf(build_info_buf, sizeof(build_info_buf),
+            "JinWo VecDB " JW_VERSION_STRING "\n"
+            "Platform: %s\n"
+            "Compiler: %s\n"
+            "Build Date: " __DATE__ " " __TIME__,
+            platform, compiler);
+        build_info_str.ptr = build_info_buf;
+        build_info_str.slen = (jw_size_t)len;
     }
     return build_info_str;
 }

@@ -286,7 +286,7 @@ JW_API jw_status_t jw_rwlock_trywrlock(jw_rwlock_t *rwlock)
     }
     
 #ifdef JW_WIN32
-    return JW_UNSUPPORTED;
+    return JW_NOT_SUPPORTED;
 #else
     int ret = pthread_rwlock_trywrlock(rwlock);
     if (ret == EBUSY) {
