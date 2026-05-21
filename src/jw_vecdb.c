@@ -571,6 +571,54 @@ JW_API const char *jw_vecdb_get_error_message(const jw_vecdb_t *db)
     return jw_strerror(db->last_error);
 }
 
+JW_API const char *jw_vecdb_strerror(jw_status_t status)
+{
+    return jw_strerror(status);
+}
+
+/*
+ * =============================================================================
+ * 批量插入
+ * =============================================================================
+ */
+
+JW_API jw_status_t jw_vecdb_insert_batch(jw_vecdb_t *db,
+                                          const jw_str_t *coll_name,
+                                          jw_cvec_t vectors,
+                                          jw_dim_t dim,
+                                          jw_size_t count,
+                                          jw_vid_t *vids)
+{
+    jw_collection_t *coll;
+    jw_status_t status;
+    jw_size_t i;
+
+    if (db == NULL || coll_name == NULL || vectors == NULL) {
+        return JW_INVALID_PARAM;
+    }
+
+    coll = jw_vecdb_get_collection(db, coll_name);
+    if (coll == NULL) {
+        /* 自动创建 */
+        status = jw_vecdb_create_collection(db, coll_name, dim, &coll);
+        if (status != JW_SUCCESS) {
+            return status;
+        }
+    }
+
+    for (i = 0; i < count; i++) {
+        jw_vid_t vid;
+        status = jw_collection_insert(coll,
+            (jw_cvec_t)((jw_float_t*)vectors + i * (jw_size_t)dim),
+            vids ? &vids[i] : &vid);
+        if (status != JW_SUCCESS) {
+            return status;
+        }
+    }
+
+    return JW_SUCCESS;
+}
+
 /*
  * =============================================================================
  * 全局配置
