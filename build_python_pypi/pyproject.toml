@@ -54,7 +54,7 @@ archs = ["x86_64", "aarch64", "arm64", "universal2"]
 repair-wheel-command = "auditwheel repair -w {wheel_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
-repair-wheel-command = "delocate-wheel --require-archs x86_64,arm64 -w {wheel_dir} {wheel}"
+repair-wheel-command = "delocate-wheel -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.windows]
 repair-wheel-command = "copy /Y {wheel} {dest_dir}"
