@@ -51,7 +51,7 @@ skip = "*-musllinux*"
 archs = ["x86_64", "aarch64", "arm64", "universal2"]
 
 [tool.cibuildwheel.linux]
-repair-wheel-command = "auditwheel repair -w {wheel_dir} {wheel}"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 [tool.cibuildwheel.macos]
 repair-wheel-command = "delocate-wheel -w {dest_dir} {wheel}"

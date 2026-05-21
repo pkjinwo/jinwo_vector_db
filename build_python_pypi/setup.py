@@ -44,7 +44,13 @@ class CMakeBuild(build_ext):
         build_cmd = ["cmake", str(ext.sourcedir)] + cmake_args
         print(f"Running cmake from: {build_temp}")
         print(f"Output directory: {build_lib}")
-        subprocess.run(build_cmd, cwd=build_temp, check=True)
+        print(f"Command: {' '.join(build_cmd)}")
+        result = subprocess.run(build_cmd, cwd=build_temp,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True)
+        print(result.stdout)
+        if result.returncode != 0:
+            raise RuntimeError(f"cmake configure failed (exit {result.returncode})")
 
         # ============================================================
         # 2026-05-21: 修复 Windows MSBuild 并行编译参数
@@ -54,7 +60,13 @@ class CMakeBuild(build_ext):
             build_cmd = ["cmake", "--build", ".", "--config", "Release", "--", "/m"]
         else:
             build_cmd = ["cmake", "--build", ".", "--", "-j4"]
-        subprocess.run(build_cmd, cwd=build_temp, check=True)
+        print(f"Running: {' '.join(build_cmd)}")
+        result = subprocess.run(build_cmd, cwd=build_temp,
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True)
+        print(result.stdout)
+        if result.returncode != 0:
+            raise RuntimeError(f"cmake build failed (exit {result.returncode})")
         
         # 确保扩展文件在正确位置
         ext_path = self.get_ext_fullpath(ext.name)
