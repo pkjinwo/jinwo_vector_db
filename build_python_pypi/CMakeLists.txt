@@ -68,6 +68,12 @@ set_target_properties(jinwo PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
+# ============================================================
+# 2026-05-21: 修复 Windows 编译错误
+# 原因: STATIC 库不应该使用 dllexport/dllimport
+#       需要定义 JW_STATIC 让头文件知道正在构建静态库
+# ============================================================
+target_compile_definitions(jinwo PRIVATE JW_STATIC)
 
 # 构建 Python 绑定
 add_library(_jinwo MODULE ${PYBIND_SOURCES})

@@ -98,7 +98,15 @@
  * =============================================================================
  */
 #if defined(_WIN32) || defined(_WIN64)
-    #ifdef JW_EXPORTS
+    // ============================================================
+    // 2026-05-21: 修复 Windows STATIC 库编译错误
+    // 原因: STATIC 库不应该使用 dllexport/dllimport
+    // 备份:
+    // #define JW_API __declspec(dllimport)
+    // ============================================================
+    #ifdef JW_STATIC
+        #define JW_API
+    #elif defined(JW_EXPORTS)
         #define JW_API          __declspec(dllexport)
     #else
         #define JW_API          __declspec(dllimport)
