@@ -65,8 +65,8 @@ endif()
 add_library(jinwo STATIC ${JINWO_SOURCES})
 set_target_properties(jinwo PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    # 静态库输出到 build 临时目录(link 用)，避免被打包进 wheel
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 # ============================================================
 # 2026-05-21: 修复 Windows 编译错误
