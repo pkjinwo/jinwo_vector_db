@@ -47,9 +47,10 @@ class CMakeBuild(build_ext):
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                     text=True)
             if result.returncode != 0:
-                # 提取含 error/fatal 的行，最多取后 20 行确保出现在日志末尾
+                # 提取含 error/fatal/not found 的行，确保出现在日志末尾
                 lines = result.stdout.splitlines()
-                key_lines = [l for l in lines if 'error' in l.lower() or 'fatal' in l.lower()]
+                keywords = ('error', 'fatal', 'not found', 'could not', 'missing')
+                key_lines = [l for l in lines if any(k in l.lower() for k in keywords)]
                 if not key_lines:
                     key_lines = lines[-20:]
                 print("--- cmake {} FAILED (exit {}) ---".format(step_name, result.returncode))
