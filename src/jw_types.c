@@ -227,7 +227,12 @@ JW_API jw_uint64_t jw_time_now(void)
 JW_API jw_time_t jw_time_now_ms(void)
 {
 #ifdef JW_WIN32
-    return GetTickCount64();
+    // ============================================================
+    // 2026-05-21: 修复 Windows SDK 符号冲突
+    // GetTickCount64 是 Windows SDK 函数，不能直接使用
+    // ============================================================
+    ULONGLONG ticks = GetTickCount64();
+    return (jw_time_t)ticks;
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -243,6 +248,11 @@ JW_API jw_time_t jw_time_diff(jw_time_t start, jw_time_t end)
 JW_API void jw_sleep(jw_uint32_t ms)
 {
 #ifdef JW_WIN32
+    // ============================================================
+    // 2026-05-21: 修复 Windows SDK 符号冲突
+    // Windows.h 定义了 Sleep 宏，需要先取消定义再使用
+    // ============================================================
+    #undef Sleep
     Sleep(ms);
 #else
     struct timespec ts;
