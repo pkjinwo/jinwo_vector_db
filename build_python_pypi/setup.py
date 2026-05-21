@@ -38,14 +38,20 @@ class CMakeBuild(build_ext):
 
         if sys.platform.startswith("darwin"):
             cmake_args += ["-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"]
+        elif sys.platform == "win32":
+            cmake_args += ["-G", "Visual Studio 17 2022", "-A", "x64"]
 
         build_cmd = ["cmake", str(ext.sourcedir)] + cmake_args
         print(f"Running cmake from: {build_temp}")
         print(f"Output directory: {build_lib}")
         subprocess.run(build_cmd, cwd=build_temp, check=True)
 
+        # ============================================================
+        # 2026-05-21: 修复 Windows MSBuild 并行编译参数
+        # MSBuild 使用 /m 而不是 -j
+        # ============================================================
         if sys.platform == "win32":
-            build_cmd = ["cmake", "--build", ".", "--config", "Release", "--", "-j4"]
+            build_cmd = ["cmake", "--build", ".", "--config", "Release", "--", "/m"]
         else:
             build_cmd = ["cmake", "--build", ".", "--", "-j4"]
         subprocess.run(build_cmd, cwd=build_temp, check=True)
