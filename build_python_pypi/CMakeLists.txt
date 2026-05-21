@@ -73,7 +73,7 @@ set_target_properties(jinwo PROPERTIES
 # 原因: STATIC 库不应该使用 dllexport/dllimport
 #       需要定义 JW_STATIC 让头文件知道正在构建静态库
 # ============================================================
-target_compile_definitions(jinwo PRIVATE JW_STATIC)
+target_compile_definitions(jinwo PUBLIC JW_STATIC)
 
 # 构建 Python 绑定
 add_library(_jinwo MODULE ${PYBIND_SOURCES})
