@@ -52,10 +52,10 @@ class CMakeBuild(build_ext):
                 key_lines = [l for l in lines if 'error' in l.lower() or 'fatal' in l.lower()]
                 if not key_lines:
                     key_lines = lines[-20:]
-                print("--- cmake {} FAILED ---".format(step_name))
+                print("--- cmake {} FAILED (exit {}) ---".format(step_name, result.returncode))
                 for l in key_lines:
                     print(l)
-                raise RuntimeError("cmake {} failed (exit {})".format(step_name, result.returncode))
+                sys.exit(1)  # 不用 raise，避免长 traceback 挤掉关键错误信息
             print("cmake {} OK".format(step_name))
 
         build_cmd = ["cmake", str(ext.sourcedir)] + cmake_args
