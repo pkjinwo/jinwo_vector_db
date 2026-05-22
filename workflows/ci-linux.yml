@@ -1,0 +1,57 @@
+name: CI-Linux
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  build_x86:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build Linux x86_64 wheels
+      uses: pypa/cibuildwheel@v2.21.3
+      env:
+        CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+        CIBW_SKIP: "*-musllinux*"
+        CIBW_ARCHS_LINUX: "x86_64"
+      with:
+        package-dir: build_python_pypi
+
+    - name: Upload x86_64 wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-wheels-x86_64
+        path: ./wheelhouse/*
+
+  build_arm:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU for arm64
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: linux/arm64
+
+    - name: Build Linux aarch64 wheels
+      uses: pypa/cibuildwheel@v2.21.3
+      env:
+        CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+        CIBW_SKIP: "*-musllinux*"
+        CIBW_ARCHS_LINUX: "aarch64"
+      with:
+        package-dir: build_python_pypi
+
+    - name: Upload aarch64 wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-wheels-aarch64
+        path: ./wheelhouse/*

@@ -32,9 +32,12 @@ class CMakeBuild(build_ext):
 
         python_include = sysconfig.get_path('include')
 
+        # 扩展名为 jinwo_vecdb._jinwo, setuptools 期望 .so 在 {build_lib}/jinwo_vecdb/ 下
+        ext_dir = build_lib / "jinwo_vecdb"
+        ext_dir.mkdir(parents=True, exist_ok=True)
         cmake_args = [
-            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={build_lib}",
-            f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH={build_lib}",
+            f"-DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH={ext_dir}",
+            f"-DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH={ext_dir}",
             f"-DPython_EXECUTABLE={sys.executable}",
             f"-DPython_ROOT_DIR={sys.prefix}",
             "-DCMAKE_BUILD_TYPE=Release",

@@ -24,6 +24,26 @@ JW_VECDB_MEMORY = 0x10
 # 加载动态库
 def _load_library():
     """加载 JinWo C 动态库"""
+    package_dir = Path(__file__).parent
+
+    # 优先搜索包内的 _jinwo.*.so / _jinwo.*.pyd (CMake 编译的 Python C 扩展)
+    # 这些文件包含了静态链接的所有 C 函数，可直接用 ctypes 加载
+    for f in package_dir.glob("_jinwo*.so"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+    for f in package_dir.glob("_jinwo*.pyd"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+    for f in package_dir.glob("_jinwo*.dylib"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+
     if sys.platform == "win32":
         lib_names = ["jinwo.dll", "libjinwo.dll"]
         ext = ".dll"
@@ -38,7 +58,6 @@ def _load_library():
     possible_paths = []
 
     # 1. 包内置的动态库
-    package_dir = Path(__file__).parent
     for lib_name in lib_names:
         possible_paths.append(package_dir / lib_name)
         possible_paths.append(package_dir / "py_jinwo" / lib_name)

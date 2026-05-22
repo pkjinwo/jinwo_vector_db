@@ -1,0 +1,30 @@
+name: CI-Windows
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build Windows wheels
+      uses: pypa/cibuildwheel@v2.21.3
+      env:
+        CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
+        CIBW_ARCHS_WINDOWS: "AMD64"
+      with:
+        package-dir: build_python_pypi
+
+    - name: Upload wheel artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-wheels
+        path: ./wheelhouse/*
