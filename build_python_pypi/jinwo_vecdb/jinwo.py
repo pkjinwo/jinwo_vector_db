@@ -11,6 +11,36 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Union
 
 #==============================================================================
+# C 类型映射
+#==============================================================================
+
+class jw_str_t(ctypes.Structure):
+    """JinWo 字符串类型: {char *ptr; size_t slen}"""
+    _fields_ = [
+        ("ptr", ctypes.c_char_p),
+        ("slen", ctypes.c_size_t),
+    ]
+
+class jw_search_result_t(ctypes.Structure):
+    """搜索结果: {id; score; vector; dim; metadata; metadata_size}"""
+    _fields_ = [
+        ("id", ctypes.c_uint64),
+        ("score", ctypes.c_float),
+        ("vector", ctypes.POINTER(ctypes.c_float)),
+        ("dimension", ctypes.c_size_t),
+        ("metadata", ctypes.c_void_p),
+        ("metadata_size", ctypes.c_size_t),
+    ]
+
+# 辅助: Python bytes → jw_str_t (指针指向 bytes 的数据)
+def _bytes_to_jwstr(b: bytes):
+    return jw_str_t(ctypes.c_char_p(b), len(b))
+
+# 辅助: jw_str_t → Python str
+def _jwstr_to_str(js):
+    return js.ptr[:js.slen].decode('utf-8')
+
+#==============================================================================
 # 动态库加载
 #==============================================================================
 
@@ -21,13 +51,13 @@ JW_VECDB_CREATE = 0x04
 JW_VECDB_TRUNCATE = 0x08
 JW_VECDB_MEMORY = 0x10
 
-# 加载动态库
+JW_SUCCESS = 0  # C 状态码: 成功
+
 def _load_library():
     """加载 JinWo C 动态库"""
     package_dir = Path(__file__).parent
 
     # 优先搜索包内的 _jinwo.*.so / _jinwo.*.pyd (CMake 编译的 Python C 扩展)
-    # 这些文件包含了静态链接的所有 C 函数，可直接用 ctypes 加载
     for f in package_dir.glob("_jinwo*.so"):
         try:
             return ctypes.CDLL(str(f))
@@ -54,24 +84,16 @@ def _load_library():
         lib_names = ["libjinwo.so", "jinwo.so"]
         ext = ".so"
 
-    # 尝试多个可能的路径
     possible_paths = []
-
-    # 1. 包内置的动态库
     for lib_name in lib_names:
         possible_paths.append(package_dir / lib_name)
         possible_paths.append(package_dir / "py_jinwo" / lib_name)
-
-    # 2. 包内置的 .so/.dylib/.dll 文件 (cibuildwheel 会放在根目录)
-    for lib_name in lib_names:
         possible_paths.append(package_dir.parent / lib_name)
 
-    # 3. 系统路径
     for lib_name in lib_names:
         possible_paths.append(Path("/usr/local/lib") / lib_name)
         possible_paths.append(Path("/usr/lib") / lib_name)
 
-    # 4. LD_LIBRARY_PATH / PATH
     for env_var in ["LD_LIBRARY_PATH", "PATH"]:
         if env_var in os.environ:
             for p in os.environ[env_var].split(os.pathsep):
@@ -98,38 +120,50 @@ def _get_lib():
     global _lib
     if _lib is None:
         _lib = _load_library()
-        # 设置返回类型
-        _lib.jw_vecdb_open.restype = ctypes.c_void_p
-        _lib.jw_vecdb_open.argtypes = [ctypes.c_char_p, ctypes.c_int]
 
-        _lib.jw_vecdb_close.restype = None
+        # jw_vecdb_open(jw_str_t* path, uint32 flags, jw_vecdb_t** db) -> status
+        _lib.jw_vecdb_open.restype = ctypes.c_int
+        _lib.jw_vecdb_open.argtypes = [ctypes.POINTER(jw_str_t), ctypes.c_uint32, ctypes.POINTER(ctypes.c_void_p)]
+
+        # jw_vecdb_close(jw_vecdb_t* db) -> status
+        _lib.jw_vecdb_close.restype = ctypes.c_int
         _lib.jw_vecdb_close.argtypes = [ctypes.c_void_p]
 
-        _lib.jw_vecdb_sync.restype = None
+        # jw_vecdb_sync(jw_vecdb_t* db) -> status
+        _lib.jw_vecdb_sync.restype = ctypes.c_int
         _lib.jw_vecdb_sync.argtypes = [ctypes.c_void_p]
 
-        _lib.jw_vecdb_create_collection.restype = ctypes.c_void_p
-        _lib.jw_vecdb_create_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        # jw_vecdb_create_collection(db, jw_str_t* name, dim, jw_collection_t** coll) -> status
+        _lib.jw_vecdb_create_collection.restype = ctypes.c_int
+        _lib.jw_vecdb_create_collection.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.c_uint32, ctypes.POINTER(ctypes.c_void_p)]
 
+        # jw_vecdb_get_collection(db, jw_str_t* name) -> jw_collection_t*
         _lib.jw_vecdb_get_collection.restype = ctypes.c_void_p
-        _lib.jw_vecdb_get_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        _lib.jw_vecdb_get_collection.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t)]
 
-        _lib.jw_vecdb_drop_collection.restype = ctypes.c_bool
-        _lib.jw_vecdb_drop_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        # jw_vecdb_drop_collection(db, jw_str_t* name) -> status
+        _lib.jw_vecdb_drop_collection.restype = ctypes.c_int
+        _lib.jw_vecdb_drop_collection.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t)]
 
-        _lib.jw_vecdb_list_collections.restype = ctypes.py_object
-        _lib.jw_vecdb_list_collections.argtypes = [ctypes.c_void_p]
+        # jw_vecdb_list_collections(db, jw_str_t* names, capacity) -> count
+        _lib.jw_vecdb_list_collections.restype = ctypes.c_size_t
+        _lib.jw_vecdb_list_collections.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.c_size_t]
 
-        _lib.jw_vecdb_insert.restype = ctypes.c_ulonglong
-        _lib.jw_vecdb_insert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
+        # jw_vecdb_insert(db, jw_str_t* coll_name, cvec vec, dim, jw_vid_t* vid) -> status
+        _lib.jw_vecdb_insert.restype = ctypes.c_int
+        _lib.jw_vecdb_insert.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.POINTER(ctypes.c_float), ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint64)]
 
-        _lib.jw_vecdb_insert_batch.restype = ctypes.py_object
-        _lib.jw_vecdb_insert_batch.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
+        # jw_vecdb_insert_batch(db, jw_str_t* coll_name, cvec vectors, dim, count, jw_vid_t* vids) -> status
+        _lib.jw_vecdb_insert_batch.restype = ctypes.c_int
+        _lib.jw_vecdb_insert_batch.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.POINTER(ctypes.c_float), ctypes.c_uint32, ctypes.c_size_t, ctypes.POINTER(ctypes.c_uint64)]
 
-        _lib.jw_vecdb_search.restype = ctypes.py_object
-        _lib.jw_vecdb_search.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int, ctypes.c_int]
+        # jw_vecdb_search(db, jw_str_t* coll_name, cvec query, dim, k, results) -> count
+        _lib.jw_vecdb_search.restype = ctypes.c_size_t
+        _lib.jw_vecdb_search.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.POINTER(ctypes.c_float), ctypes.c_uint32, ctypes.c_size_t, ctypes.POINTER(jw_search_result_t)]
 
-        _lib.jw_vecdb_version.restype = ctypes.c_char_p
+        # jw_vecdb_version(void) -> jw_str_t (returns struct by value)
+        _lib.jw_vecdb_version.restype = jw_str_t
+        _lib.jw_vecdb_version.argtypes = []
 
     return _lib
 
@@ -170,13 +204,19 @@ class Collection:
         if len(vector) != self._dim:
             raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {len(vector)}")
         lib = _get_lib()
-        vid = lib.jw_vecdb_insert(
+        name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
+        vec_arr = (ctypes.c_float * len(vector))(*vector)
+        vid_out = ctypes.c_uint64()
+        status = lib.jw_vecdb_insert(
             self._db._handle,
-            self._name.encode('utf-8'),
-            vector,
-            self._dim
+            ctypes.byref(name_str),
+            vec_arr,
+            self._dim,
+            ctypes.byref(vid_out)
         )
-        return vid
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"插入向量失败, 状态码: {status}")
+        return vid_out.value
 
     def insert_batch(self, vectors: List[List[float]]) -> List[int]:
         """
@@ -190,7 +230,7 @@ class Collection:
         """
         if not vectors:
             return []
-
+        count = len(vectors)
         first_dim = len(vectors[0])
         if first_dim != self._dim:
             raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {first_dim}")
@@ -200,13 +240,24 @@ class Collection:
                 raise ValueError(f"第 {i} 个向量维度不匹配: 期望 {self._dim}, 实际 {len(vec)}")
 
         lib = _get_lib()
-        vids = lib.jw_vecdb_insert_batch(
+        name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
+
+        # 将所有向量展平为一个连续 float 数组
+        flat = [v for vec in vectors for v in vec]
+        vec_arr = (ctypes.c_float * len(flat))(*flat)
+        vids_buf = (ctypes.c_uint64 * count)()
+
+        status = lib.jw_vecdb_insert_batch(
             self._db._handle,
-            self._name.encode('utf-8'),
-            vectors,
-            self._dim
+            ctypes.byref(name_str),
+            vec_arr,
+            self._dim,
+            count,
+            vids_buf
         )
-        return list(vids)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"批量插入失败, 状态码: {status}")
+        return list(vids_buf)
 
     def search(self, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
         """
@@ -223,14 +274,19 @@ class Collection:
             raise ValueError(f"查询向量维度不匹配: 期望 {self._dim}, 实际 {len(query)}")
 
         lib = _get_lib()
-        results = lib.jw_vecdb_search(
+        name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
+        query_arr = (ctypes.c_float * len(query))(*query)
+        results_buf = (jw_search_result_t * k)()
+
+        count = lib.jw_vecdb_search(
             self._db._handle,
-            self._name.encode('utf-8'),
-            query,
+            ctypes.byref(name_str),
+            query_arr,
             self._dim,
-            k
+            k,
+            results_buf
         )
-        return [(int(vid), float(dist)) for vid, dist in results]
+        return [(int(results_buf[i].id), float(results_buf[i].score)) for i in range(count)]
 
 
 #==============================================================================
@@ -274,13 +330,15 @@ class JinWoDB:
         lib = _get_lib()
 
         if path:
-            path_bytes = path.encode('utf-8')
+            path_str = _bytes_to_jwstr(path.encode('utf-8'))
         else:
-            path_bytes = b""
+            path_str = jw_str_t(ctypes.c_char_p(None), 0)
 
-        self._handle = lib.jw_vecdb_open(path_bytes, flags)
-        if not self._handle:
-            raise RuntimeError("无法打开数据库")
+        db_out = ctypes.c_void_p()
+        status = lib.jw_vecdb_open(ctypes.byref(path_str), flags, ctypes.byref(db_out))
+        if status != JW_SUCCESS or not db_out.value:
+            raise RuntimeError(f"无法打开数据库, 状态码: {status}")
+        self._handle = db_out.value
 
     def __enter__(self):
         return self
@@ -316,14 +374,17 @@ class JinWoDB:
             RuntimeError: 创建失败
         """
         lib = _get_lib()
-        handle = lib.jw_vecdb_create_collection(
+        name_str = _bytes_to_jwstr(name.encode('utf-8'))
+        coll_out = ctypes.c_void_p()
+        status = lib.jw_vecdb_create_collection(
             self._handle,
-            name.encode('utf-8'),
-            dim
+            ctypes.byref(name_str),
+            dim,
+            ctypes.byref(coll_out)
         )
-        if not handle:
-            raise RuntimeError(f"无法创建 Collection: {name}")
-        return Collection(self, name, dim, handle)
+        if status != JW_SUCCESS or not coll_out.value:
+            raise RuntimeError(f"无法创建 Collection: {name}, 状态码: {status}")
+        return Collection(self, name, dim, coll_out.value)
 
     def get_collection(self, name: str) -> Optional[Collection]:
         """
@@ -336,11 +397,10 @@ class JinWoDB:
             Collection 实例，不存在返回 None
         """
         lib = _get_lib()
-        handle = lib.jw_vecdb_get_collection(self._handle, name.encode('utf-8'))
+        name_str = _bytes_to_jwstr(name.encode('utf-8'))
+        handle = lib.jw_vecdb_get_collection(self._handle, ctypes.byref(name_str))
         if not handle:
             return None
-        # Collection 对象需要知道维度，但这里我们无法直接获取
-        # 用户需要自己记住维度，或者使用返回的 Collection 时自己注意
         return Collection(self, name, 0, handle)
 
     def drop_collection(self, name: str) -> bool:
@@ -354,7 +414,9 @@ class JinWoDB:
             是否成功
         """
         lib = _get_lib()
-        return lib.jw_vecdb_drop_collection(self._handle, name.encode('utf-8'))
+        name_str = _bytes_to_jwstr(name.encode('utf-8'))
+        status = lib.jw_vecdb_drop_collection(self._handle, ctypes.byref(name_str))
+        return status == JW_SUCCESS
 
     def list_collections(self) -> List[str]:
         """
@@ -364,8 +426,12 @@ class JinWoDB:
             Collection 名称列表
         """
         lib = _get_lib()
-        names = lib.jw_vecdb_list_collections(self._handle)
-        return list(names)
+
+        # 先用大容量获取实际数量
+        MAX_COLLECTIONS = 256
+        names_buf = (jw_str_t * MAX_COLLECTIONS)()
+        count = lib.jw_vecdb_list_collections(self._handle, names_buf, MAX_COLLECTIONS)
+        return [_jwstr_to_str(names_buf[i]) for i in range(count)]
 
     def insert(self, collection: str, vector: List[float]) -> int:
         """
@@ -428,4 +494,5 @@ class JinWoDB:
 def _get_version() -> str:
     """获取 JinWo C 库版本"""
     lib = _get_lib()
-    return lib.jw_vecdb_version().decode('utf-8')
+    ver = lib.jw_vecdb_version()
+    return _jwstr_to_str(ver)
