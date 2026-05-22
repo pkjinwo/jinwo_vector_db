@@ -99,37 +99,37 @@ def _get_lib():
     if _lib is None:
         _lib = _load_library()
         # 设置返回类型
-        _lib.vecdb_open.restype = ctypes.c_void_p
-        _lib.vecdb_open.argtypes = [ctypes.c_char_p, ctypes.c_int]
+        _lib._jw_vecdb_open.restype = ctypes.c_void_p
+        _lib._jw_vecdb_open.argtypes = [ctypes.c_char_p, ctypes.c_int]
 
-        _lib.vecdb_close.restype = None
-        _lib.vecdb_close.argtypes = [ctypes.c_void_p]
+        _lib._jw_vecdb_close.restype = None
+        _lib._jw_vecdb_close.argtypes = [ctypes.c_void_p]
 
-        _lib.vecdb_sync.restype = None
-        _lib.vecdb_sync.argtypes = [ctypes.c_void_p]
+        _lib._jw_vecdb_sync.restype = None
+        _lib._jw_vecdb_sync.argtypes = [ctypes.c_void_p]
 
-        _lib.vecdb_create_collection.restype = ctypes.c_void_p
-        _lib.vecdb_create_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+        _lib._jw_vecdb_create_collection.restype = ctypes.c_void_p
+        _lib._jw_vecdb_create_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
 
-        _lib.vecdb_get_collection.restype = ctypes.c_void_p
-        _lib.vecdb_get_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        _lib._jw_vecdb_get_collection.restype = ctypes.c_void_p
+        _lib._jw_vecdb_get_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
-        _lib.vecdb_drop_collection.restype = ctypes.c_bool
-        _lib.vecdb_drop_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+        _lib._jw_vecdb_drop_collection.restype = ctypes.c_bool
+        _lib._jw_vecdb_drop_collection.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
 
-        _lib.vecdb_list_collections.restype = ctypes.py_object
-        _lib.vecdb_list_collections.argtypes = [ctypes.c_void_p]
+        _lib._jw_vecdb_list_collections.restype = ctypes.py_object
+        _lib._jw_vecdb_list_collections.argtypes = [ctypes.c_void_p]
 
-        _lib.vecdb_insert.restype = ctypes.c_ulonglong
-        _lib.vecdb_insert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
+        _lib._jw_vecdb_insert.restype = ctypes.c_ulonglong
+        _lib._jw_vecdb_insert.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
 
-        _lib.vecdb_insert_batch.restype = ctypes.py_object
-        _lib.vecdb_insert_batch.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
+        _lib._jw_vecdb_insert_batch.restype = ctypes.py_object
+        _lib._jw_vecdb_insert_batch.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int]
 
-        _lib.vecdb_search.restype = ctypes.py_object
-        _lib.vecdb_search.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int, ctypes.c_int]
+        _lib._jw_vecdb_search.restype = ctypes.py_object
+        _lib._jw_vecdb_search.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.py_object, ctypes.c_int, ctypes.c_int]
 
-        _lib.vecdb_version.restype = ctypes.c_char_p
+        _lib._jw_vecdb_version.restype = ctypes.c_char_p
 
     return _lib
 
@@ -170,7 +170,7 @@ class Collection:
         if len(vector) != self._dim:
             raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {len(vector)}")
         lib = _get_lib()
-        vid = lib.vecdb_insert(
+        vid = lib._jw_vecdb_insert(
             self._db._handle,
             self._name.encode('utf-8'),
             vector,
@@ -200,7 +200,7 @@ class Collection:
                 raise ValueError(f"第 {i} 个向量维度不匹配: 期望 {self._dim}, 实际 {len(vec)}")
 
         lib = _get_lib()
-        vids = lib.vecdb_insert_batch(
+        vids = lib._jw_vecdb_insert_batch(
             self._db._handle,
             self._name.encode('utf-8'),
             vectors,
@@ -223,7 +223,7 @@ class Collection:
             raise ValueError(f"查询向量维度不匹配: 期望 {self._dim}, 实际 {len(query)}")
 
         lib = _get_lib()
-        results = lib.vecdb_search(
+        results = lib._jw_vecdb_search(
             self._db._handle,
             self._name.encode('utf-8'),
             query,
@@ -278,7 +278,7 @@ class JinWoDB:
         else:
             path_bytes = b""
 
-        self._handle = lib.vecdb_open(path_bytes, flags)
+        self._handle = lib._jw_vecdb_open(path_bytes, flags)
         if not self._handle:
             raise RuntimeError("无法打开数据库")
 
@@ -293,13 +293,13 @@ class JinWoDB:
         """关闭数据库"""
         if hasattr(self, '_handle') and self._handle:
             lib = _get_lib()
-            lib.vecdb_close(self._handle)
+            lib._jw_vecdb_close(self._handle)
             self._handle = None
 
     def sync(self):
         """同步数据到磁盘"""
         lib = _get_lib()
-        lib.vecdb_sync(self._handle)
+        lib._jw_vecdb_sync(self._handle)
 
     def create_collection(self, name: str, dim: int) -> Collection:
         """
@@ -316,7 +316,7 @@ class JinWoDB:
             RuntimeError: 创建失败
         """
         lib = _get_lib()
-        handle = lib.vecdb_create_collection(
+        handle = lib._jw_vecdb_create_collection(
             self._handle,
             name.encode('utf-8'),
             dim
@@ -336,7 +336,7 @@ class JinWoDB:
             Collection 实例，不存在返回 None
         """
         lib = _get_lib()
-        handle = lib.vecdb_get_collection(self._handle, name.encode('utf-8'))
+        handle = lib._jw_vecdb_get_collection(self._handle, name.encode('utf-8'))
         if not handle:
             return None
         # Collection 对象需要知道维度，但这里我们无法直接获取
@@ -354,7 +354,7 @@ class JinWoDB:
             是否成功
         """
         lib = _get_lib()
-        return lib.vecdb_drop_collection(self._handle, name.encode('utf-8'))
+        return lib._jw_vecdb_drop_collection(self._handle, name.encode('utf-8'))
 
     def list_collections(self) -> List[str]:
         """
@@ -364,7 +364,7 @@ class JinWoDB:
             Collection 名称列表
         """
         lib = _get_lib()
-        names = lib.vecdb_list_collections(self._handle)
+        names = lib._jw_vecdb_list_collections(self._handle)
         return list(names)
 
     def insert(self, collection: str, vector: List[float]) -> int:
@@ -428,4 +428,4 @@ class JinWoDB:
 def _get_version() -> str:
     """获取 JinWo C 库版本"""
     lib = _get_lib()
-    return lib.vecdb_version().decode('utf-8')
+    return lib._jw_vecdb_version().decode('utf-8')
