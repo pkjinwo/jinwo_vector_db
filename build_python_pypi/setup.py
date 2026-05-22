@@ -47,7 +47,10 @@ class CMakeBuild(build_ext):
         if sys.platform.startswith("darwin"):
             cmake_args += ["-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"]
         elif sys.platform == "win32":
-            cmake_args += ["-G", "Visual Studio 17 2022", "-A", "x64"]
+            # 根据 Python 解释器的位数动态选择架构
+            import struct
+            arch = "x64" if struct.calcsize("P") == 8 else "Win32"
+            cmake_args += ["-G", "Visual Studio 17 2022", "-A", arch]
 
         def _run_cmake(cmd, cwd, step_name):
             """运行 cmake，成功时简洁输出，失败时打印详细错误"""

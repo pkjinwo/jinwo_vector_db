@@ -30,16 +30,13 @@ jobs:
         path: ./wheelhouse/*
 
   build_arm:
-    runs-on: ubuntu-latest
+    # 使用 GitHub 原生 ARM64 运行器，避免 QEMU 模拟导致的编译超时
+    # 原 x86_64+QEMU 方式编译 5 个 Python 版本需 6+ 小时
+    runs-on: ubuntu-24.04-arm
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Set up QEMU for arm64
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: linux/arm64
 
     - name: Build Linux aarch64 wheels
       uses: pypa/cibuildwheel@v2.21.3
