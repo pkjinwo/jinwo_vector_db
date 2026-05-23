@@ -1,0 +1,402 @@
+n pypa/gh-action-pypi-publish@release/v1
+  with:
+    password: ***
+  
+    user: __token__
+    repository_url: https://upload.pypi.org/legacy/
+    packages_dir: dist
+    verify_metadata: true
+    skip_existing: false
+    verbose: true
+    print_hash: true
+    attestations: true
+Run # Reset path if needed
+Run # 🔎 Discover pre-installed Python
+python-path=/usr/bin/python3
+Run # Create Docker container action
+Run ./.github/.tmp/.generated-actions/run-pypi-publish-in-docker-container
+/usr/bin/docker run --name ghcriopypaghactionpypipublishreleasev1_d16994 --label de9844 --workdir /github/workspace --rm -e "INPUT_USER" -e "INPUT_PASSWORD" -e "INPUT_REPOSITORY-URL" -e "INPUT_PACKAGES-DIR" -e "INPUT_VERIFY-METADATA" -e "INPUT_SKIP-EXISTING" -e "INPUT_VERBOSE" -e "INPUT_PRINT-HASH" -e "INPUT_ATTESTATIONS" -e "HOME" -e "GITHUB_JOB" -e "GITHUB_REF" -e "GITHUB_SHA" -e "GITHUB_REPOSITORY" -e "GITHUB_REPOSITORY_OWNER" -e "GITHUB_REPOSITORY_OWNER_ID" -e "GITHUB_RUN_ID" -e "GITHUB_RUN_NUMBER" -e "GITHUB_RETENTION_DAYS" -e "GITHUB_RUN_ATTEMPT" -e "GITHUB_ACTOR_ID" -e "GITHUB_ACTOR" -e "GITHUB_WORKFLOW" -e "GITHUB_HEAD_REF" -e "GITHUB_BASE_REF" -e "GITHUB_EVENT_NAME" -e "GITHUB_SERVER_URL" -e "GITHUB_API_URL" -e "GITHUB_GRAPHQL_URL" -e "GITHUB_REF_NAME" -e "GITHUB_REF_PROTECTED" -e "GITHUB_REF_TYPE" -e "GITHUB_WORKFLOW_REF" -e "GITHUB_WORKFLOW_SHA" -e "GITHUB_REPOSITORY_ID" -e "GITHUB_TRIGGERING_ACTOR" -e "GITHUB_WORKSPACE" -e "GITHUB_ACTION" -e "GITHUB_EVENT_PATH" -e "GITHUB_ACTION_REPOSITORY" -e "GITHUB_ACTION_REF" -e "GITHUB_PATH" -e "GITHUB_ENV" -e "GITHUB_STEP_SUMMARY" -e "GITHUB_STATE" -e "GITHUB_OUTPUT" -e "GITHUB_ACTION_PATH" -e "RUNNER_OS" -e "RUNNER_ARCH" -e "RUNNER_NAME" -e "RUNNER_ENVIRONMENT" -e "RUNNER_TOOL_CACHE" -e "RUNNER_TEMP" -e "RUNNER_WORKSPACE" -e "ACTIONS_RUNTIME_URL" -e "ACTIONS_RUNTIME_TOKEN" -e "ACTIONS_CACHE_URL" -e "ACTIONS_RESULTS_URL" -e "ACTIONS_ORCHESTRATION_ID" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work/_temp":"/github/runner_temp" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" -v "/home/runner/work/_temp/_runner_file_commands":"/github/file_commands" -v "/home/runner/work/jinwo_vector_db/jinwo_vector_db":"/github/workspace" ghcr.io/pypa/gh-action-pypi-publish:release-v1
+Unable to find image 'ghcr.io/pypa/gh-action-pypi-publish:release-v1' locally
+release-v1: Pulling from pypa/gh-action-pypi-publish
+9d11882d4b58: Pulling fs layer
+4eeb9a554e5a: Pulling fs layer
+559c2b59f78d: Pulling fs layer
+02b5ccdcca95: Pulling fs layer
+a3051f342870: Pulling fs layer
+b0c54e5184e0: Pulling fs layer
+736d1ace839c: Pulling fs layer
+f49adb0f2ede: Pulling fs layer
+77c4c4ac7b62: Pulling fs layer
+b9db235c841b: Pulling fs layer
+0501f1b4799b: Pulling fs layer
+191533a2d4ee: Pulling fs layer
+b003759e3ef8: Pulling fs layer
+4f4fb700ef54: Pulling fs layer
+02b5ccdcca95: Waiting
+a3051f342870: Waiting
+b0c54e5184e0: Waiting
+736d1ace839c: Waiting
+f49adb0f2ede: Waiting
+77c4c4ac7b62: Waiting
+b9db235c841b: Waiting
+4f4fb700ef54: Waiting
+0501f1b4799b: Waiting
+191533a2d4ee: Waiting
+b003759e3ef8: Waiting
+4eeb9a554e5a: Verifying Checksum
+4eeb9a554e5a: Download complete
+9d11882d4b58: Verifying Checksum
+9d11882d4b58: Download complete
+559c2b59f78d: Download complete
+02b5ccdcca95: Verifying Checksum
+02b5ccdcca95: Download complete
+a3051f342870: Verifying Checksum
+a3051f342870: Download complete
+736d1ace839c: Verifying Checksum
+736d1ace839c: Download complete
+f49adb0f2ede: Verifying Checksum
+f49adb0f2ede: Download complete
+77c4c4ac7b62: Verifying Checksum
+77c4c4ac7b62: Download complete
+b9db235c841b: Verifying Checksum
+b9db235c841b: Download complete
+b0c54e5184e0: Verifying Checksum
+b0c54e5184e0: Download complete
+0501f1b4799b: Verifying Checksum
+0501f1b4799b: Download complete
+191533a2d4ee: Verifying Checksum
+191533a2d4ee: Download complete
+9d11882d4b58: Pull complete
+4f4fb700ef54: Verifying Checksum
+4f4fb700ef54: Download complete
+b003759e3ef8: Verifying Checksum
+b003759e3ef8: Download complete
+4eeb9a554e5a: Pull complete
+559c2b59f78d: Pull complete
+02b5ccdcca95: Pull complete
+a3051f342870: Pull complete
+b0c54e5184e0: Pull complete
+736d1ace839c: Pull complete
+f49adb0f2ede: Pull complete
+77c4c4ac7b62: Pull complete
+b9db235c841b: Pull complete
+0501f1b4799b: Pull complete
+191533a2d4ee: Pull complete
+b003759e3ef8: Pull complete
+4f4fb700ef54: Pull complete
+Digest: sha256:6d88f308559d95bdafd10ac3d0b6ed95df4e2daaf7f97f6d4588d8c14ca1fbdd
+Status: Downloaded newer image for ghcr.io/pypa/gh-action-pypi-publish:release-v1
+Warning: The workflow was run with the 'attestations: true' input, but an explicit password was also set, disabling Trusted Publishing. As a result, the attestations input is ignored.
+Warning: Trusted Publishers allows publishing packages to PyPI from automated environments like GitHub Actions without needing to use username/password combinations or API tokens to authenticate with PyPI. Read more: https://docs.pypi.org/trusted-publishers
+Warning: A new Trusted Publisher for the currently running publishing workflow can be created by accessing the following link(s) while logged-in as an owner of the package(s):
+- https://pypi.org/manage/project/jinwo-vecdb/settings/publishing/?provider=github&owner=pkjinwo&repository=jinwo_vector_db&workflow_filename=build_wheels.yml
+
+Checking dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_x86_64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_11_0_arm64.whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.
+whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.wh
+l: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp310-cp310-win_amd64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_universal2.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_x86_64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_11_0_arm64.whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.
+whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.wh
+l: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp311-cp311-win_amd64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_universal2.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_x86_64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_11_0_arm64.whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.
+whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.wh
+l: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp312-cp312-win_amd64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_universal2.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_x86_64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_11_0_arm64.whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.wh
+l: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl:PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp38-cp38-win_amd64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_universal2.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_x86_64.whl: PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_11_0_arm64.whl: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.wh
+l: PASSED
+Checking 
+dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl:PASSED
+Checking dist/jinwo_vecdb-0.1.5-cp39-cp39-win_amd64.whl: PASSED
+Showing hash values of files to be uploaded:
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+SHA256: 3af8b6e112a00af70a721dc4c5cbbdd2f651d6a7c4738fd08385392c943ce45b
+MD5: f6dcf5cf3ef09fb72859f72e62ae4afc
+BLAKE2-256: d0a02262fdb167ee1b428a2ad0a3391d7113cb61e6e4782c437c163b3baf9ea7
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_x86_64.whl
+
+SHA256: 4d585ec785130a6602bf362b1c3358de32bdffac0509492504c4171016936352
+MD5: ccea19be01af4a39060c93e9edb118ff
+BLAKE2-256: e10ca67f14a5e7a54c02c9d900500a30a20b670448ecedda6ac28c3bc3bb10b2
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_x86_64.whl
+
+SHA256: 9a44cf12bee89964c7186a6bff1b4e7b78fb9b8fcb309d43bc39072ec29ae970
+MD5: 20b2eb2b84f48713f1740b9497485546
+BLAKE2-256: 9c4df8bfde449470c0b561becb36f58f64015c4cc03195cb72f7dc217859112f
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_universal2.whl
+
+SHA256: be3cbab5aed35a1ed5bc942725907ea3e2deaf03a85ebc29a049b1d650080766
+MD5: c5204ccd50b43683672ec6aaf628daaf
+BLAKE2-256: cb9a16762ed3a2f354d9c2e17e17390600c3677e88eee85f196ddd0ef5e4ac28
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-win_amd64.whl
+
+SHA256: 03a9fbb703d6ead5b21aeb1a22685394326da39749f8ae330c1ec1a3b9236dda
+MD5: 33e0e3e5bd6712b07e9b5599423f5151
+BLAKE2-256: 8bffdb3874821563f09b01d587bde567b57bd13f6029f6b311087351ae351bff
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-win_amd64.whl
+
+SHA256: 407f962d97881d31dcde5809bbf2977bea14851f4c892fd6c11fe68e1f3d1480
+MD5: c4f75eb3db24bd9f3046cb53b703b2c2
+BLAKE2-256: 99baaec289fe8182ea399cd86910dadaa168fcc5ec6d538a8ef2d84ac8ecbadc
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+SHA256: 405b344f27b19a7c0b142c7ad6d80eaf5c564ac04e6e0fa76711380c3eb9a15e
+MD5: f8e1d91eb3a3bbce6046bd576cf85bba
+BLAKE2-256: 1b0233e0be79e176136760b211c74a71672a9bb88300674830d7aa2c0345c8ce
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_x86_64.whl
+
+SHA256: 985a9ed7a4e6387f88ff0ae3544b33b00fabb99433405486094182774cb2d92c
+MD5: 6954b576ddfc42b81575438c024db916
+BLAKE2-256: 244b0b75a07e81a723546b9615a194ef0811372d4de257a99b8873eeb439bbaa
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_universal2.whl
+
+SHA256: 6747eb08e4dc9e89908c3996ffda65a8316858193f6f0546bb0e868df974c976
+MD5: 43b43f9a96887fdb0a19950b1441dd1e
+BLAKE2-256: 8e853e5b6596646259e8d7e1fbcbb0a0781b2feea21aadb2f0ae719f52b30ada
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_x86_64.whl
+
+SHA256: e0717f75f10ad4f0fc0159e9ae9c75316e77d38a3178ac7ae850ac44e161ed2b
+MD5: 8374c1b81b105a7ada67321edc0cebe3
+BLAKE2-256: 66a1c2133541130f27af8a1c9a9dde547fcaecaf1315514df6d09139eb744650
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+SHA256: 787dee125c2a51f11fb6d037f18356f3cc22ff6c73343895b18c841e7c360dcd
+MD5: b35985a1fdf3b5b90db250dbb8e88476
+BLAKE2-256: d86144c26e390ac09b01b777cf44c956c82e0c4c594722a399f59696354d6106
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_11_0_arm64.whl
+
+SHA256: a29e2082283bc088e8b16d3889a5f66b98a8f4b5fce9f39b2d03b4d7c4704860
+MD5: 5a5c095ea63d8b13251dd2992aae1853
+BLAKE2-256: fe3a85bf3f26aa3e308543966e0ce99dd6de34c84f7c021945f69b92a505159f
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+SHA256: c64753ad249fefd11e7b2331cc25cbf71ddcb01f33ae48ab6de7a88786ba2f15
+MD5: 4f5426ab7a070c14704989b81834f472
+BLAKE2-256: bc7063c8eaf76039592a9381689aacd8f8bf056d32ce51a6914aa4032e88b438
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+SHA256: 40a470c87251c21295e8110ff2c7840e13fc681a52311c169e8b645348cad595
+MD5: 01c6709ed3296f913640d17870bc48fd
+BLAKE2-256: 4e4e2b95713fb31ee57046d2c2c9cdce691786a5acd1a42559304825791c59d6
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_11_0_arm64.whl
+
+SHA256: 0d69097076b7a14bc515ab4b7ff70021427e98ac7f9728707bf0993f8799fb8b
+MD5: 80c869d715eeaaaaa94d1dfae4a122c4
+BLAKE2-256: 7e1cd07b2f0c855bce6dcbf47932085175f2cee838a1abaf66ad0e8a1b18ff45
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-win_amd64.whl
+
+SHA256: 5e0c0f828b5deb58408d87d6358a14d0d74f9ac50364cf1c4c4e82e6be912407
+MD5: 6fa14107e8aa507af4f6ad91adfe2c3e
+BLAKE2-256: 6e921e2220a2bb85125f8fdbde4df886f7e35a1467bc2704b567cbb6e5173838
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_universal2.whl
+
+SHA256: 8e72e278d38ce15b086667120336d03f549922930e2fe5ec3e552400777632ec
+MD5: 4a155e4f0796b322216a56be28044678
+BLAKE2-256: 2a96d5d26607205f0b5741ba35042312122330a8a3b7b146cb54f056e6f23bbe
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+SHA256: 1f0c32caf3ed0e3118c357fd0ea7a66daf77840e456808ebd8bf1c28308674e7
+MD5: cd2f9948be87a43015a3bf37123f8cee
+BLAKE2-256: 0a4334f5b8591af53be8452cf688e3352753239ae070ac51ddbac6228820d3e9
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+SHA256: 9e254ce963cbd15fa795a225c8653e309af74ab8b05536eba3fe23cca74612d4
+MD5: 6126212fd0d6c73101b3b1bcf3a40c05
+BLAKE2-256: 09616037cd26b188fce9b75c1f25e45a4d9f8516f5102def3f72e5e3b6feb912
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_11_0_arm64.whl
+
+SHA256: 3226447a7923fb7b429ec9052c28c3af775e1b42505828ed3a5468811d9996ee
+MD5: 19104060bd70580247d748fe8b137176
+BLAKE2-256: b13dc59fe5eb3bcf6913ee2af4691ac0e894ed8fac8d3d550c3ab4639dfb0f80
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_11_0_arm64.whl
+
+SHA256: 243bd39111e1276f786272843612ec01054aa887ca6225aaf2062c33a1a18e06
+MD5: 96313e95d111cfd1c732ae2b36ee1ca0
+BLAKE2-256: ce23286b49d208d924aea1712fcab53359ff582e642a78ad82dcd2bf02f124e9
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+SHA256: 9688943277d0211a73698f87c689cd4efb76469ba212dff85b5a8cd4ce96c2af
+MD5: 53240364be08ac7d1cf98f92cd7f1ff8
+BLAKE2-256: 53968ac468b58bc1fbd494c49d5b47c98ee17668fd7a9ea8655a3813f3c7b387
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-win_amd64.whl
+
+SHA256: 6eb6e9c3771fb1861e42a1112a2dceb07b3b18d66458430e37528ff991113e45
+MD5: 494c22c7593fca4f5b67bc8e4a18d2e3
+BLAKE2-256: 5dd4d9d4d66da01eb095b1c53c94297e2ea4fb8d2eaaec851a311a23265f6e73
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
+
+SHA256: 79a8ec9a4ca309b1e83805027285ffd98285ca64aa0d2252f21f2d2f554abb18
+MD5: 2a710afdb9b70bb4a94ab7b97be6081f
+BLAKE2-256: 737faf17b20625550ec524cf68fe97b1e2f1dbab3c7d75b7dddc7e5f7c8adf17
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl
+
+SHA256: bda1d00350dd9560ac44b8a6e969435f561bd33716330016651d54acaf39fe14
+MD5: 300645f0ad0544ed1a7cb580c7506f04
+BLAKE2-256: 9b43b75f489996d918d17e19a854681f635ad722fa5ac10efffd9ab67ae189ce
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_11_0_arm64.whl
+
+SHA256: 33917954eeae0837556b7fdaa319e6758b09e25a93d1fe5ba9989cb0a4342072
+MD5: f5378d69913f72216af88512504014a9
+BLAKE2-256: ebc3142d9c641d369aa9c0bbca9ed1de1f890b253cf30f367dd7634aed7d5149
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_x86_64.whl
+
+SHA256: 72d75ca198801244a69ed00bb3f96133ef06a5ca1ffcb3771877af1a631fe6ae
+MD5: f04088a45476bdbc50d8be5db1475e0d
+BLAKE2-256: c572de74c502b28402a8b6f3480c7e81d22145d9d9c7f213d439da81d7267186
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_universal2.whl
+
+SHA256: 21405bb8cc8ed9c2e4b7f26acd2ed8031e55c2e63f3cac7135ff7081faefba1d
+MD5: 66204ac2a6b70e0c77df836fdf7d8b99
+BLAKE2-256: ed742becb43f6f1aedd873ba10846eda3b64b50c4721972194bff2b7a772d649
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp39-cp39-win_amd64.whl
+
+SHA256: da5a47f50bf0640ed176dbe310af710a28005c0b202e926f8c908904fbb63eed
+MD5: 8a3f6af97303d23da5a09d539edcc6d1
+BLAKE2-256: 9e48e1896f058d71400ebaadd1848c4be4b3ed48cc5f65c4738cae732806b223
+
+/github/workspace/dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+SHA256: 04002590b7d2526661a067c625c02f9742a9504a8e5d3a1386defc56254b700a
+MD5: 0279decb5c17985d83d1894d61175591
+BLAKE2-256: fe9908cec172bcc0cb4295dac00d86fc20bac9ecab89e70928bcf3baedf18299
+
+Uploading distributions to https://upload.pypi.org/legacy/
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl (122.4   
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_x86_64.whl (122.4 KB)   
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-macosx_11_0_arm64.whl (122.8 KB)    
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014
+         _aarch64.whl (75.5 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_
+         x86_64.whl (77.0 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.5-cp310-cp310-win_amd64.whl (35.2 KB)             
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_universal2.whl (122.4   
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_10_9_x86_64.whl (122.4 KB)   
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-macosx_11_0_arm64.whl (122.8 KB)    
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014
+         _aarch64.whl (75.5 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_
+         x86_64.whl (76.9 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.5-cp311-cp311-win_amd64.whl (35.2 KB)             
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_universal2.whl (122.8  
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_10_13_x86_64.whl (122.8 KB)  
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-macosx_11_0_arm64.whl (122.8 KB)    
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_aarch64.manylinux2014
+         _aarch64.whl (75.5 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_
+         x86_64.whl (76.9 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.5-cp312-cp312-win_amd64.whl (35.2 KB)             
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_universal2.whl (122.3 KB) 
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_10_9_x86_64.whl (122.3 KB)     
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-macosx_11_0_arm64.whl (122.8 KB)      
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_a
+         arch64.whl (75.5 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x8
+         6_64.whl (77.0 KB)                                                     
+INFO     dist/jinwo_vecdb-0.1.5-cp38-cp38-win_amd64.whl (35.2 KB)               
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_universal2.whl (122.3 KB) 
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_10_9_x86_64.whl (122.3 KB)     
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-macosx_11_0_arm64.whl (122.8 KB)      
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_a
+         arch64.whl (75.5 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x8
+         6_64.whl (77.0 KB)                                                     
+INFO     dist/jinwo_vecdb-0.1.5-cp39-cp39-win_amd64.whl (35.2 KB)               
+INFO     username set by command options                                        
+INFO     password set by command options                                        
+INFO     username: __token__                                                    
+INFO     password: <hidden>                                                     
+Uploading jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl
+INFO     Response from https://upload.pypi.org/legacy/:                         
+         400 Bad Request                                                        
+INFO     <html>                                                                 
+          <head>                                                                
+           <title>400 File already exists                                       
+         ('jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl', with      
+         blake2_256 hash                                                        
+         '9b43b75f489996d918d17e19a854681f635ad722fa5ac10efffd9ab67ae189ce').   
+         See https://pypi.org/help/#file-name-reuse for more                    
+         information.</title>                                                   
+          </head>                                                               
+          <body>                                                                
+           <h1>400 File already exists                                          
+         ('jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl', with      
+         blake2_256 hash                                                        
+         '9b43b75f489996d918d17e19a854681f635ad722fa5ac10efffd9ab67ae189ce').   
+         See https://pypi.org/help/#file-name-reuse for more information.</h1>  
+           The server could not comply with the request since it is either      
+         malformed or otherwise incorrect.<br/><br/>                            
+         File already exists                                                    
+         (&#x27;jinwo_vecdb-0.1.5-cp310-cp310-macosx_10_9_universal2.whl&#x27;, 
+         with blake2_256 hash                                                   
+         &#x27;9b43b75f489996d918d17e19a854681f635ad722fa5ac10efffd9ab67ae189ce&
+         #x27;). See https://pypi.org/help/#file-name-reuse for more            
+         information.                                                           
+                                                                                
+                                                                                
+          </body>                                                               
+         </html>                                                                
+ERROR    HTTPError: 400 Bad Request from https://upload.pypi.org/legacy/        
+         Bad Request 
