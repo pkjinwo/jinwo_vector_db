@@ -1105,8 +1105,8 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
     
     /* 创建存储 */
     jw_storage_config_t storage_config = JW_STORAGE_CONFIG_DEFAULT;
-    storage_config.path = (jw_str_t){0};
-    jw_strncpy(&storage_config.path, &(jw_str_t){.ptr = (char*)filepath, .slen = jw_strlen((const jw_str_t *)&(jw_str_t){.ptr = (char*)filepath, .slen = 0})}, sizeof(storage_config.path.ptr) - 1);
+    storage_config.path.ptr = (char *)filepath;
+    storage_config.path.slen = strlen(filepath);
     storage_config.mode = JW_STORAGE_CREATE;
     storage_config.sync_on_write = JW_TRUE;
     
@@ -1227,8 +1227,8 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
     
     /* 打开存储 */
     jw_storage_config_t storage_config = JW_STORAGE_CONFIG_DEFAULT;
-    storage_config.path = (jw_str_t){0};
-    jw_strncpy(&storage_config.path, &(jw_str_t){.ptr = (char*)filepath, .slen = jw_strlen((const jw_str_t *)&(jw_str_t){.ptr = (char*)filepath, .slen = 0})}, sizeof(storage_config.path.ptr) - 1);
+    storage_config.path.ptr = (char *)filepath;
+    storage_config.path.slen = strlen(filepath);
     storage_config.mode = JW_STORAGE_READ;
     
     jw_storage_t *storage = jw_storage_open(NULL, filepath, JW_STORAGE_READ);
