@@ -28,18 +28,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+/*
+ * Portable fallback for S_ISREG/S_ISDIR.
+ * On some compilers (e.g., older MSVC), these macros are missing.
+ * We use POSIX standard octal values to avoid dependency on S_IFMT etc.
+ */
+#ifndef S_ISREG
+#define S_ISREG(m) (((m) & 0170000) == 0100000)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m) (((m) & 0170000) == 0040000)
+#endif
+
 #if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
 #include <windows.h>
 #include <io.h>
 #include <direct.h>
-
-/* Windows doesn't define S_ISREG/S_ISDIR macros */
-#ifndef S_ISREG
-#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-#endif
-#ifndef S_ISDIR
-#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
-#endif
 
 struct dirent {
     char d_name[MAX_PATH];
