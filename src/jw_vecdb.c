@@ -13,6 +13,7 @@
 #include "jw_vecdb.h"
 #include "jw_string.h"
 #include "jw_stdio.h"
+#include "jw_file.h"
 #include <stdio.h>
 
 /*
@@ -212,6 +213,59 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
         }
     }
     
+    /* 如果是文件数据库，从磁盘加载已有collections */
+    if (database->config.db_path.ptr != NULL &&
+        database->config.db_path.slen > 0 &&
+        database->config.storage_mode != JW_STORAGE_MEMORY &&
+        !database->config.create_if_missing) {
+        
+        char meta_path[1024];
+        jw_snprintf(meta_path, sizeof(meta_path), "%.*s/.jwmeta",
+                   (int)database->config.db_path.slen, database->config.db_path.ptr);
+        
+        jw_str_t meta_path_str = {meta_path, strlen(meta_path)};
+        jw_size_t meta_size = 0;
+        char *meta_content = jw_file_read_all(&meta_path_str, &meta_size);
+        
+        if (meta_content != NULL && meta_size > 0) {
+            /* 逐行解析collection名称 */
+            char *line_start = meta_content;
+            for (jw_size_t pos = 0; pos < meta_size; pos++) {
+                if (meta_content[pos] == '\n' || meta_content[pos] == '\0') {
+                    meta_content[pos] = '\0';
+                    if (line_start[0] != '\0') {
+                        /* 构建collection文件路径并加载 */
+                        char coll_path[1024];
+                        jw_snprintf(coll_path, sizeof(coll_path), "%.*s/%s.jwcol",
+                                   (int)database->config.db_path.slen,
+                                   database->config.db_path.ptr, line_start);
+                        
+                        jw_collection_t *coll = jw_collection_load(database->arena, coll_path);
+                        if (coll != NULL) {
+                            /* 添加到collections数组 */
+                            if (database->collection_count >= database->collection_capacity) {
+                                jw_size_t new_cap = database->collection_capacity * 2;
+                                jw_collection_t **new_arr = jw_arena_calloc(
+                                    database->arena, new_cap, sizeof(jw_collection_t*));
+                                if (new_arr != NULL) {
+                                    jw_memcpy(new_arr, database->collections,
+                                           database->collection_count * sizeof(jw_collection_t*));
+                                    database->collections = new_arr;
+                                    database->collection_capacity = new_cap;
+                                }
+                            }
+                            if (database->collection_count < database->collection_capacity) {
+                                database->collections[database->collection_count++] = coll;
+                            }
+                        }
+                    }
+                    line_start = meta_content + pos + 1;
+                }
+            }
+            jw_free(meta_content);
+        }
+    }
+    
     /* 设置状态 */
     database->is_open = JW_TRUE;
     database->open_time = jw_time_now();
@@ -222,11 +276,60 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
     return JW_SUCCESS;
 }
 
+/* 内部: 保存所有collection到磁盘 */
+static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
+{
+    if (db == NULL || !db->is_open) return JW_INVALID_PARAM;
+    if (db->config.db_path.ptr == NULL || db->config.db_path.slen == 0) {
+        return JW_SUCCESS;  /* 内存数据库，不需要保存 */
+    }
+    
+    char coll_path[1024];
+    char meta_path[1024];
+    char meta_content[4096];
+    jw_size_t meta_len = 0;
+    
+    /* 构建元数据文件路径 */
+    jw_snprintf(meta_path, sizeof(meta_path), "%.*s/.jwmeta",
+               (int)db->config.db_path.slen, db->config.db_path.ptr);
+    
+    meta_content[0] = '\0';
+    meta_len = 0;
+    
+    /* 保存每个collection */
+    for (jw_size_t i = 0; i < db->collection_count; i++) {
+        jw_collection_t *coll = db->collections[i];
+        if (coll == NULL || coll->name == NULL) continue;
+        
+        /* 构建collection文件路径: {db_path}/{name}.jwcol */
+        jw_snprintf(coll_path, sizeof(coll_path), "%.*s/%s.jwcol",
+                   (int)db->config.db_path.slen, db->config.db_path.ptr, coll->name);
+        
+        jw_collection_save(coll, coll_path);
+        
+        /* 追加到元数据 */
+        meta_len += jw_snprintf(meta_content + meta_len,
+                               sizeof(meta_content) - meta_len,
+                               "%s\n", coll->name);
+    }
+    
+    /* 写入元数据文件 */
+    if (meta_len > 0) {
+        jw_str_t mp = {meta_path, strlen(meta_path)};
+        jw_file_write_all(&mp, meta_content, meta_len);
+    }
+    
+    return JW_SUCCESS;
+}
+
 JW_API jw_status_t jw_vecdb_close(jw_vecdb_t *db)
 {
     if (db == NULL || !db->is_open) {
         return JW_INVALID_PARAM;
     }
+    
+    /* 关闭前保存所有collection */
+    jw_vecdb_save_all(db);
     
     /* 获取写锁 */
     jw_rwlock_wrlock(db->lock);
@@ -266,6 +369,9 @@ JW_API jw_status_t jw_vecdb_sync(jw_vecdb_t *db)
         return JW_INVALID_PARAM;
     }
     
+    /* 保存所有collection到磁盘 */
+    jw_vecdb_save_all(db);
+    
     if (db->storage != NULL) {
         return jw_storage_sync(db->storage);
     }
@@ -304,13 +410,23 @@ JW_API jw_status_t jw_vecdb_create_collection_ex(jw_vecdb_t *db,
         return JW_INVALID_PARAM;
     }
     
-    /* 检查是否已存在 */
-    jw_str_t config_name = config->name;
-    if (jw_vecdb_has_collection(db, &config_name)) {
+    jw_rwlock_wrlock(db->lock);
+    
+    /* 检查是否已存在 — 在锁内直接遍历，不调用 get_collection（避免重入锁） */
+    jw_bool_t exists = JW_FALSE;
+    for (jw_size_t i = 0; i < db->collection_count; i++) {
+        const char *coll_name = jw_collection_get_name(db->collections[i]);
+        jw_str_t cn_str;
+        JW_STR_SET(cn_str, coll_name);
+        if (jw_strcmp(&cn_str, &config->name) == 0) {
+            exists = JW_TRUE;
+            break;
+        }
+    }
+    if (exists) {
+        jw_rwlock_wrunlock(db->lock);
         return JW_ALREADY_EXISTS;
     }
-    
-    jw_rwlock_wrlock(db->lock);
     
     /* 扩展数组 */
     if (db->collection_count >= db->collection_capacity) {
@@ -360,7 +476,8 @@ JW_API jw_collection_t *jw_vecdb_get_collection(jw_vecdb_t *db,
     jw_collection_t *found = NULL;
     for (jw_size_t i = 0; i < db->collection_count; i++) {
         const char *coll_name = jw_collection_get_name(db->collections[i]);
-        jw_str_t coll_name_str = jw_str(coll_name);
+        jw_str_t coll_name_str;
+        JW_STR_SET(coll_name_str, coll_name);
         if (jw_strcmp(&coll_name_str, name) == 0) {
             found = db->collections[i];
             break;
@@ -385,7 +502,8 @@ JW_API jw_status_t jw_vecdb_drop_collection(jw_vecdb_t *db,
     
     for (jw_size_t i = 0; i < db->collection_count; i++) {
         const char *coll_name = jw_collection_get_name(db->collections[i]);
-        jw_str_t coll_name_str = jw_str(coll_name);
+        jw_str_t coll_name_str;
+        JW_STR_SET(coll_name_str, coll_name);
         if (jw_strcmp(&coll_name_str, name) == 0) {
             jw_collection_destroy(db->collections[i]);
             
@@ -428,7 +546,9 @@ JW_API jw_size_t jw_vecdb_list_collections(const jw_vecdb_t *db,
         count = (count < capacity) ? count : capacity;
         for (jw_size_t i = 0; i < count; i++) {
             const char *coll_name = jw_collection_get_name(db->collections[i]);
-            names[i] = jw_str(coll_name);
+            jw_str_t tmp;
+            JW_STR_SET(tmp, coll_name);
+            names[i] = tmp;
         }
     }
     
