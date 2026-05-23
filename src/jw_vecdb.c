@@ -220,8 +220,8 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
         !database->config.create_if_missing) {
         
         char meta_path[1024];
-        jw_snprintf(meta_path, sizeof(meta_path), "%.*s/.jwmeta",
-                   (int)database->config.db_path.slen, database->config.db_path.ptr);
+        jw_snprintf(meta_path, sizeof(meta_path), "%s/.jwmeta",
+                   database->config.db_path.ptr);
         
         jw_str_t meta_path_str = {meta_path, strlen(meta_path)};
         jw_size_t meta_size = 0;
@@ -236,8 +236,7 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
                     if (line_start[0] != '\0') {
                         /* 构建collection文件路径并加载 */
                         char coll_path[1024];
-                        jw_snprintf(coll_path, sizeof(coll_path), "%.*s/%s.jwcol",
-                                   (int)database->config.db_path.slen,
+                        jw_snprintf(coll_path, sizeof(coll_path), "%s/%s.jwcol",
                                    database->config.db_path.ptr, line_start);
                         
                         jw_collection_t *coll = jw_collection_load(database->arena, coll_path);
@@ -290,8 +289,8 @@ static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
     jw_size_t meta_len = 0;
     
     /* 构建元数据文件路径 */
-    jw_snprintf(meta_path, sizeof(meta_path), "%.*s/.jwmeta",
-               (int)db->config.db_path.slen, db->config.db_path.ptr);
+    jw_snprintf(meta_path, sizeof(meta_path), "%s/.jwmeta",
+               db->config.db_path.ptr);
     
     meta_content[0] = '\0';
     meta_len = 0;
@@ -302,8 +301,8 @@ static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
         if (coll == NULL || coll->name == NULL) continue;
         
         /* 构建collection文件路径: {db_path}/{name}.jwcol */
-        jw_snprintf(coll_path, sizeof(coll_path), "%.*s/%s.jwcol",
-                   (int)db->config.db_path.slen, db->config.db_path.ptr, coll->name);
+        jw_snprintf(coll_path, sizeof(coll_path), "%s/%s.jwcol",
+                   db->config.db_path.ptr, coll->name);
         
         jw_collection_save(coll, coll_path);
         

@@ -14,6 +14,7 @@
 #include "jw_stdarg.h"
 #include "jw_string.h"
 #include "jw_stdlib.h"
+#include <stdio.h>
 
 #ifdef JW_WIN32
     #include <windows.h>
@@ -354,26 +355,16 @@ JW_API jw_int32_t jw_printf(const char *fmt, ...)
 
 JW_API jw_int32_t jw_vsnprintf(char *str, jw_size_t size, const char *fmt, jw_va_list ap)
 {
-    if (size == 0) {
+    if (str == NULL || size == 0) {
         return 0;
     }
 
-    char buffer[1024];
     jw_va_list args;
     va_copy(args, ap);
 
-    jw_int32_t len = format_and_output(fmt, &args);
+    jw_int32_t len = vsnprintf(str, size, fmt, args);
 
     jw_va_end(args);
-
-    if ((jw_size_t)len >= size) {
-        len = (jw_int32_t)(size - 1);
-    }
-
-    if (len > 0) {
-        memcpy(str, buffer, (jw_size_t)len);
-    }
-    str[len] = '\0';
 
     return len;
 }

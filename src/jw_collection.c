@@ -1129,7 +1129,7 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
     
     /* 复制名称 */
     if (coll->name != NULL) {
-        jw_strncpy(header.name, coll->name, sizeof(header.name) - 1);
+        strncpy(header.name, coll->name, sizeof(header.name) - 1);
         header.name[sizeof(header.name) - 1] = '\0';
     }
     
