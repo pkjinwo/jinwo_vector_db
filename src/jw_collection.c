@@ -807,22 +807,16 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
     
     jw_size_t k = (options != NULL) ? options->k : 10;
     
-    jw_printf("[DEBUG] jw_collection_search: 开始搜索, k=%u\n", (unsigned)k);
-    jw_printf("[DEBUG] jw_collection_search: 尝试获取读锁...\n");
     jw_rwlock_rdlock(coll->lock);
-    jw_printf("[DEBUG] jw_collection_search: 读锁获取成功\n");
     
     jw_size_t result_count = 0;
     
-    /* 使用索引搜索 */
-    if (coll->index != NULL && coll->index_enabled) {
-        jw_printf("[DEBUG] jw_collection_search: 使用索引搜索, k=%u\n", (unsigned)k);
+    /* 使用索引搜索（只有索引有足够数据时才使用） */
+    if (coll->index != NULL && coll->index_enabled && coll->count >= coll->index_threshold) {
         jw_search_result_t *index_results = jw_arena_alloc(coll->arena,
                                                            k * sizeof(jw_search_result_t));
         if (index_results != NULL) {
-            jw_printf("[DEBUG] jw_collection_search: 调用jw_index_search...\n");
             result_count = jw_index_search(coll->index, query, k, index_results);
-            jw_printf("[DEBUG] jw_collection_search: jw_index_search返回: %u\n", (unsigned)result_count);
             
             /* 填充详细结果 */
             for (jw_size_t i = 0; i < result_count; i++) {
@@ -848,7 +842,6 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
         }
     } else {
         /* 暴力搜索 */
-        jw_printf("[DEBUG] jw_collection_search: 使用暴力搜索\n");
         jw_size_t actual_k = (k < coll->count) ? k : coll->count;
         
         /* 计算所有距离 */
@@ -856,7 +849,6 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
         vec_dist_t *distances = jw_arena_alloc(coll->arena, coll->count * sizeof(vec_dist_t));
         
         if (distances != NULL) {
-            jw_printf("[DEBUG] jw_collection_search: 计算所有距离...\n");
             for (jw_size_t i = 0; i < coll->count; i++) {
                 distances[i].vid = coll->records[i].vid;
                 distances[i].dist = jw_vec_distance(query, coll->records[i].vec,
@@ -864,7 +856,6 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
             }
             
             /* 部分排序 */
-            jw_printf("[DEBUG] jw_collection_search: 排序距离...\n");
             for (jw_size_t i = 0; i < actual_k && i < coll->count; i++) {
                 jw_size_t min_j = i;
                 for (jw_size_t j = i + 1; j < coll->count; j++) {
@@ -878,7 +869,6 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
             }
             
             /* 填充结果 */
-            jw_printf("[DEBUG] jw_collection_search: 填充结果...\n");
             for (jw_size_t i = 0; i < actual_k; i++) {
                 results[i].vid = distances[i].vid;
                 results[i].score = distances[i].dist;
@@ -891,9 +881,7 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
         }
     }
     
-    jw_printf("[DEBUG] jw_collection_search: 释放读锁...\n");
     jw_rwlock_rdunlock(coll->lock);
-    jw_printf("[DEBUG] jw_collection_search: 读锁释放成功\n");
     
     return result_count;
 }

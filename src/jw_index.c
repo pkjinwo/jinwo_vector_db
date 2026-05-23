@@ -1177,12 +1177,6 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                 list->capacity = new_capacity;
             }
             
-            /** 调试信息 */
-            if (i == 0) {
-                printf("[DEBUG] Adding vector %zu, arena used: %zu\n", i, index->arena->used);
-                printf("[DEBUG] dim: %d, code size: %zu\n", dim, dim * sizeof(jw_uint8_t));
-            }
-
             /** 复制向量数据或量化编码 */
             list->entries[list->count].vid = vids[i];
             
@@ -1390,11 +1384,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
     jw_dim_t dim = jw_index_get_dim(index);
     jw_size_t ntotal = jw_index_get_ntotal(index);
 
-    jw_printf("[DEBUG] jw_index_search: type=%d, dim=%u, ntotal=%u, k=%u\n", 
-              index->type, (unsigned)dim, (unsigned)ntotal, (unsigned)k);
-
     if (ntotal == 0) {
-        jw_printf("[DEBUG] ntotal == 0, returning 0\n");
         return 0;
     }
 
@@ -1406,10 +1396,8 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
      */
     if (index->type == JW_INDEX_IVF || index->type == JW_INDEX_IVF_PQ || index->type == JW_INDEX_IVF_SQ) {
         jw_ivf_index_t *ivf = (jw_ivf_index_t *)index->impl;
-        jw_printf("[DEBUG] IVF search: trained=%d, nlist=%u, ntotal=%u\n", ivf->trained, ivf->nlist, (unsigned)ntotal);
 
         if (!ivf->trained) {
-            jw_printf("[DEBUG] IVF not trained, returning 0\n");
             return 0;
         }
 
