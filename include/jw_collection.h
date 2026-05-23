@@ -188,6 +188,7 @@ typedef struct jw_collection_t {
     
     /* 内存管理 */
     jw_arena_t *arena;
+    jw_bool_t owns_arena;       /* 是否拥有arena（外部传入的arena不可销毁） */
     
     /* 并发控制 */
     jw_rwlock_t *lock;

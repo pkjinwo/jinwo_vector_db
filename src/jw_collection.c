@@ -88,6 +88,7 @@ JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
     }
     
     coll->arena = local_arena;
+    coll->owns_arena = (arena == NULL) ? JW_TRUE : JW_FALSE;  /* 只有自己创建的arena才负责销毁 */
     coll->dim = config->dimension;
     coll->metric = config->metric;
     coll->config = *config;
@@ -153,7 +154,7 @@ JW_API void jw_collection_destroy(jw_collection_t *coll)
     }
     
     /* 释放arena - 只有当arena是内部创建的时候才释放 */
-    if (coll->arena != NULL) {
+    if (coll->arena != NULL && coll->owns_arena) {
         jw_arena_destroy(coll->arena);
     }
 }
@@ -1272,6 +1273,7 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
     }
     
     coll->arena = local_arena;
+    coll->owns_arena = (arena == NULL) ? JW_TRUE : JW_FALSE;
     coll->dim = header.dim;
     coll->metric = header.metric;
     coll->create_time = header.create_time;
