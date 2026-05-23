@@ -33,6 +33,14 @@
 #include <io.h>
 #include <direct.h>
 
+/* Windows doesn't define S_ISREG/S_ISDIR macros */
+#ifndef S_ISREG
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+#ifndef S_ISDIR
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+
 struct dirent {
     char d_name[MAX_PATH];
 };
