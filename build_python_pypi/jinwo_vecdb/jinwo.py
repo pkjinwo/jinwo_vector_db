@@ -57,22 +57,55 @@ def _load_library():
     """加载 JinWo C 动态库"""
     package_dir = Path(__file__).parent
 
-    # 优先搜索包内的 _jinwo.*.so / _jinwo.*.pyd (CMake 编译的 Python C 扩展)
-    for f in package_dir.glob("_jinwo*.so"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
-    for f in package_dir.glob("_jinwo*.pyd"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
-    for f in package_dir.glob("_jinwo*.dylib"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
+    # 定义所有可能的扩展模块文件名模式
+    patterns = [
+        "_jinwo*.so",
+        "_jinwo*.pyd", 
+        "_jinwo*.dylib",
+        "jinwo*.so",
+        "jinwo*.pyd",
+        "jinwo*.dylib",
+        "libjinwo*.so",
+        "libjinwo*.pyd",
+        "libjinwo*.dylib",
+    ]
+
+    # 搜索包目录
+    for pattern in patterns:
+        for f in package_dir.glob(pattern):
+            try:
+                return ctypes.CDLL(str(f))
+            except OSError:
+                continue
+    
+    # 搜索 Release 目录 (Windows MSVC 编译输出目录)
+    release_dir = package_dir / "Release"
+    if release_dir.exists() and release_dir.is_dir():
+        for pattern in patterns:
+            for f in release_dir.glob(pattern):
+                try:
+                    return ctypes.CDLL(str(f))
+                except OSError:
+                    continue
+    
+    # 搜索 py_jinwo 目录
+    py_jinwo_dir = package_dir / "py_jinwo"
+    if py_jinwo_dir.exists() and py_jinwo_dir.is_dir():
+        for pattern in patterns:
+            for f in py_jinwo_dir.glob(pattern):
+                try:
+                    return ctypes.CDLL(str(f))
+                except OSError:
+                    continue
+        # 搜索 py_jinwo/build 目录
+        build_dir = py_jinwo_dir / "build"
+        if build_dir.exists() and build_dir.is_dir():
+            for pattern in patterns:
+                for f in build_dir.glob(pattern):
+                    try:
+                        return ctypes.CDLL(str(f))
+                    except OSError:
+                        continue
 
     if sys.platform == "win32":
         lib_names = ["jinwo.dll", "libjinwo.dll"]
@@ -327,6 +360,7 @@ class JinWoDB:
         """
         self._path = path
         self._flags = flags
+        self._collection_dims = {}  # 缓存 Collection 维度: name -> dim
         lib = _get_lib()
 
         if path:
@@ -384,6 +418,7 @@ class JinWoDB:
         )
         if status != JW_SUCCESS or not coll_out.value:
             raise RuntimeError(f"无法创建 Collection: {name}, 状态码: {status}")
+        self._collection_dims[name] = dim  # 缓存维度
         return Collection(self, name, dim, coll_out.value)
 
     def get_collection(self, name: str) -> Optional[Collection]:
@@ -401,7 +436,8 @@ class JinWoDB:
         handle = lib.jw_vecdb_get_collection(self._handle, ctypes.byref(name_str))
         if not handle:
             return None
-        return Collection(self, name, 0, handle)
+        dim = self._collection_dims.get(name, 0)
+        return Collection(self, name, dim, handle)
 
     def drop_collection(self, name: str) -> bool:
         """
