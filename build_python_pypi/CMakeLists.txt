@@ -61,24 +61,23 @@ if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
 
-# 构建动态库 (静态链接到 Python 扩展)
-add_library(jinwo STATIC ${JINWO_SOURCES})
+# ============================================================
+# 2026-05-24: 修复 Windows ctypes 找不到 jw_* 函数的问题
+# 原因: STATIC + JW_STATIC 导致 jw_* 函数在 .pyd 中不导出
+#       改用 OBJECT 库 + JW_EXPORTS，使 ctypes 能加载到符号
+# 备注: JW_EXPORTS 仅影响 Windows (dllexport)，macOS JW_API 不受影响
+# ============================================================
+add_library(jinwo OBJECT ${JINWO_SOURCES})
 set_target_properties(jinwo PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    # 静态库输出到 build 临时目录(link 用)，避免被打包进 wheel
-    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
-# ============================================================
-# 2026-05-21: 修复 Windows 编译错误
-# 原因: STATIC 库不应该使用 dllexport/dllimport
-#       需要定义 JW_STATIC 让头文件知道正在构建静态库
-# ============================================================
-target_compile_definitions(jinwo PUBLIC JW_STATIC)
+target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
 
 # 构建 Python 绑定
-add_library(_jinwo MODULE ${PYBIND_SOURCES})
-target_link_libraries(_jinwo jinwo Python::Module)
+add_library(_jinwo MODULE ${PYBIND_SOURCES} $<TARGET_OBJECTS:jinwo>)
+target_link_libraries(_jinwo Python::Module)
 target_include_directories(_jinwo PRIVATE ${Python_INCLUDE_DIRS})
+target_compile_definitions(_jinwo PRIVATE JW_EXPORTS)
 
 # 设置 Python 模块输出名称
 set_target_properties(_jinwo PROPERTIES
