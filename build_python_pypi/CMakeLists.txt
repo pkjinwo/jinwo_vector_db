@@ -75,7 +75,16 @@ target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
 
 # 构建 Python 绑定
 add_library(_jinwo MODULE ${PYBIND_SOURCES} $<TARGET_OBJECTS:jinwo>)
-target_link_libraries(_jinwo Python::Module)
+
+# 2026-05-24: 平台差异修复
+# Linux/macOS: ctypes.CDLL 加载 .so/.dylib 时，Python 符号由解释器动态提供。
+#             链接 Python::Module 会导致静态 libpython 嵌入或运行时找不到 libpython，
+#             引发 SIGSEGV，因此只在 Windows 链接 Python::Module。
+# Windows:      .pyd/DLL 需要 Python::Module 的导入库来解析 PyArg_ParseTuple 等符号。
+if(WIN32)
+    target_link_libraries(_jinwo Python::Module)
+endif()
+
 target_include_directories(_jinwo PRIVATE ${Python_INCLUDE_DIRS})
 target_compile_definitions(_jinwo PRIVATE JW_EXPORTS)
 
@@ -89,5 +98,10 @@ set_target_properties(_jinwo PROPERTIES
 if(APPLE)
     set_target_properties(_jinwo PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
+    )
+elseif(NOT WIN32)
+    # Linux: 允许未定义符号，Python API 由运行时的解释器动态解析
+    set_target_properties(_jinwo PROPERTIES
+        LINK_FLAGS "-Wl,--allow-shlib-undefined"
     )
 endif()

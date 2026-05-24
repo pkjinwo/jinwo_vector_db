@@ -58,15 +58,20 @@ def _load_library():
     package_dir = Path(__file__).parent
 
     # 定义所有可能的扩展模块文件名模式
+    # 注意: Windows 上 scikit-build-core 可能生成 .dll 而非 .pyd，
+    #       所以需要同时搜索两种扩展名
     patterns = [
         "_jinwo*.so",
-        "_jinwo*.pyd", 
+        "_jinwo*.pyd",
+        "_jinwo*.dll",
         "_jinwo*.dylib",
         "jinwo*.so",
         "jinwo*.pyd",
+        "jinwo*.dll",
         "jinwo*.dylib",
         "libjinwo*.so",
         "libjinwo*.pyd",
+        "libjinwo*.dll",
         "libjinwo*.dylib",
     ]
 
@@ -74,8 +79,12 @@ def _load_library():
     for pattern in patterns:
         for f in package_dir.glob(pattern):
             try:
-                return ctypes.CDLL(str(f))
-            except OSError:
+                print(f"  [DEBUG] Trying to load: {f}", flush=True)
+                lib = ctypes.CDLL(str(f))
+                print(f"  [DEBUG] Loaded successfully: {f}", flush=True)
+                return lib
+            except OSError as e:
+                print(f"  [DEBUG] Failed to load {f}: {e}", flush=True)
                 continue
     
     # 搜索 Release 目录 (Windows MSVC 编译输出目录)
@@ -84,8 +93,12 @@ def _load_library():
         for pattern in patterns:
             for f in release_dir.glob(pattern):
                 try:
-                    return ctypes.CDLL(str(f))
-                except OSError:
+                    print(f"  [DEBUG] Trying to load (Release): {f}", flush=True)
+                    lib = ctypes.CDLL(str(f))
+                    print(f"  [DEBUG] Loaded successfully (Release): {f}", flush=True)
+                    return lib
+                except OSError as e:
+                    print(f"  [DEBUG] Failed to load (Release) {f}: {e}", flush=True)
                     continue
     
     # 搜索 py_jinwo 目录
@@ -94,8 +107,12 @@ def _load_library():
         for pattern in patterns:
             for f in py_jinwo_dir.glob(pattern):
                 try:
-                    return ctypes.CDLL(str(f))
-                except OSError:
+                    print(f"  [DEBUG] Trying to load (py_jinwo): {f}", flush=True)
+                    lib = ctypes.CDLL(str(f))
+                    print(f"  [DEBUG] Loaded successfully (py_jinwo): {f}", flush=True)
+                    return lib
+                except OSError as e:
+                    print(f"  [DEBUG] Failed to load (py_jinwo) {f}: {e}", flush=True)
                     continue
         # 搜索 py_jinwo/build 目录
         build_dir = py_jinwo_dir / "build"
@@ -103,12 +120,16 @@ def _load_library():
             for pattern in patterns:
                 for f in build_dir.glob(pattern):
                     try:
-                        return ctypes.CDLL(str(f))
-                    except OSError:
+                        print(f"  [DEBUG] Trying to load (build): {f}", flush=True)
+                        lib = ctypes.CDLL(str(f))
+                        print(f"  [DEBUG] Loaded successfully (build): {f}", flush=True)
+                        return lib
+                    except OSError as e:
+                        print(f"  [DEBUG] Failed to load (build) {f}: {e}", flush=True)
                         continue
 
     if sys.platform == "win32":
-        lib_names = ["jinwo.dll", "libjinwo.dll"]
+        lib_names = ["_jinwo.dll", "jinwo.dll", "libjinwo.dll"]
         ext = ".dll"
     elif sys.platform == "darwin":
         lib_names = ["libjinwo.dylib", "jinwo.dylib"]
@@ -142,8 +163,9 @@ def _load_library():
                 continue
 
     raise ImportError(
-        f"无法加载 JinWo 动态库。请确保已正确安装 jinwo_vecdb 包。\n"
-        f"尝试的路径: {[str(p) for p in possible_paths]}"
+        f"Failed to load JinWo dynamic library. "
+        f"Please ensure jinwo_vecdb is correctly installed.\n"
+        f"Attempted paths: {[str(p) for p in possible_paths]}"
     )
 
 
@@ -152,7 +174,9 @@ _lib = None
 def _get_lib():
     global _lib
     if _lib is None:
+        print("  [DEBUG] Loading library...", flush=True)
         _lib = _load_library()
+        print("  [DEBUG] Library loaded, setting function signatures...", flush=True)
 
         # jw_vecdb_open(jw_str_t* path, uint32 flags, jw_vecdb_t** db) -> status
         _lib.jw_vecdb_open.restype = ctypes.c_int
@@ -197,6 +221,8 @@ def _get_lib():
         # jw_vecdb_version(void) -> jw_str_t (returns struct by value)
         _lib.jw_vecdb_version.restype = jw_str_t
         _lib.jw_vecdb_version.argtypes = []
+
+        print("  [DEBUG] Function signatures set successfully", flush=True)
 
     return _lib
 
