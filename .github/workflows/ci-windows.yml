@@ -15,6 +15,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Copy test script
+      run: cp test_jinwo_vecdb.py build_python_pypi/
+
     - name: Build & test Windows wheels
       uses: pypa/cibuildwheel@v2.21.3
       env:

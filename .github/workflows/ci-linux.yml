@@ -14,6 +14,9 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Copy test script
+      run: cp test_jinwo_vecdb.py build_python_pypi/
+
     - name: Build & test Linux x86_64 wheels
       uses: pypa/cibuildwheel@v2.21.3
       env:
@@ -38,6 +41,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+
+    - name: Copy test script
+      run: cp test_jinwo_vecdb.py build_python_pypi/
 
     - name: Build & test Linux aarch64 wheels
       uses: pypa/cibuildwheel@v2.21.3
