@@ -19,6 +19,7 @@
 
 #ifdef JW_WIN32
     #include <windows.h>
+    #define strcasecmp _stricmp
 #else
     #include <sys/time.h>
     #include <pthread.h>
