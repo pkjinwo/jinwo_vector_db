@@ -43,7 +43,7 @@ include = ["jinwo_vecdb*"]
 exclude = ["jinwo_vecdb.py_jinwo*"]
 
 [tool.setuptools.package-data]
-jinwo_vecdb = ["*.py"]
+jinwo_vecdb = ["*.py", "*.so", "*.pyd", "*.dll", "*.dylib"]
 
 [tool.cibuildwheel]
 build = "cp38-manylinux* cp39-manylinux* cp310-manylinux* cp311-manylinux* cp312-manylinux* cp38-macosx* cp39-macosx* cp310-macosx* cp311-macosx* cp312-macosx* cp38-win* cp39-win* cp310-win* cp311-win* cp312-win*"

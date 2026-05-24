@@ -53,119 +53,107 @@ JW_VECDB_MEMORY = 0x10
 
 JW_SUCCESS = 0  # C 状态码: 成功
 
+def _try_load_cdll(path):
+    """尝试加载动态库，成功返回 (lib, path)，失败返回 (None, None)"""
+    try:
+        lib = ctypes.CDLL(str(path))
+        # 验证库包含核心函数（防止加载了错误的 .so）
+        if hasattr(lib, 'jw_vecdb_open'):
+            return lib, path
+        else:
+            print(f"  [DEBUG] Loaded {path} but missing jw_vecdb_open, skipping", flush=True)
+            return None, None
+    except OSError as e:
+        print(f"  [DEBUG] Failed to load {path}: {e}", flush=True)
+        return None, None
+
+
 def _load_library():
-    """加载 JinWo C 动态库"""
+    """加载 JinWo C 动态库（优先加载纯 C 共享库，避免 Python API 符号冲突）"""
     package_dir = Path(__file__).parent
 
-    # 定义所有可能的扩展模块文件名模式
-    # 注意: Windows 上 scikit-build-core 可能生成 .dll 而非 .pyd，
-    #       所以需要同时搜索两种扩展名
-    patterns = [
-        "_jinwo*.so",
-        "_jinwo*.pyd",
-        "_jinwo*.dll",
-        "_jinwo*.dylib",
-        "jinwo*.so",
-        "jinwo*.pyd",
-        "jinwo*.dll",
-        "jinwo*.dylib",
-        "libjinwo*.so",
-        "libjinwo*.pyd",
-        "libjinwo*.dll",
-        "libjinwo*.dylib",
-    ]
+    # ================================================================
+    # 2026-05-24: 分离纯 C 库和 Python 模块
+    # 纯 C 库 (jinwo.so / jinwo.dylib / libjinwo.dll) 不含 Python API,
+    # ctypes 加载时不会与解释器冲突。_jinwo.so 是 Python 模块,
+    # 包含 Python C API, 由 import 系统使用, ctypes 不应加载它。
+    # ================================================================
+    if sys.platform == "win32":
+        # Windows: libjinwo.dll (SHARED) 是纯 C 库,
+        #         _jinwo.pyd (MODULE) 是 Python 模块
+        primary_names = ["libjinwo.dll"]
+        fallback_names = ["jinwo.dll", "_jinwo.dll"]
+    elif sys.platform == "darwin":
+        # macOS: jinwo.dylib (SHARED) 是纯 C 库,
+        #       _jinwo.so (MODULE) 是 Python 模块
+        primary_names = ["jinwo.dylib"]
+        fallback_names = ["libjinwo.dylib", "_jinwo.dylib"]
+    else:
+        # Linux: jinwo.so (SHARED) 是纯 C 库,
+        #       _jinwo.cpython*.so (MODULE) 是 Python 模块
+        primary_names = ["jinwo.so"]
+        fallback_names = ["libjinwo.so", "_jinwo.so"]
 
-    # 搜索包目录
-    for pattern in patterns:
-        for f in package_dir.glob(pattern):
-            try:
-                print(f"  [DEBUG] Trying to load: {f}", flush=True)
-                lib = ctypes.CDLL(str(f))
-                print(f"  [DEBUG] Loaded successfully: {f}", flush=True)
+    # 第一步: 在包目录下搜索纯 C 库（精确匹配）
+    for lib_name in primary_names:
+        path = package_dir / lib_name
+        if path.exists():
+            lib, found_path = _try_load_cdll(path)
+            if lib is not None:
+                print(f"  [DEBUG] Loaded (primary): {found_path}", flush=True)
                 return lib
-            except OSError as e:
-                print(f"  [DEBUG] Failed to load {f}: {e}", flush=True)
-                continue
-    
-    # 搜索 Release 目录 (Windows MSVC 编译输出目录)
+
+    # 第二步: 在 .libs 子目录搜索 (auditwheel 将依赖库放这里)
+    libs_dir = package_dir / ".libs"
+    if libs_dir.exists() and libs_dir.is_dir():
+        for lib_name in primary_names + fallback_names:
+            for f in libs_dir.glob(lib_name.replace(".so", "*.so")
+                                     .replace(".dylib", "*.dylib")
+                                     .replace(".dll", "*.dll")):
+                lib, found_path = _try_load_cdll(f)
+                if lib is not None:
+                    print(f"  [DEBUG] Loaded (.libs): {found_path}", flush=True)
+                    return lib
+
+    # 第三步: 在 Release 目录搜索 (Windows MSVC)
     release_dir = package_dir / "Release"
     if release_dir.exists() and release_dir.is_dir():
-        for pattern in patterns:
-            for f in release_dir.glob(pattern):
-                try:
-                    print(f"  [DEBUG] Trying to load (Release): {f}", flush=True)
-                    lib = ctypes.CDLL(str(f))
-                    print(f"  [DEBUG] Loaded successfully (Release): {f}", flush=True)
+        for lib_name in primary_names:
+            path = release_dir / lib_name
+            if path.exists():
+                lib, found_path = _try_load_cdll(path)
+                if lib is not None:
+                    print(f"  [DEBUG] Loaded (Release): {found_path}", flush=True)
                     return lib
-                except OSError as e:
-                    print(f"  [DEBUG] Failed to load (Release) {f}: {e}", flush=True)
-                    continue
-    
-    # 搜索 py_jinwo 目录
-    py_jinwo_dir = package_dir / "py_jinwo"
-    if py_jinwo_dir.exists() and py_jinwo_dir.is_dir():
-        for pattern in patterns:
-            for f in py_jinwo_dir.glob(pattern):
-                try:
-                    print(f"  [DEBUG] Trying to load (py_jinwo): {f}", flush=True)
-                    lib = ctypes.CDLL(str(f))
-                    print(f"  [DEBUG] Loaded successfully (py_jinwo): {f}", flush=True)
-                    return lib
-                except OSError as e:
-                    print(f"  [DEBUG] Failed to load (py_jinwo) {f}: {e}", flush=True)
-                    continue
-        # 搜索 py_jinwo/build 目录
-        build_dir = py_jinwo_dir / "build"
-        if build_dir.exists() and build_dir.is_dir():
-            for pattern in patterns:
-                for f in build_dir.glob(pattern):
-                    try:
-                        print(f"  [DEBUG] Trying to load (build): {f}", flush=True)
-                        lib = ctypes.CDLL(str(f))
-                        print(f"  [DEBUG] Loaded successfully (build): {f}", flush=True)
-                        return lib
-                    except OSError as e:
-                        print(f"  [DEBUG] Failed to load (build) {f}: {e}", flush=True)
-                        continue
 
-    if sys.platform == "win32":
-        lib_names = ["_jinwo.dll", "jinwo.dll", "libjinwo.dll"]
-        ext = ".dll"
-    elif sys.platform == "darwin":
-        lib_names = ["libjinwo.dylib", "jinwo.dylib"]
-        ext = ".dylib"
-    else:
-        lib_names = ["libjinwo.so", "jinwo.so"]
-        ext = ".so"
-
-    possible_paths = []
-    for lib_name in lib_names:
-        possible_paths.append(package_dir / lib_name)
-        possible_paths.append(package_dir / "py_jinwo" / lib_name)
-        possible_paths.append(package_dir.parent / lib_name)
-
-    for lib_name in lib_names:
-        possible_paths.append(Path("/usr/local/lib") / lib_name)
-        possible_paths.append(Path("/usr/lib") / lib_name)
-
-    for env_var in ["LD_LIBRARY_PATH", "PATH"]:
-        if env_var in os.environ:
-            for p in os.environ[env_var].split(os.pathsep):
-                for lib_name in lib_names:
-                    possible_paths.append(Path(p) / lib_name)
-
-    for path in possible_paths:
-        if path.exists():
-            try:
-                lib = ctypes.CDLL(str(path))
-                return lib
-            except OSError:
+    # 第四步: 回退到旧文件名和模糊搜索
+    all_names = primary_names + fallback_names
+    for lib_name in all_names:
+        for d in [package_dir, release_dir if release_dir.exists() else None]:
+            if d is None:
                 continue
+            for f in d.glob(lib_name.replace(".so", "*.so")
+                              .replace(".dylib", "*.dylib")
+                              .replace(".dll", "*.dll")):
+                lib, found_path = _try_load_cdll(f)
+                if lib is not None:
+                    print(f"  [DEBUG] Loaded (fallback glob): {found_path}", flush=True)
+                    return lib
+
+    # 第五步: 系统路径
+    for lib_name in all_names:
+        for sys_dir in ["/usr/local/lib", "/usr/lib"]:
+            path = Path(sys_dir) / lib_name
+            if path.exists():
+                lib, found_path = _try_load_cdll(path)
+                if lib is not None:
+                    print(f"  [DEBUG] Loaded (system): {found_path}", flush=True)
+                    return lib
 
     raise ImportError(
         f"Failed to load JinWo dynamic library. "
         f"Please ensure jinwo_vecdb is correctly installed.\n"
-        f"Attempted paths: {[str(p) for p in possible_paths]}"
+        f"Primary names: {primary_names}"
     )
 
 

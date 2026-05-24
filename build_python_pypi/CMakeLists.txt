@@ -48,17 +48,7 @@ set(PYBIND_SOURCES
 )
 
 # 获取 Python 扩展名和目录
-# Development.Module: 构建 Python 扩展模块（不需要 Python_LIBRARIES）
-# 2026-05-24: Linux (manylinux) 强制优先查找 .so（共享库），
-#             避免 CMake 默认找 .a（静态库）嵌入 libpython → SIGSEGV
-if(NOT APPLE AND NOT WIN32)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so;.a")
-endif()
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
-if(NOT APPLE AND NOT WIN32)
-    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP})
-endif()
 message(STATUS "Python extension suffix: ${Python_SOABI}")
 message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
 
@@ -71,31 +61,35 @@ if(NOT DEFINED CMAKE_RUNTIME_OUTPUT_DIRECTORY)
 endif()
 
 # ============================================================
-# 2026-05-24: 修复 Windows ctypes 找不到 jw_* 函数的问题
-# 原因: STATIC + JW_STATIC 导致 jw_* 函数在 .pyd 中不导出
-#       改用 OBJECT 库 + JW_EXPORTS，使 ctypes 能加载到符号
-# 备注: JW_EXPORTS 仅影响 Windows (dllexport)，macOS JW_API 不受影响
+# 2026-05-24: 分离纯 C 库和 Python 模块，解决 Linux/macOS SIGSEGV
+#
+# 问题: 之前 _jinwo.so 同时包含纯 C 函数和 Python C API 代码。
+#       ctypes.CDLL 加载时，Python API 符号嵌入静态 libpython
+#       与运行中解释器冲突 → SIGSEGV。或不链接则符号未定义。
+#
+# 方案: jinwo  → SHARED 纯 C 库 (ctypes 加载, 无 Python 依赖)
+#       _jinwo → MODULE Python 扩展 (import 使用, 有 Python::Module)
 # ============================================================
-add_library(jinwo OBJECT ${JINWO_SOURCES})
+add_library(jinwo SHARED ${JINWO_SOURCES})
+target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
 set_target_properties(jinwo PROPERTIES
     POSITION_INDEPENDENT_CODE ON
+    PREFIX ""  # 去掉 lib 前缀，统一文件名
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
-target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
+if(WIN32)
+    set_target_properties(jinwo PROPERTIES
+        PREFIX "lib"  # Windows 保留 lib 前缀
+    )
+endif()
 
-# 构建 Python 绑定
-add_library(_jinwo MODULE ${PYBIND_SOURCES} $<TARGET_OBJECTS:jinwo>)
-
-# 2026-05-24: 在所有平台链接 Python::Module
-# - Windows: 需要导入库解析 Python API 符号
-# - Linux:   find_package 前设 .so 优先，确保动态链接共享 libpython
-#            （避免静态嵌入导致符号冲突 SIGSEGV）
-# - macOS:   -undefined dynamic_lookup 覆盖，符号运行时解析
-target_link_libraries(_jinwo Python::Module)
-
+# 构建 Python 绑定模块（仅 py_jinwo.c, 包含 Python C API）
+add_library(_jinwo MODULE ${PYBIND_SOURCES})
+target_link_libraries(_jinwo jinwo Python::Module)
 target_include_directories(_jinwo PRIVATE ${Python_INCLUDE_DIRS})
 target_compile_definitions(_jinwo PRIVATE JW_EXPORTS)
-
-# 设置 Python 模块输出名称
 set_target_properties(_jinwo PROPERTIES
     PREFIX ""
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
