@@ -49,7 +49,16 @@ set(PYBIND_SOURCES
 
 # 获取 Python 扩展名和目录
 # Development.Module: 构建 Python 扩展模块（不需要 Python_LIBRARIES）
+# 2026-05-24: Linux (manylinux) 强制优先查找 .so（共享库），
+#             避免 CMake 默认找 .a（静态库）嵌入 libpython → SIGSEGV
+if(NOT APPLE AND NOT WIN32)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP ${CMAKE_FIND_LIBRARY_SUFFIXES})
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".so;.a")
+endif()
 find_package(Python COMPONENTS Interpreter Development.Module REQUIRED)
+if(NOT APPLE AND NOT WIN32)
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_BACKUP})
+endif()
 message(STATUS "Python extension suffix: ${Python_SOABI}")
 message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
 
@@ -76,14 +85,12 @@ target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
 # 构建 Python 绑定
 add_library(_jinwo MODULE ${PYBIND_SOURCES} $<TARGET_OBJECTS:jinwo>)
 
-# 2026-05-24: 平台差异修复
-# Linux/macOS: ctypes.CDLL 加载 .so/.dylib 时，Python 符号由解释器动态提供。
-#             链接 Python::Module 会导致静态 libpython 嵌入或运行时找不到 libpython，
-#             引发 SIGSEGV，因此只在 Windows 链接 Python::Module。
-# Windows:      .pyd/DLL 需要 Python::Module 的导入库来解析 PyArg_ParseTuple 等符号。
-if(WIN32)
-    target_link_libraries(_jinwo Python::Module)
-endif()
+# 2026-05-24: 在所有平台链接 Python::Module
+# - Windows: 需要导入库解析 Python API 符号
+# - Linux:   find_package 前设 .so 优先，确保动态链接共享 libpython
+#            （避免静态嵌入导致符号冲突 SIGSEGV）
+# - macOS:   -undefined dynamic_lookup 覆盖，符号运行时解析
+target_link_libraries(_jinwo Python::Module)
 
 target_include_directories(_jinwo PRIVATE ${Python_INCLUDE_DIRS})
 target_compile_definitions(_jinwo PRIVATE JW_EXPORTS)
@@ -98,10 +105,5 @@ set_target_properties(_jinwo PROPERTIES
 if(APPLE)
     set_target_properties(_jinwo PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
-    )
-elseif(NOT WIN32)
-    # Linux: 允许未定义符号，Python API 由运行时的解释器动态解析
-    set_target_properties(_jinwo PROPERTIES
-        LINK_FLAGS "-Wl,--allow-shlib-undefined"
     )
 endif()
