@@ -14,12 +14,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build Linux x86_64 wheels
+    - name: Copy test script
+      shell: bash
+      run: cp test_jinwo_vecdb.py build_python_pypi/
+
+    - name: Build & test Linux x86_64 wheels
       uses: pypa/cibuildwheel@v2.21.3
       env:
         CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
         CIBW_SKIP: "*-musllinux*"
         CIBW_ARCHS_LINUX: "x86_64"
+        CIBW_TEST_COMMAND: "python {project}/test_jinwo_vecdb.py"
       with:
         package-dir: build_python_pypi
 
@@ -38,12 +43,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build Linux aarch64 wheels
+    - name: Copy test script
+      shell: bash
+      run: cp test_jinwo_vecdb.py build_python_pypi/
+
+    - name: Build & test Linux aarch64 wheels
       uses: pypa/cibuildwheel@v2.21.3
       env:
         CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
         CIBW_SKIP: "*-musllinux*"
         CIBW_ARCHS_LINUX: "aarch64"
+        CIBW_TEST_COMMAND: "python {project}/test_jinwo_vecdb.py"
       with:
         package-dir: build_python_pypi
 
