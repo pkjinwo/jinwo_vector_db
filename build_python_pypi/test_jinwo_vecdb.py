@@ -1,0 +1,196 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+JinWo VecDB Test Script
+Test pip installation from PyPI and basic functionality
+"""
+
+import os
+import sys
+import shutil
+from pathlib import Path
+
+def print_debug_info():
+    """Print debug information when library loading fails"""
+    print("\n" + "=" * 60)
+    print("DEBUG INFORMATION")
+    print("=" * 60)
+    
+    print("\n[1] Python Version:")
+    print(f"    {sys.version}")
+    
+    print("\n[2] Platform:")
+    print(f"    sys.platform: {sys.platform}")
+    print(f"    os.name: {os.name}")
+    
+    print("\n[3] JinWo VecDB Package Location:")
+    try:
+        import jinwo_vecdb
+        pkg_path = Path(jinwo_vecdb.__file__).parent
+        print(f"    Package path: {pkg_path}")
+        print(f"    Version: {jinwo_vecdb.__version__}")
+        
+        print("\n[4] Files in package directory:")
+        for f in sorted(pkg_path.glob("*")):
+            size = f.stat().st_size if f.is_file() else "DIR"
+            print(f"    {f.name:<30} {size}")
+        
+        print("\n[5] Looking for _jinwo files:")
+        found = False
+        for pattern in ["_jinwo*.pyd", "_jinwo*.so", "_jinwo*.dll", "_jinwo*.dylib"]:
+            files = list(pkg_path.glob(pattern))
+            if files:
+                for f in files:
+                    print(f"    ✓ Found: {f.name}")
+                    found = True
+            else:
+                print(f"    ✗ Not found: {pattern}")
+        
+        if not found:
+            print("\n[ERROR] No _jinwo extension module found!")
+            print("        The package may not be properly built for this platform.")
+        
+    except ImportError as e:
+        print(f"    ✗ Failed to import jinwo_vecdb: {e}")
+    
+    print("\n" + "=" * 60)
+
+def main():
+    print("=" * 60)
+    print("JinWo VecDB Test Script")
+    print("=" * 60)
+    print()
+
+    # Test 1: Import module
+    print("[Test 1] Import jinwo_vecdb")
+    print("-" * 40)
+    try:
+        import jinwo_vecdb
+        print(f"✓ Import successful")
+        print(f"  Version: {jinwo_vecdb.__version__}")
+    except Exception as e:
+        print(f"✗ Import failed: {e}")
+        print_debug_info()
+        sys.exit(1)
+    print()
+
+    # Test 2: Create/open database
+    print("[Test 2] Create/open database")
+    print("-" * 40)
+    db_path = "./test_jinwo_db.jwv"
+    try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        db = jinwo_vecdb.open(db_path)
+        print(f"✓ Database created at: {db_path}")
+    except Exception as e:
+        print(f"✗ Failed to create database: {e}")
+        print_debug_info()
+        sys.exit(1)
+    print()
+
+    # Test 3: Create collection
+    print("[Test 3] Create collection")
+    print("-" * 40)
+    try:
+        collection_name = "documents"
+        db.create_collection(collection_name, 384)
+        print(f"✓ Collection '{collection_name}' created")
+    except Exception as e:
+        print(f"✗ Failed to create collection: {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 4: Insert vectors
+    print("[Test 4] Insert vectors")
+    print("-" * 40)
+    try:
+        for i in range(100):
+            vec = [float(i + j) for j in range(384)]
+            db.insert(collection_name, vec)
+        print("✓ Successfully inserted 100 vectors")
+    except Exception as e:
+        print(f"✗ Failed to insert vectors: {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 5: Search vectors
+    print("[Test 5] Search vectors")
+    print("-" * 40)
+    try:
+        query_vec = [float(50 + j) for j in range(384)]
+        results = db.search(collection_name, query_vec, k=10)
+        print(f"✓ Search completed")
+        print(f"  Results count: {len(results)}")
+        print("\n  Top 5 results:")
+        for idx, (vid, distance) in enumerate(results[:5]):
+            print(f"    {idx+1}. vid={vid}, distance={distance:.6f}")
+    except Exception as e:
+        print(f"✗ Failed to search vectors: {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 6: Delete vector
+    print("[Test 6] Delete vector")
+    print("-" * 40)
+    try:
+        query_vec = [float(50 + j) for j in range(384)]
+        results = db.search(collection_name, query_vec, k=1)
+        if results:
+            vid_to_delete = results[0][0]
+            db.delete(collection_name, vid_to_delete)
+            print(f"✓ Deleted vector with vid={vid_to_delete}")
+            results_after = db.search(collection_name, query_vec, k=5)
+            print(f"  Results after delete: {len(results_after)}")
+        else:
+            print("✗ No results to delete")
+    except Exception as e:
+        print(f"✗ Failed to delete vector: {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 7: Batch insert
+    print("[Test 7] Batch insert vectors")
+    print("-" * 40)
+    try:
+        vectors = [[float(200 + i + j) for j in range(384)] for i in range(50)]
+        vids = db.insert_batch(collection_name, vectors)
+        print(f"✓ Successfully inserted {len(vids)} vectors in batch")
+    except Exception as e:
+        print(f"✗ Failed to batch insert: {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 8: Close database
+    print("[Test 8] Close database")
+    print("-" * 40)
+    try:
+        db.close()
+        print("✓ Database closed successfully")
+    except Exception as e:
+        print(f"✗ Failed to close database: {e}")
+        sys.exit(1)
+    print()
+
+    # Cleanup
+    print("[Cleanup] Remove test database file")
+    print("-" * 40)
+    try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            print(f"✓ Removed test database file")
+    except Exception as e:
+        print(f"✗ Failed to remove test file: {e}")
+    print()
+
+    print("=" * 60)
+    print("All tests passed! ✓")
+    print("=" * 60)
+
+if __name__ == "__main__":
+    main()
