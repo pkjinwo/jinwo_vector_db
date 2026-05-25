@@ -374,21 +374,20 @@ JW_API jw_status_t jw_file_rmdir_recursive(const jw_str_t *path)
             continue;
         }
         
-        char *full_path = jw_strprintf(NULL, "%s/%s", jw_str_cstr(path), entry->d_name);
+        jw_str_t *full_path = jw_strprintf(NULL, "%s/%s", jw_str_cstr(path), entry->d_name);
         if (!full_path) {
             closedir(dir);
             return JW_OUT_OF_MEMORY;
         }
-        
-        jw_str_t full_path_str = jw_str(full_path);
-        if (jw_file_is_directory(&full_path_str)) {
-            if (jw_file_rmdir_recursive(&full_path_str) != JW_SUCCESS) {
+
+        if (jw_file_is_directory(full_path)) {
+            if (jw_file_rmdir_recursive(full_path) != JW_SUCCESS) {
                 free(full_path);
                 closedir(dir);
                 return JW_IO_ERROR;
             }
         } else {
-            if (unlink(full_path) != 0) {
+            if (unlink(jw_str_cstr(full_path)) != 0) {
                 free(full_path);
                 closedir(dir);
                 return JW_IO_ERROR;

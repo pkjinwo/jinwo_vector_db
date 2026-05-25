@@ -87,6 +87,7 @@ JW_API jw_status_t jw_mutex_create(jw_arena_t *arena,
     }
     
     if (mem == NULL) {
+        *mutex = NULL;
         return JW_OUT_OF_MEMORY;
     }
     
@@ -101,6 +102,7 @@ JW_API jw_status_t jw_mutex_create(jw_arena_t *arena,
         if (!arena) {
             jw_free(mem);
         }
+        *mutex = NULL;
         return JW_UNKNOWN_ERROR;
     }
     return JW_SUCCESS;
@@ -197,6 +199,7 @@ JW_API jw_status_t jw_rwlock_create(jw_arena_t *arena,
     }
     
     if (mem == NULL) {
+        *rwlock = NULL;
         return JW_OUT_OF_MEMORY;
     }
     
@@ -211,6 +214,7 @@ JW_API jw_status_t jw_rwlock_create(jw_arena_t *arena,
         if (!arena) {
             jw_free(mem);
         }
+        *rwlock = NULL;
         return JW_UNKNOWN_ERROR;
     }
     return JW_SUCCESS;
@@ -460,6 +464,7 @@ JW_API jw_status_t jw_cond_create(jw_arena_t *arena,
     }
     
     if (mem == NULL) {
+        *cond = NULL;
         return JW_OUT_OF_MEMORY;
     }
     
@@ -474,6 +479,7 @@ JW_API jw_status_t jw_cond_create(jw_arena_t *arena,
         if (!arena) {
             jw_free(mem);
         }
+        *cond = NULL;
         return JW_UNKNOWN_ERROR;
     }
     return JW_SUCCESS;

@@ -89,59 +89,63 @@ def _load_library():
         primary_names = ["jinwo.dylib"]
         fallback_names = ["libjinwo.dylib", "_jinwo.dylib"]
     else:
-        # Linux: jinwo.so (SHARED) 是纯 C 库,
+        # Linux: libjinwo.so (SHARED) 是纯 C 库 (lib 前缀避免与 jinwo.py 冲突),
         #       _jinwo.cpython*.so (MODULE) 是 Python 模块
-        primary_names = ["jinwo.so"]
-        fallback_names = ["libjinwo.so", "_jinwo.so"]
+        primary_names = ["libjinwo.so"]
+        fallback_names = ["jinwo.so", "_jinwo.so"]
 
-    # 第一步: 在包目录下搜索纯 C 库（精确匹配）
+    # 搜索顺序：每个平台只搜自己对应的目录
+    #   - 开发环境：库在包目录下
+    #   - wheel 安装后：库在平台专属子目录
+    #     Linux  (auditwheel)     → .libs/
+    #     macOS  (delocate-wheel) → .dylibs/
+    #     Windows(delvewheel)     → 包目录（不创建子目录）
+    #   - Windows 开发环境：Release/
+    #   - 系统路径（最后兜底，开发用）
+
+    if sys.platform == "darwin":
+        wheel_subdir = ".dylibs"
+    elif sys.platform == "win32":
+        wheel_subdir = None
+    else:
+        wheel_subdir = ".libs"
+
+    # 第一步: 包目录（开发环境 / Windows wheel）
     for lib_name in primary_names:
         path = package_dir / lib_name
         if path.exists():
             lib, found_path = _try_load_cdll(path)
             if lib is not None:
-                print(f"  [DEBUG] Loaded (primary): {found_path}", flush=True)
+                print(f"  [DEBUG] Loaded (package): {found_path}", flush=True)
                 return lib
 
-    # 第二步: 在 .libs 子目录搜索 (auditwheel 将依赖库放这里)
-    libs_dir = package_dir / ".libs"
-    if libs_dir.exists() and libs_dir.is_dir():
-        for lib_name in primary_names + fallback_names:
-            for f in libs_dir.glob(lib_name.replace(".so", "*.so")
-                                     .replace(".dylib", "*.dylib")
-                                     .replace(".dll", "*.dll")):
-                lib, found_path = _try_load_cdll(f)
-                if lib is not None:
-                    print(f"  [DEBUG] Loaded (.libs): {found_path}", flush=True)
-                    return lib
+    # 第二步: wheel 子目录（仅 Linux / macOS）
+    if wheel_subdir is not None:
+        wheel_dir = package_dir / wheel_subdir
+        if wheel_dir.exists() and wheel_dir.is_dir():
+            for lib_name in primary_names:
+                for f in wheel_dir.glob(
+                        lib_name.replace(".so", "*.so")
+                                .replace(".dylib", "*.dylib")):
+                    lib, found_path = _try_load_cdll(f)
+                    if lib is not None:
+                        print(f"  [DEBUG] Loaded ({wheel_subdir}): {found_path}", flush=True)
+                        return lib
 
-    # 第三步: 在 Release 目录搜索 (Windows MSVC)
-    release_dir = package_dir / "Release"
-    if release_dir.exists() and release_dir.is_dir():
-        for lib_name in primary_names:
-            path = release_dir / lib_name
-            if path.exists():
-                lib, found_path = _try_load_cdll(path)
-                if lib is not None:
-                    print(f"  [DEBUG] Loaded (Release): {found_path}", flush=True)
-                    return lib
+    # 第三步: Release 目录（Windows MSVC 开发环境）
+    if sys.platform == "win32":
+        release_dir = package_dir / "Release"
+        if release_dir.exists() and release_dir.is_dir():
+            for lib_name in primary_names:
+                path = release_dir / lib_name
+                if path.exists():
+                    lib, found_path = _try_load_cdll(path)
+                    if lib is not None:
+                        print(f"  [DEBUG] Loaded (Release): {found_path}", flush=True)
+                        return lib
 
-    # 第四步: 回退到旧文件名和模糊搜索
-    all_names = primary_names + fallback_names
-    for lib_name in all_names:
-        for d in [package_dir, release_dir if release_dir.exists() else None]:
-            if d is None:
-                continue
-            for f in d.glob(lib_name.replace(".so", "*.so")
-                              .replace(".dylib", "*.dylib")
-                              .replace(".dll", "*.dll")):
-                lib, found_path = _try_load_cdll(f)
-                if lib is not None:
-                    print(f"  [DEBUG] Loaded (fallback glob): {found_path}", flush=True)
-                    return lib
-
-    # 第五步: 系统路径
-    for lib_name in all_names:
+    # 第四步: 系统路径（开发时安装的库）
+    for lib_name in primary_names + fallback_names:
         for sys_dir in ["/usr/local/lib", "/usr/lib"]:
             path = Path(sys_dir) / lib_name
             if path.exists():
@@ -205,6 +209,10 @@ def _get_lib():
         # jw_vecdb_search(db, jw_str_t* coll_name, cvec query, dim, k, results) -> count
         _lib.jw_vecdb_search.restype = ctypes.c_size_t
         _lib.jw_vecdb_search.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.POINTER(ctypes.c_float), ctypes.c_uint32, ctypes.c_size_t, ctypes.POINTER(jw_search_result_t)]
+
+        # jw_collection_build_index(jw_collection_t* coll) -> status
+        _lib.jw_collection_build_index.restype = ctypes.c_int
+        _lib.jw_collection_build_index.argtypes = [ctypes.c_void_p]
 
         # jw_vecdb_version(void) -> jw_str_t (returns struct by value)
         _lib.jw_vecdb_version.restype = jw_str_t
@@ -334,6 +342,15 @@ class Collection:
             results_buf
         )
         return [(int(results_buf[i].id), float(results_buf[i].score)) for i in range(count)]
+
+    def build_index(self):
+        """
+        手动构建索引
+        """
+        lib = _get_lib()
+        status = lib.jw_collection_build_index(self._handle)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"build_index 失败, 状态码: {status}")
 
 
 #==============================================================================

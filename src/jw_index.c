@@ -135,7 +135,7 @@ static void pq_init(priority_queue_t *pq, jw_size_t capacity, jw_arena_t *arena)
     pq->items = (search_candidate_t *)jw_arena_alloc(arena,
                 capacity * sizeof(search_candidate_t));
     pq->size = 0;
-    pq->capacity = capacity;
+    pq->capacity = (pq->items != NULL) ? capacity : 0;
 }
 
 /**
@@ -152,6 +152,7 @@ static void pq_init(priority_queue_t *pq, jw_size_t capacity, jw_arena_t *arena)
 static void pq_push(priority_queue_t *pq, jw_vid_t vid,
                     jw_score_t score, jw_uint32_t level)
 {
+    if (pq->items == NULL || pq->capacity == 0) return;
     if (pq->size < pq->capacity) {
         /** 队列未满，直接插入到尾部 */
         jw_size_t i = pq->size++;
@@ -959,15 +960,23 @@ JW_API jw_ivf_index_t *jw_ivf_create(jw_arena_t *arena,
                                           sizeof(jw_ivf_entry_t));
         index->lists[i].count = 0;
 
-        /** 创建读写锁以支持并发查询 */
-        jw_rwlock_t *lock;
-        jw_rwlock_create(local_arena, NULL, &lock);
+        /** 创建读写锁以支持并发查询 (NULL=使用malloc而非arena) */
+        jw_rwlock_t *lock = NULL;
+        jw_status_t lock_st = jw_rwlock_create(NULL, NULL, &lock);
+        if (lock == NULL) {
+            if (!arena) jw_arena_destroy(local_arena);
+            return NULL;
+        }
         index->lists[i].lock = lock;
     }
 
-    /** 创建全局互斥锁 */
-    jw_mutex_t *mutex;
-    jw_mutex_create(local_arena, NULL, &mutex);
+    /** 创建全局互斥锁 (NULL=使用malloc而非arena) */
+    jw_mutex_t *mutex = NULL;
+    jw_status_t mutex_st = jw_mutex_create(NULL, NULL, &mutex);
+    if (mutex == NULL) {
+        if (!arena) jw_arena_destroy(local_arena);
+        return NULL;
+    }
     index->lock = mutex;
 
     return index;
@@ -1158,7 +1167,15 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             }
 
             /** 添加到对应列表 */
+            if (min_idx >= ivf->nlist) {
+                jw_mutex_unlock(ivf->lock);
+                return JW_INVALID_PARAM;
+            }
             jw_ivf_list_t *list = &ivf->lists[min_idx];
+            if (list->lock == NULL) {
+                jw_mutex_unlock(ivf->lock);
+                return JW_UNKNOWN_ERROR;
+            }
             jw_rwlock_wrlock(list->lock);
 
             /** 扩容检查 */
@@ -1414,6 +1431,9 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
 
         centroid_dist_t *centroids = (centroid_dist_t *)jw_malloc(
                 ivf->nlist * sizeof(centroid_dist_t));
+        if (centroids == NULL) {
+            return 0;
+        }
 
         for (jw_uint32_t i = 0; i < ivf->nlist; i++) {
             centroids[i].idx = i;
@@ -1436,6 +1456,10 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         /** 在最近的列表中搜索 */
         priority_queue_t pq;
         pq_init(&pq, k, index->arena);
+        if (pq.items == NULL) {
+            jw_free(centroids);
+            return 0;
+        }
 
         for (jw_uint32_t i = 0; i < nprobe; i++) {
             jw_ivf_list_t *list = &ivf->lists[centroids[i].idx];

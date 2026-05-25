@@ -4,6 +4,8 @@ project(jinwo_vecdb C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+
+
 # ============================================================
 # 2026-05-20: 修复 Windows 编译错误
 # 原因: BUILD_SHARED_LIBS ON 与 add_library(jinwo STATIC ...) 冲突
@@ -79,9 +81,9 @@ set_target_properties(jinwo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
 )
-if(WIN32)
+if(WIN32 OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set_target_properties(jinwo PROPERTIES
-        PREFIX "lib"  # Windows 保留 lib 前缀
+        PREFIX "lib"  # Windows/Linux: libjinwo.*, 避免 jinwo.so 与 jinwo.py 冲突
     )
 endif()
 

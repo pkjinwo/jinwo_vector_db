@@ -16,6 +16,7 @@
 #include "jw_storage.h"
 #include "jw_hash.h"
 #include "jw_math.h"
+#include <string.h>
 
 /*
  * =============================================================================
@@ -128,10 +129,16 @@ JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
     
     coll->index = jw_index_create(local_arena, &index_config);
     coll->index_enabled = JW_TRUE;
-    coll->index_threshold = 100;  /* 100个向量后建索引 */
+    coll->index_threshold = 100000000;  /* 默认禁用自动训练，需手动build_index */
+    /* 注: Linux GCC -O2 下 IVF 索引训练存在内存访问问题，
+       暂时禁用自动训练。macOS Clang 不受影响。后续修复 IVF K-means 代码后可恢复。 */
     
     /* 初始化锁 */
-    jw_rwlock_create(local_arena, NULL, &coll->lock);
+    if (jw_rwlock_create(local_arena, NULL, &coll->lock) != JW_SUCCESS || coll->lock == NULL) {
+        jw_index_destroy(coll->index);
+        jw_arena_destroy(local_arena);
+        return NULL;
+    }
     
     /* 设置时间戳 */
     coll->create_time = jw_time_now();
@@ -438,7 +445,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
         for (jw_size_t j = 0; j < record->field_count; j++) {
             const jw_meta_field_t *field = &record->fields[j];
             
-            if (jw_strcasecmp(&field->name, field_name) == 0) {
+            jw_str_t fn_str = { (char *)field_name, strlen(field_name) };
+            if (jw_strcasecmp(&field->name, &fn_str) == 0) {
                 found = JW_TRUE;
                 
                 /* 根据字段类型进行比较 */
@@ -1280,7 +1288,10 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
     
     /* 初始化锁 */
     jw_rwlock_t *lock;
-    jw_rwlock_create(local_arena, NULL, &lock);
+    if (jw_rwlock_create(local_arena, NULL, &lock) != JW_SUCCESS || lock == NULL) {
+        jw_arena_destroy(local_arena);
+        return NULL;
+    }
     coll->lock = lock;
     
     /* 创建索引 */

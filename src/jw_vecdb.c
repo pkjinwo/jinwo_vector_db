@@ -163,7 +163,7 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
     }
 
     jw_arena_t *arena = NULL;
-    jw_status_t arena_status = jw_arena_create(4096 * 1024, &arena);
+    jw_status_t arena_status = jw_arena_create(arena_size, &arena);
     if (arena_status != JW_SUCCESS || arena == NULL) {
         jw_free(database);
         return JW_OUT_OF_MEMORY;
