@@ -210,6 +210,10 @@ def _get_lib():
         _lib.jw_vecdb_search.restype = ctypes.c_size_t
         _lib.jw_vecdb_search.argtypes = [ctypes.c_void_p, ctypes.POINTER(jw_str_t), ctypes.POINTER(ctypes.c_float), ctypes.c_uint32, ctypes.c_size_t, ctypes.POINTER(jw_search_result_t)]
 
+        # jw_collection_delete(jw_collection_t* coll, jw_vid_t vid) -> status
+        _lib.jw_collection_delete.restype = ctypes.c_int
+        _lib.jw_collection_delete.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+
         # jw_collection_build_index(jw_collection_t* coll) -> status
         _lib.jw_collection_build_index.restype = ctypes.c_int
         _lib.jw_collection_build_index.argtypes = [ctypes.c_void_p]
@@ -342,6 +346,18 @@ class Collection:
             results_buf
         )
         return [(int(results_buf[i].id), float(results_buf[i].score)) for i in range(count)]
+
+    def delete(self, vid: int):
+        """
+        删除指定向量
+
+        Args:
+            vid: 向量 ID
+        """
+        lib = _get_lib()
+        status = lib.jw_collection_delete(self._handle, vid)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"删除向量失败 (vid={vid}), 状态码: {status}")
 
     def build_index(self):
         """
@@ -552,6 +568,19 @@ class JinWoDB:
         if coll is None:
             raise ValueError(f"Collection 不存在: {collection}")
         return coll.search(query, k)
+
+    def delete(self, collection: str, vid: int):
+        """
+        快速删除向量
+
+        Args:
+            collection: Collection 名称
+            vid: 向量 ID
+        """
+        coll = self.get_collection(collection)
+        if coll is None:
+            raise ValueError(f"Collection 不存在: {collection}")
+        return coll.delete(vid)
 
 
 #==============================================================================
