@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """
-JinWo VecDB Python Demo
+JinWo VecDB Python Demo（底层 FFI 示例）
+
+⚠️ 这是直接通过 ctypes 调用 C 库的演示代码，用于学习/参考。
+   日常使用请安装 pip 包: pip install jinwo-vecdb
+   import jinwo_vecdb 即可，无需手动加载 .so/.dll。
 
 This script demonstrates how to use JinWo VecDB with Python
-using ctypes to call the C API.
+using ctypes to call the C API (low-level FFI binding).
 """
 
 import ctypes
