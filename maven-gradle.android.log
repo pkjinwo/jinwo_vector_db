@@ -1,0 +1,304 @@
+Build starting...
+Build image: default
+Start: Tue May 26 07:15:09 UTC 2026 da4d72eee4b5
+Git:
+v0.1.0-0-g5ff34ba
+commit 5ff34bae3dc4e43b870d3fe03cc4e76eba16efa5
+Author: misujia 
+Date:   Tue May 26 14:49:54 2026 +0800
+
+    feat: add Gradle wrapper for JitPack + jitpack.yml
+
+
+Init SDKMan
+Running JDK install command:
+sdk install java 17.0.12-oracle;sdk use java 17.0.12-oracle
+[1;33mWe periodically need to update the local cache. Please run:[0m
+
+  $ sdk update
+
+[1;36mBroadcasts discontinued. Please follow @sdkman_ on Twitter for announcements.[0m
+
+Downloading: java 17.0.12-oracle
+
+In progress...
+
+
+Repackaging Java 17.0.12-oracle...
+
+Done repackaging...
+
+[1;32mInstalling: java 17.0.12-oracle[0m
+[1;32mDone installing![0m
+
+
+[1;32mSetting java 17.0.12-oracle as default.[0m
+[1;33mWe periodically need to update the local cache. Please run:[0m
+
+  $ sdk update
+
+
+[1;32mUsing java version 17.0.12-oracle in this shell.[0m
+Running before_install command:
+cd bindings/android
+Running install command:
+echo "JitPack will build the library module";./gradlew :library:assembleRelease
+JitPack will build the library module
+Picked up JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8 -Dhttps.protocols=TLSv1.2
+Fetching distribution.
+Downloading https://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+.............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%.............100%
+
+Welcome to Gradle 8.11.1!
+
+Here are the highlights of this release:
+ - Parallel load and store for Configuration Cache
+ - Java compilation errors at the end of the build output
+ - Consolidated report for warnings and deprecations
+
+For more details see https://docs.gradle.org/8.11.1/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+
+> Configure project :library
+Checking the license for package NDK (Side by side) 25.1.8937393 in /opt/android-sdk-linux/licenses
+License for package NDK (Side by side) 25.1.8937393 accepted.
+Preparing "Install NDK (Side by side) 25.1.8937393 v.25.1.8937393".
+"Install NDK (Side by side) 25.1.8937393 v.25.1.8937393" ready.
+Installing NDK (Side by side) 25.1.8937393 in /opt/android-sdk-linux/ndk/25.1.8937393
+"Install NDK (Side by side) 25.1.8937393 v.25.1.8937393" complete.
+"Install NDK (Side by side) 25.1.8937393 v.25.1.8937393" finished.
+Checking the license for package Android SDK Build-Tools 34 in /opt/android-sdk-linux/licenses
+License for package Android SDK Build-Tools 34 accepted.
+Preparing "Install Android SDK Build-Tools 34 v.34.0.0".
+"Install Android SDK Build-Tools 34 v.34.0.0" ready.
+Installing Android SDK Build-Tools 34 in /opt/android-sdk-linux/build-tools/34.0.0
+"Install Android SDK Build-Tools 34 v.34.0.0" complete.
+"Install Android SDK Build-Tools 34 v.34.0.0" finished.
+Checking the license for package Android SDK Platform 34 in /opt/android-sdk-linux/licenses
+License for package Android SDK Platform 34 accepted.
+Preparing "Install Android SDK Platform 34 (revision 3)".
+"Install Android SDK Platform 34 (revision 3)" ready.
+Installing Android SDK Platform 34 in /opt/android-sdk-linux/platforms/android-34
+"Install Android SDK Platform 34 (revision 3)" complete.
+"Install Android SDK Platform 34 (revision 3)" finished.
+
+> Task :library:preBuild UP-TO-DATE
+> Task :library:preReleaseBuild UP-TO-DATE
+
+> Task :library:configureCMakeRelWithDebInfo[arm64-v8a]
+Checking the license for package CMake 3.22.1 in /opt/android-sdk-linux/licenses
+License for package CMake 3.22.1 accepted.
+Preparing "Install CMake 3.22.1 v.3.22.1".
+"Install CMake 3.22.1 v.3.22.1" ready.
+Installing CMake 3.22.1 in /opt/android-sdk-linux/cmake/3.22.1
+"Install CMake 3.22.1 v.3.22.1" complete.
+"Install CMake 3.22.1 v.3.22.1" finished.
+
+> Task :library:buildCMakeRelWithDebInfo[arm64-v8a] FAILED
+C/C++: ninja: Entering directory `/home/jitpack/build/bindings/android/library/.cxx/RelWithDebInfo/5e5rlr2c/arm64-v8a'
+C/C++: /home/jitpack/build/src/jw_types.c:196:12: warning: array index -1 is before the beginning of the array [-Warray-bounds]
+C/C++:     return g_status_messages[JW_UNKNOWN_ERROR];
+C/C++:            ^                 ~~~~~~~~~~~~~~~~
+C/C++: /home/jitpack/build/src/jw_types.c:168:1: note: array 'g_status_messages' declared here
+C/C++: static const char *g_status_messages[] = {
+C/C++: ^
+C/C++: 1 warning generated.
+C/C++: /opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android23 --sysroot=/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Djinwo_vecdb_EXPORTS -I/home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include -I/home/jitpack/build/bindings/android/library/src/main/jni -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -O2 -g -DNDEBUG -fPIC -MD -MT CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o -MF CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o.d -o CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o -c /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:21:51: error: use of undeclared identifier 'JW_OPEN_CREATE'
+C/C++:     jw_vecdb_t *db = jw_vecdb_open(path, create ? JW_OPEN_CREATE : JW_OPEN_READONLY);
+C/C++:                                                   ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:21:68: error: use of undeclared identifier 'JW_OPEN_READONLY'
+C/C++:     jw_vecdb_t *db = jw_vecdb_open(path, create ? JW_OPEN_CREATE : JW_OPEN_READONLY);
+C/C++:                                                                    ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:41:30: error: use of undeclared identifier 'jw_version'
+C/C++:     return env->NewStringUTF(jw_version());
+C/C++:                              ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:50:5: error: unknown type name 'jw_strlist_t'
+C/C++:     jw_strlist_t *list = jw_collection_list(db);
+C/C++:     ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:50:26: error: use of undeclared identifier 'jw_collection_list'; did you mean 'jw_collection_t'?
+C/C++:     jw_strlist_t *list = jw_collection_list(db);
+C/C++:                          ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:200:3: note: 'jw_collection_t' declared here
+C/C++: } jw_collection_t;
+C/C++:   ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:75:29: error: no matching function for call to 'jw_collection_create'
+C/C++:     jw_collection_t *coll = jw_collection_create(db, name, dimension);
+C/C++:                             ^~~~~~~~~~~~~~~~~~~~
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:221:25: note: candidate function not viable: requires 2 arguments, but 3 were provided
+C/C++: JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':library:buildCMakeRelWithDebInfo[arm64-v8a]'.
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `/home/jitpack/build/bindings/android/library/.cxx/RelWithDebInfo/5e5rlr2c/arm64-v8a'
+  [1/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_math.c.o
+  [2/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_types.c.o
+  /home/jitpack/build/src/jw_types.c:196:12: warning: array index -1 is before the beginning of the array [-Warray-bounds]
+      return g_status_messages[JW_UNKNOWN_ERROR];
+             ^                 ~~~~~~~~~~~~~~~~
+  /home/jitpack/build/src/jw_types.c:168:1: note: array 'g_status_messages' declared here
+  static const char *g_status_messages[] = {
+  ^
+  1 warning generated.
+  [3/20] Building CXX object CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o
+  FAILED: CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o 
+  /opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++ --target=aarch64-none-linux-android23 --sysroot=/opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/sysroot -Djinwo_vecdb_EXPORTS -I/home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include -I/home/jitpack/build/bindings/android/library/src/main/jni -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -std=c++17 -O2 -g -DNDEBUG -fPIC -MD -MT CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o -MF CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o.d -o CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o -c /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:21:51: error: use of undeclared identifier 'JW_OPEN_CREATE'
+      jw_vecdb_t *db = jw_vecdb_open(path, create ? JW_OPEN_CREATE : JW_OPEN_READONLY);
+                                                    ^
+
+C/C++:                         ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:86:9: error: use of undeclared identifier 'jw_collection_close'; did you mean 'jw_collection_clear'?
+C/C++:         jw_collection_close(reinterpret_cast<jw_collection_t *>(ptr));
+C/C++:         ^~~~~~~~~~~~~~~~~~~
+C/C++:         jw_collection_clear
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:367:20: note: 'jw_collection_clear' declared here
+C/C++: JW_API jw_status_t jw_collection_clear(jw_collection_t *coll);
+C/C++:                    ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:97:22: error: no matching function for call to 'jw_collection_insert'
+C/C++:     jw_status_t rc = jw_collection_insert(coll, vec, (uint32_t)dim);
+C/C++:                      ^~~~~~~~~~~~~~~~~~~~
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:268:20: note: candidate function not viable: no known conversion from 'uint32_t' (aka 'unsigned int') to 'jw_vid_t *' (aka 'unsigned long long *') for 3rd argument
+C/C++: JW_API jw_status_t jw_collection_insert(jw_collection_t *coll,
+C/C++:                    ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:103:9: error: use of undeclared identifier 'snprintf'
+C/C++:         snprintf(msg, sizeof(msg), "jinwo_vecdb: insert failed (code=%d)", (int)rc);
+C/C++:         ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:132:57: error: use of undeclared identifier 'malloc'
+C/C++:     jw_search_result_t *results = (jw_search_result_t *)malloc(k * sizeof(jw_search_result_t));
+C/C++:                                                         ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:133:17: error: no matching function for call to 'jw_collection_search'
+C/C++:     int count = jw_collection_search(coll, query, (uint32_t)dim, k, results);
+C/C++:                 ^~~~~~~~~~~~~~~~~~~~
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:451:18: note: candidate function not viable: requires 4 arguments, but 5 were provided
+C/C++: JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
+C/C++:                  ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:138:27: error: use of undeclared identifier 'malloc'
+C/C++:     jlong *buf = (jlong *)malloc(count * 2 * sizeof(jlong));
+C/C++:                           ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:142:33: error: no member named 'distance' in 'jw_search_result'
+C/C++:         float dist = results[i].distance;
+C/C++:                      ~~~~~~~~~~ ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:147:5: error: use of undeclared identifier 'free'
+C/C++:     free(buf);
+C/C++:     ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:148:5: error: use of undeclared identifier 'free'
+C/C++:     free(results);
+C/C++:     ^
+C/C++: /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:169:18: error: use of undeclared identifier 'jw_collection_encoding_dim'
+C/C++:     return (jint)jw_collection_encoding_dim(coll);
+C/C++:                  ^
+C/C++: 16 errors generated.
+C/C++: /home/jitpack/build/src/jw_file.c:643:12: warning: 'mktemp' is deprecated: mktemp is unsafe, use mkstemp or tmpfile instead [-Wdeprecated-declarations]
+C/C++:     return mktemp(template);
+C/C++:            ^
+C/C++: /opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdlib.h:68:47: note: 'mktemp' has been explicitly marked deprecated here
+C/C++: char* mktemp(char* __template) __attribute__((deprecated("mktemp is unsafe, use mkstemp or tmpfile instead")));
+C/C++:                                               ^
+C/C++: 1 warning generated.
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:21:68: error: use of undeclared identifier 'JW_OPEN_READONLY'
+      jw_vecdb_t *db = jw_vecdb_open(path, create ? JW_OPEN_CREATE : JW_OPEN_READONLY);
+                                                                     ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:41:30: error: use of undeclared identifier 'jw_version'
+      return env->NewStringUTF(jw_version());
+                               ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:50:5: error: unknown type name 'jw_strlist_t'
+      jw_strlist_t *list = jw_collection_list(db);
+      ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:50:26: error: use of undeclared identifier 'jw_collection_list'; did you mean 'jw_collection_t'?
+      jw_strlist_t *list = jw_collection_list(db);
+                           ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:200:3: note: 'jw_collection_t' declared here
+  } jw_collection_t;
+    ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:75:29: error: no matching function for call to 'jw_collection_create'
+      jw_collection_t *coll = jw_collection_create(db, name, dimension);
+                              ^~~~~~~~~~~~~~~~~~~~
+  /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:221:25: note: candidate function not viable: requires 2 arguments, but 3 were provided
+  JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
+                          ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:86:9: error: use of undeclared identifier 'jw_collection_close'; did you mean 'jw_collection_clear'?
+          jw_collection_close(reinterpret_cast<jw_collection_t *>(ptr));
+          ^~~~~~~~~~~~~~~~~~~
+          jw_collection_clear
+  /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:367:20: note: 'jw_collection_clear' declared here
+  JW_API jw_status_t jw_collection_clear(jw_collection_t *coll);
+                     ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:97:22: error: no matching function for call to 'jw_collection_insert'
+      jw_status_t rc = jw_collection_insert(coll, vec, (uint32_t)dim);
+                       ^~~~~~~~~~~~~~~~~~~~
+  /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:268:20: note: candidate function not viable: no known conversion from 'uint32_t' (aka 'unsigned int') to 'jw_vid_t *' (aka 'unsigned long long *') for 3rd argument
+  JW_API jw_status_t jw_collection_insert(jw_collection_t *coll,
+                     ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:103:9: error: use of undeclared identifier 'snprintf'
+          snprintf(msg, sizeof(msg), "jinwo_vecdb: insert failed (code=%d)", (int)rc);
+          ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:132:57: error: use of undeclared identifier 'malloc'
+      jw_search_result_t *results = (jw_search_result_t *)malloc(k * sizeof(jw_search_result_t));
+                                                          ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:133:17: error: no matching function for call to 'jw_collection_search'
+      int count = jw_collection_search(coll, query, (uint32_t)dim, k, results);
+                  ^~~~~~~~~~~~~~~~~~~~
+  /home/jitpack/build/bindings/android/library/src/main/jni/../../../../../../include/jw_collection.h:451:18: note: candidate function not viable: requires 4 arguments, but 5 were provided
+  JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
+                   ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:138:27: error: use of undeclared identifier 'malloc'
+      jlong *buf = (jlong *)malloc(count * 2 * sizeof(jlong));
+                            ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:142:33: error: no member named 'distance' in 'jw_search_result'
+          float dist = results[i].distance;
+                       ~~~~~~~~~~ ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:147:5: error: use of undeclared identifier 'free'
+      free(buf);
+      ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:148:5: error: use of undeclared identifier 'free'
+      free(results);
+      ^
+  /home/jitpack/build/bindings/android/library/src/main/jni/jinwo_vecdb_jni.cpp:169:18: error: use of undeclared identifier 'jw_collection_encoding_dim'
+      return (jint)jw_collection_encoding_dim(coll);
+                   ^
+  16 errors generated.
+  [4/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_arena.c.o
+  [5/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_error.c.o
+  [6/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_log.c.o
+  [7/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_file.c.o
+  /home/jitpack/build/src/jw_file.c:643:12: warning: 'mktemp' is deprecated: mktemp is unsafe, use mkstemp or tmpfile instead [-Wdeprecated-declarations]
+      return mktemp(template);
+             ^
+  /opt/android-sdk-linux/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/stdlib.h:68:47: note: 'mktemp' has been explicitly marked deprecated here
+  char* mktemp(char* __template) __attribute__((deprecated("mktemp is unsafe, use mkstemp or tmpfile instead")));
+                                                ^
+  1 warning generated.
+  [8/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_hash.c.o
+  [9/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_sort.c.o
+  [10/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_config.c.o
+  [11/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_lock.c.o
+  [12/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_stdio.c.o
+  [13/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_quant.c.o
+  [14/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_string.c.o
+  [15/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_vector.c.o
+  [16/20] Building C object CMakeFiles/jinwo_vecdb.dir/home/jitpack/build/src/jw_index.c.o
+  ninja: build stopped: subcommand failed.
+  
+  C++ build system [build] failed while executing:
+      /opt/android-sdk-linux/cmake/3.22.1/bin/ninja \
+        -C \
+        /home/jitpack/build/bindings/android/library/.cxx/RelWithDebInfo/5e5rlr2c/arm64-v8a \
+        jinwo_vecdb
+    from /home/jitpack/build/bindings/android/library
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 29s
+2 actionable tasks: 2 executed
+Build tool exit code: 1
+⚠️ Build failed. See errors above.
+2026-05-26T07:15:55.026475667Z
+Exit code: 1
+
