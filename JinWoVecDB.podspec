@@ -12,6 +12,7 @@ Pod::Spec.new do |s|
   s.source       = { :git => "https://github.com/pkjinwo/jinwo_vector_db.git", :tag => "v#{s.version}" }
 
   s.ios.deployment_target = "13.0"
+  s.static_framework = true
 
   # Swift + C sources
   s.source_files =
@@ -22,8 +23,7 @@ Pod::Spec.new do |s|
   s.pod_target_xcconfig = {
     "HEADER_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/include",
     "SWIFT_INCLUDE_PATHS" => "$(PODS_TARGET_SRCROOT)/include",
-    "OTHER_CFLAGS" => "-std=c11 -O2",
-    "CLANG_MODULES_AUTOLINK" => "NO"
+    "OTHER_CFLAGS" => "-std=c11 -O2"
   }
 
   s.swift_version = "5.0"
