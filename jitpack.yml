@@ -1,0 +1,9 @@
+jdk:
+  - openjdk17
+
+before_install:
+  - cd bindings/android
+
+install:
+  - echo "JitPack will build the library module"
+  - ./gradlew :library:assembleRelease
