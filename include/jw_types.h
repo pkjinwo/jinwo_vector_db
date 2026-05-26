@@ -351,7 +351,7 @@ typedef struct jw_str_t {
 /* 字符串字面量宏 */
 #define jw_str(s)              ((jw_str_t){(char *)(s), sizeof(s) - 1})
 #define JW_STR_NULL             {NULL, 0}
-#define JW_STR_SET(str, s)      do { (str).ptr = (s); (str).slen = strlen(s); } while(0)
+#define JW_STR_SET(str, s)      do { (str).ptr = (char *)(s); (str).slen = strlen(s); } while(0)
 
 /*
  * =============================================================================

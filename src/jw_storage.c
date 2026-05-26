@@ -274,6 +274,11 @@ JW_API jw_storage_t *jw_storage_create(jw_arena_t *arena,
             case JW_STORAGE_APPEND:
                 flags = O_WRONLY | O_APPEND | O_CREAT;
                 break;
+            case JW_STORAGE_EXCL:
+                flags = O_RDWR | O_CREAT | O_EXCL;
+                break;
+            default:
+                break;
         }
         
         storage->fd = open(config->path.ptr, flags, mode);

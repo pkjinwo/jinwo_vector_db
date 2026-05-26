@@ -640,7 +640,12 @@ JW_API char *jw_file_mktemp(char *template)
     }
     return NULL;
 #else
-    return mktemp(template);
+    {
+        int fd = mkstemp(template);
+        if (fd < 0) return NULL;
+        close(fd);
+        return template;
+    }
 #endif
 }
 

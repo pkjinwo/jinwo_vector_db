@@ -193,7 +193,7 @@ JW_API const char *jw_status_to_string(jw_status_t status)
     if (status >= 0 && status < JW_STATUS_MESSAGE_COUNT) {
         return g_status_messages[status];
     }
-    return g_status_messages[JW_UNKNOWN_ERROR];
+    return g_status_messages[JW_STATUS_MESSAGE_COUNT - 1];  /* "Unknown error" */
 }
 
 JW_API jw_status_t jw_status_from_errno(int errno_val)

@@ -469,6 +469,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                             case JW_CMP_LE:
                                 /* 字符串不支持比较操作 */
                                 return JW_FALSE;
+                            default:
+                                break;
                         }
                         break;
                         
@@ -503,6 +505,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 if (field->value.i32 > filter->value.i32) {
                                     return JW_FALSE;
                                 }
+                                break;
+                            default:
                                 break;
                         }
                         break;
@@ -539,6 +543,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                     return JW_FALSE;
                                 }
                                 break;
+                            default:
+                                break;
                         }
                         break;
                         
@@ -573,6 +579,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 if (field->value.f32 > filter->value.f32) {
                                     return JW_FALSE;
                                 }
+                                break;
+                            default:
                                 break;
                         }
                         break;
@@ -609,6 +617,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                     return JW_FALSE;
                                 }
                                 break;
+                            default:
+                                break;
                         }
                         break;
                         
@@ -628,6 +638,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 /* 布尔值不支持比较操作 */
                                 return JW_FALSE;
                         }
+                        break;
+                    default:
                         break;
                 }
                 
