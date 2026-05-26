@@ -1,10 +1,12 @@
 plugins {
     id 'com.android.library'
+    id 'maven-publish'
 }
 
 android {
     namespace 'com.jinwo.vecdb'
     compileSdk 34
+    ndkVersion "26.1.10909125"
 
     defaultConfig {
         minSdk 23
@@ -45,4 +47,18 @@ android {
 
 dependencies {
     testImplementation 'junit:junit:4.13.2'
+}
+
+// Publish to mavenLocal for local testing
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId = 'com.github.pkjinwo'
+                artifactId = 'jinwo_vector_db'
+                version = '0.1.0'
+            }
+        }
+    }
 }
