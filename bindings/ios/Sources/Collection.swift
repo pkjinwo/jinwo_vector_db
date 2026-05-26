@@ -7,7 +7,7 @@ public final class Collection {
     private let ptr: OpaquePointer?
     private var closed = false
 
-    init(db: UnsafeMutablePointer<OpaquePointer>?, name: String, dimension: Int) {
+    init(db: OpaquePointer?, name: String, dimension: Int) {
         var cName = name.cString(using: .utf8)!
         ptr = jw_collection_create(db, &cName, UInt32(dimension))
         if ptr == nil {

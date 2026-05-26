@@ -13,7 +13,7 @@ import Foundation
 /// db.close()
 /// ```
 public final class VecDB {
-    private let ptr: UnsafeMutablePointer<OpaquePointer>?
+    private let ptr: OpaquePointer?
     private var closed = false
 
     /// Open or create a database.
@@ -54,7 +54,7 @@ public final class VecDB {
                 names.append(String(cString: item))
             }
         }
-        jw_strlist_free(raw)
+        jw_strlist_free(OpaquePointer(raw))
         return names
     }
 
