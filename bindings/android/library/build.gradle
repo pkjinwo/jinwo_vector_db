@@ -1,19 +1,5 @@
 plugins {
     id 'com.android.library'
-    id 'maven-publish'
-}
-
-afterEvaluate {
-    publishing {
-        publications {
-            release(MavenPublication) {
-                groupId = 'com.github.pkjinwo'
-                artifactId = 'jinwo_vector_db'
-                version = '0.1.19'
-                from components.getByName('release')
-            }
-        }
-    }
 }
 
 android {

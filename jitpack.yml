@@ -3,3 +3,7 @@ jdk:
 
 before_install:
   - cd bindings/android
+
+install:
+  - ./gradlew :library:assembleRelease
+  - mvn install:install-file -Dfile=library/build/outputs/aar/library-release.aar -DgroupId=com.github.pkjinwo -DartifactId=jinwo_vector_db -Dversion=0.1.20 -Dpackaging=aar -DgeneratePom=true
