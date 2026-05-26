@@ -1,0 +1,41 @@
+{
+  "name": "jinwo-vecdb",
+  "version": "0.1.0",
+  "description": "JinWo VecDB - Embedded vector database for JavaScript (WASM)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "wasm/"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:wasm": "bash build.sh",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "vector-database",
+    "embeddings",
+    "similarity-search",
+    "wasm",
+    "rag",
+    "ai",
+    "ml"
+  ],
+  "author": "pkjinwo",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pkjinwo/jinwo_vector_db.git"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

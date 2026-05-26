@@ -89,6 +89,8 @@ JW_API jw_str_t jw_vecdb_build_info(void)
         const char *platform = "iOS";
 #elif defined(JW_MACOS)
         const char *platform = "macOS";
+#elif defined(JW_EMSCRIPTEN)
+        const char *platform = "WebAssembly";
 #else
         const char *platform = "Unknown";
 #endif

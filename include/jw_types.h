@@ -21,7 +21,7 @@
  * 公司名称: 北京金幄科技有限公司
  * 
  * 本文件定义了JinWo VecDB所需的所有基础类型，确保跨平台兼容性。
- * 支持平台: Linux, Android, iOS, macOS, Windows
+ * 支持平台: Linux, Android, iOS, macOS, Windows, WebAssembly (Emscripten)
  * 
  * 版本: 0.1.0
  * 作者: 灵活就业码农
@@ -54,6 +54,8 @@
     #endif
 #elif defined(__linux__)
     #define JW_LINUX           1
+#elif defined(__EMSCRIPTEN__)
+    #define JW_EMSCRIPTEN      1
 #else
     #error "Unsupported platform"
 #endif
