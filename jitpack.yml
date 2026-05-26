@@ -3,7 +3,3 @@ jdk:
 
 before_install:
   - cd bindings/android
-
-install:
-  - echo "Building and publishing to local Maven..."
-  - ./gradlew :library:publishToMavenLocal
