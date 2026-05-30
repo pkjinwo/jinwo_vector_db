@@ -1177,8 +1177,8 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
         }
     }
     
-    /* 写入头部 (预留空间，后面更新偏移量) */
-    jw_uint64_t header_offset = 0;
+    /* 写入头部（在storage header之后，不要覆盖storage magic） */
+    jw_uint64_t header_offset = sizeof(jw_storage_header_t);
     jw_uint64_t current_offset = 0;
     
     /* 先写入一个空的头部占位 */
@@ -1258,7 +1258,7 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
     
     /* 读取头部 */
     jw_collection_header_fixed_t header;
-    jw_status_t status = jw_storage_read_collection_header(storage, 0, &header);
+    jw_status_t status = jw_storage_read_collection_header(storage, sizeof(jw_storage_header_t), &header);
     
     if (status != JW_SUCCESS || header.magic != JW_COLLECTION_MAGIC) {
         jw_storage_close(storage);

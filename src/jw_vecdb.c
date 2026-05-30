@@ -15,6 +15,12 @@
 #include "jw_stdio.h"
 #include "jw_file.h"
 #include <stdio.h>
+#ifdef __ANDROID__
+#include <android/log.h>
+#define JW_LOG(...) __android_log_print(ANDROID_LOG_DEBUG, "JinWoVecDB_C", __VA_ARGS__)
+#else
+#define JW_LOG(...)
+#endif
 
 /*
  * =============================================================================
@@ -172,6 +178,20 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
     }
     database->arena = arena;
 
+    /* 复制路径字符串到arena，防止外部释放指针（如JNI） */
+    if (database->config.db_path.ptr != NULL) {
+        jw_size_t path_len = (jw_size_t)strlen(database->config.db_path.ptr);
+        if (path_len > 0) {
+            char *path_copy = jw_arena_alloc(database->arena, path_len + 1);
+            if (path_copy != NULL) {
+                jw_memcpy(path_copy, database->config.db_path.ptr, path_len + 1);
+                database->config.db_path.ptr = path_copy;
+                database->config.db_path.slen = path_len;
+                JW_LOG("open: copied db_path to arena: %s", path_copy);
+            }
+        }
+    }
+
     /* 初始化读写锁 */
     jw_rwlock_t *rwlock = NULL;
     jw_status_t status = jw_rwlock_create(NULL, NULL, &rwlock);
@@ -195,12 +215,40 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
         return JW_OUT_OF_MEMORY;
     }
     
-    /* 如果是文件数据库，打开存储 */
+    /* 如果是文件数据库，创建目录结构并打开存储 */
     if (database->config.db_path.ptr != NULL &&
         database->config.storage_mode != JW_STORAGE_MEMORY) {
 
+        jw_str_t db_dir = database->config.db_path;
+
+        JW_LOG("open: db_path=%s create=%d read_only=%d", 
+               database->config.db_path.ptr,
+               (int)database->config.create_if_missing,
+               (int)database->config.read_only);
+
+        /* 确保数据库目录存在（不是普通文件） */
+        if (database->config.create_if_missing) {
+            if (jw_file_is_regular(&db_dir)) {
+                /* 旧版本遗留的普通文件，删除 */
+                JW_LOG("open: removing legacy regular file %s", db_dir.ptr);
+                remove(db_dir.ptr);
+            }
+            if (!jw_file_exists(&db_dir)) {
+                JW_LOG("open: mkdir %s", db_dir.ptr);
+                jw_file_mkdir(&db_dir);
+            }
+        }
+
+        /* 存储文件放在 {db_path}/storage */
+        char storage_file[1024];
+        jw_snprintf(storage_file, sizeof(storage_file), "%s/storage",
+                   database->config.db_path.ptr);
+
+        JW_LOG("open: storage_file=%s", storage_file);
+
         jw_storage_config_t storage_config = JW_STORAGE_CONFIG_DEFAULT;
-        storage_config.path = database->config.db_path;
+        storage_config.path.ptr = storage_file;
+        storage_config.path.slen = strlen(storage_file);
         storage_config.mode = database->config.read_only
                             ? JW_STORAGE_READ
                             : JW_STORAGE_READWRITE;
@@ -209,9 +257,13 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
             storage_config.mode = JW_STORAGE_CREATE;
         }
         
+        JW_LOG("open: storage_mode=%d", (int)storage_config.mode);
+        
         database->storage = jw_storage_create(database->arena, &storage_config);
         if (database->storage == NULL) {
-            /* 内存数据库可以没有存储 */
+            JW_LOG("open: storage_create returned NULL (fd=%s)", storage_file);
+        } else {
+            JW_LOG("open: storage opened OK");
         }
     }
     
@@ -221,15 +273,21 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
         database->config.storage_mode != JW_STORAGE_MEMORY &&
         !database->config.create_if_missing) {
         
+        JW_LOG("open: loading collections from %s", database->config.db_path.ptr);
+        
         char meta_path[1024];
         jw_snprintf(meta_path, sizeof(meta_path), "%s/.jwmeta",
                    database->config.db_path.ptr);
         
+        JW_LOG("open: checking meta file %s", meta_path);
         jw_str_t meta_path_str = {meta_path, strlen(meta_path)};
         jw_size_t meta_size = 0;
         char *meta_content = jw_file_read_all(&meta_path_str, &meta_size);
         
+        JW_LOG("open: meta_content=%p meta_size=%zu", (void*)meta_content, (size_t)meta_size);
+        
         if (meta_content != NULL && meta_size > 0) {
+            JW_LOG("open: parsing meta: %s", meta_content);
             /* 逐行解析collection名称 */
             char *line_start = meta_content;
             for (jw_size_t pos = 0; pos < meta_size; pos++) {
@@ -241,8 +299,10 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
                         jw_snprintf(coll_path, sizeof(coll_path), "%s/%s.jwcol",
                                    database->config.db_path.ptr, line_start);
                         
+                        JW_LOG("open: loading collection %s from %s", line_start, coll_path);
                         jw_collection_t *coll = jw_collection_load(database->arena, coll_path);
                         if (coll != NULL) {
+                            JW_LOG("open: loaded collection %s OK, dim=%d", line_start, (int)coll->dim);
                             /* 添加到collections数组 */
                             if (database->collection_count >= database->collection_capacity) {
                                 jw_size_t new_cap = database->collection_capacity * 2;
@@ -258,12 +318,16 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
                             if (database->collection_count < database->collection_capacity) {
                                 database->collections[database->collection_count++] = coll;
                             }
+                        } else {
+                            JW_LOG("open: FAILED to load collection %s", line_start);
                         }
                     }
                     line_start = meta_content + pos + 1;
                 }
             }
             jw_free(meta_content);
+        } else {
+            JW_LOG("open: no meta file or empty");
         }
     }
     
@@ -282,7 +346,17 @@ static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
 {
     if (db == NULL || !db->is_open) return JW_INVALID_PARAM;
     if (db->config.db_path.ptr == NULL || db->config.db_path.slen == 0) {
+        JW_LOG("save_all: memory db, skip");
         return JW_SUCCESS;  /* 内存数据库，不需要保存 */
+    }
+    
+    JW_LOG("save_all: path=%s collection_count=%zu", db->config.db_path.ptr, (size_t)db->collection_count);
+    
+    /* 确保数据库目录存在 */
+    jw_str_t db_dir = db->config.db_path;
+    if (!jw_file_exists(&db_dir)) {
+        JW_LOG("save_all: dir not exist, mkdir");
+        jw_file_mkdir(&db_dir);
     }
     
     char coll_path[1024];
@@ -306,6 +380,7 @@ static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
         jw_snprintf(coll_path, sizeof(coll_path), "%s/%s.jwcol",
                    db->config.db_path.ptr, coll->name);
         
+        JW_LOG("save_all: saving collection %s to %s", coll->name, coll_path);
         jw_collection_save(coll, coll_path);
         
         /* 追加到元数据 */
@@ -316,6 +391,7 @@ static jw_status_t jw_vecdb_save_all(jw_vecdb_t *db)
     
     /* 写入元数据文件 */
     if (meta_len > 0) {
+        JW_LOG("save_all: writing .jwmeta: %s", meta_content);
         jw_str_t mp = {meta_path, strlen(meta_path)};
         jw_file_write_all(&mp, meta_content, meta_len);
     }

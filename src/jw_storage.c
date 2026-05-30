@@ -547,8 +547,8 @@ JW_API jw_status_t jw_storage_write(jw_storage_t *storage,
         storage->stats.used_size += size;
         
         if (offset != NULL) {
-            *offset = write_offset;
-        }
+                *offset = write_offset + size;
+            }
     }
 
 cleanup:

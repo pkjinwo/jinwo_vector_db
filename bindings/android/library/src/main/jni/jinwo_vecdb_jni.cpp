@@ -19,21 +19,34 @@ Java_com_jinwo_vecdb_JinWoDB_nativeOpen(
     JNIEnv *env, jclass /*clazz*/, jstring jpath, jboolean create)
 {
     const char *path = env->GetStringUTFChars(jpath, nullptr);
-    jw_str_t path_str = jw_str(path);
 
     // Check for memory mode
     jw_uint32_t flags;
+    jw_bool_t is_memory = JW_FALSE;
     if (path == nullptr || path[0] == '\0' || strcmp(path, ":memory:") == 0) {
         flags = JW_VECDB_MEMORY | JW_VECDB_CREATE;
+        is_memory = JW_TRUE;
     } else if (create) {
         flags = JW_VECDB_CREATE | JW_VECDB_READWRITE;
     } else {
-        flags = JW_VECDB_READONLY;
+        flags = JW_VECDB_READWRITE;
+    }
+
+    // 不能用 jw_str() 宏，因为 path 是变量指针，sizeof 返回的是指针大小
+    jw_str_t path_str;
+    if (is_memory) {
+        path_str.ptr = NULL;
+        path_str.slen = 0;
+    } else {
+        path_str.ptr = (char *)path;
+        path_str.slen = (jw_size_t)strlen(path);
     }
 
     jw_vecdb_t *db = nullptr;
     jw_status_t rc = jw_vecdb_open(&path_str, flags, &db);
-    env->ReleaseStringUTFChars(jpath, path);
+    if (path != nullptr) {
+        env->ReleaseStringUTFChars(jpath, path);
+    }
 
     if (rc != JW_SUCCESS || db == nullptr) {
         jclass exClass = env->FindClass("java/lang/RuntimeException");
@@ -103,7 +116,12 @@ Java_com_jinwo_vecdb_Collection_nativeCreateCollection(
 {
     auto *db = reinterpret_cast<jw_vecdb_t *>(dbPtr);
     const char *name = env->GetStringUTFChars(jname, nullptr);
-    jw_str_t name_str = jw_str(name);
+    if (name == nullptr) {
+        jclass exClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exClass, "jinwo_vecdb: failed to get collection name");
+        return 0;
+    }
+    jw_str_t name_str = {(char *)name, (jw_size_t)strlen(name)};
 
     jw_collection_t *coll = nullptr;
     jw_status_t rc = jw_vecdb_create_collection(db, &name_str, (jw_dim_t)dimension, &coll);
@@ -133,7 +151,13 @@ Java_com_jinwo_vecdb_Collection_nativeInsert(
     JNIEnv *env, jclass /*clazz*/, jlong ptr, jfloatArray jvec, jint dim)
 {
     auto *coll = reinterpret_cast<jw_collection_t *>(ptr);
+    if (coll == nullptr) return -1;
     jfloat *vec = env->GetFloatArrayElements(jvec, nullptr);
+    if (vec == nullptr) {
+        jclass exClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exClass, "jinwo_vecdb: failed to get float array");
+        return -1;
+    }
 
     jw_vid_t vid = 0;
     jw_status_t rc = jw_collection_insert(coll, vec, &vid);
@@ -166,7 +190,13 @@ Java_com_jinwo_vecdb_Collection_nativeSearch(
     JNIEnv *env, jclass /*clazz*/, jlong ptr, jfloatArray jquery, jint dim, jint k)
 {
     auto *coll = reinterpret_cast<jw_collection_t *>(ptr);
+    if (coll == nullptr) return nullptr;
     jfloat *query = env->GetFloatArrayElements(jquery, nullptr);
+    if (query == nullptr) {
+        jclass exClass = env->FindClass("java/lang/RuntimeException");
+        env->ThrowNew(exClass, "jinwo_vecdb: failed to get float array");
+        return nullptr;
+    }
 
     // Set up search options
     jw_search_options_t opts;
