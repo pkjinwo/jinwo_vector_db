@@ -72,7 +72,7 @@ TEST(version)
     ASSERT_EQ(JW_VERSION_MAJOR, 0);
     ASSERT_EQ(JW_VERSION_MINOR, 1);
     ASSERT_EQ(JW_VERSION_PATCH, 0);
-    ASSERT_TRUE(str_equal(JW_VERSION_STRING, "0.1.0"));
+    ASSERT_TRUE(str_equal(JW_VERSION_STRING, "0.1.20"));
 }
 
 TEST(integer_sizes)

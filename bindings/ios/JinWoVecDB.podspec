@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "JinWoVecDB"
-  s.version      = "0.1.23"
+  s.version      = "0.1.20"
   s.summary      = "JinWo VecDB - Fast embedding vector database for iOS"
   s.description  = <<-DESC
     JinWo VecDB is a high-performance vector database supporting efficient
