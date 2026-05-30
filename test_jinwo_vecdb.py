@@ -8,6 +8,7 @@ Test pip installation from PyPI and basic functionality
 import os
 import sys
 import shutil
+import tempfile
 from pathlib import Path
 
 def print_debug_info():
@@ -77,10 +78,10 @@ def main():
     # Test 2: Create/open database
     print("[Test 2] Create/open database")
     print("-" * 40)
-    db_path = "./test_jinwo_db.jwv"
+    tmpdir = tempfile.mkdtemp(prefix="jinwo_test_")
+    db_path = os.path.join(tmpdir, "test_jinwo_db.jwv")
+    print(f"  Using temp dir: {tmpdir}")
     try:
-        if os.path.exists(db_path):
-            os.remove(db_path)
         db = jinwo_vecdb.open(db_path)
         print(f"[OK]  Database created at: {db_path}")
     except Exception as e:
@@ -178,14 +179,13 @@ def main():
     print()
 
     # Cleanup
-    print("[Cleanup] Remove test database file")
+    print("[Cleanup] Remove test database")
     print("-" * 40)
     try:
-        if os.path.exists(db_path):
-            os.remove(db_path)
-            print(f"[OK]  Removed test database file")
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        print(f"[OK]  Removed temp dir: {tmpdir}")
     except Exception as e:
-        print(f"[FAIL]  Failed to remove test file: {e}")
+        print(f"[FAIL]  Failed to remove temp dir: {e}")
     print()
 
     print("=" * 60)
