@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-RelWithDebInfo-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "RelWithDebInfo",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "jinwo_vecdb",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "jinwo_vecdb::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-jinwo_vecdb-RelWithDebInfo-43a40e313b28b7a1c83d.json",
+					"name" : "jinwo_vecdb",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/RelWithDebInfo/5m2i2zv3/armeabi-v7a",
+		"source" : "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/src/main/jni"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

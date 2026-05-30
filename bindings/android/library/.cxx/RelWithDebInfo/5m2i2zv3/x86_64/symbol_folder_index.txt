@@ -1,0 +1,1 @@
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/RelWithDebInfo/5m2i2zv3/obj/x86_64

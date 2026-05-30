@@ -1,0 +1,3 @@
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/RelWithDebInfo/5m2i2zv3/x86_64/CMakeFiles/jinwo_vecdb.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/RelWithDebInfo/5m2i2zv3/x86_64/CMakeFiles/edit_cache.dir
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/RelWithDebInfo/5m2i2zv3/x86_64/CMakeFiles/rebuild_cache.dir
