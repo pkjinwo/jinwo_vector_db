@@ -129,8 +129,8 @@ JW_BEGIN_DECL
 
 #define JW_VERSION_MAJOR       0
 #define JW_VERSION_MINOR       1
-#define JW_VERSION_PATCH       17
-#define JW_VERSION_STRING      "0.1.17"
+#define JW_VERSION_PATCH       18
+#define JW_VERSION_STRING      "0.1.18"
 #define JW_VERSION_NUM         (JW_VERSION_MAJOR * 10000 + \
                                  JW_VERSION_MINOR * 100 + \
                                  JW_VERSION_PATCH)
