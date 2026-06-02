@@ -35,13 +35,14 @@ __version__ = "0.1.30"
 __all__ = ["JinWoDB", "Collection", "open", "__version__"]
 
 
-def open(path: str = "", flags: int = 0x06) -> JinWoDB:
+def open(path: str = "", flags: int = 0) -> JinWoDB:
     """
     打开或创建数据库
 
     Args:
         path: 数据库文件路径，默认为空字符串(内存数据库)
-        flags: 打开标志，默认为 CREATE | READWRITE
+        flags: 打开标志，0 表示自动判断（文件存在→打开，不存在→创建）
+               也可手动指定 JW_VECDB_READONLY / JW_VECDB_READWRITE 等
 
     Returns:
         JinWoDB 实例
@@ -50,7 +51,7 @@ def open(path: str = "", flags: int = 0x06) -> JinWoDB:
         # 内存数据库
         db = jinwo_vecdb.open()
 
-        # 文件数据库
+        # 文件数据库（自动判断创建/打开）
         db = jinwo_vecdb.open("my_vecs.jwv")
     """
     return JinWoDB(path, flags)
