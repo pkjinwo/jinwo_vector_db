@@ -354,9 +354,19 @@ export async function open(path: string = ''): Promise<JinWoDB> {
   const dbPtrPtr = M._malloc(4); // jw_vecdb_t **
   M.setValue(dbPtrPtr, 0, '*');
 
-  let flags = JW_VECDB_CREATE | JW_VECDB_READWRITE;
+  let flags = JW_VECDB_READWRITE;
   if (path === '') {
     flags |= JW_VECDB_MEMORY;
+  } else {
+    // 自动检测：若目录已存在则不传 CREATE，避免重新初始化覆盖已有数据
+    try {
+      const { statSync } = await import('fs');
+      if (!statSync(path).isDirectory()) {
+        flags |= JW_VECDB_CREATE;
+      }
+    } catch {
+      flags |= JW_VECDB_CREATE;
+    }
   }
 
   const status = M._jw_vecdb_open(pathStr, flags, dbPtrPtr);

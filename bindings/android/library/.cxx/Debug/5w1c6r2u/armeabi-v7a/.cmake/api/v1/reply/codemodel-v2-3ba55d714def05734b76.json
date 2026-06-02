@@ -1,0 +1,60 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Debug-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.6.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "jinwo_vecdb",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "jinwo_vecdb::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-jinwo_vecdb-Debug-0b730dd015c92ec0112c.json",
+					"name" : "jinwo_vecdb",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/.cxx/Debug/5w1c6r2u/armeabi-v7a",
+		"source" : "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/src/main/jni"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}

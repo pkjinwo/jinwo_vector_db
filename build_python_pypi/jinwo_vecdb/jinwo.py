@@ -53,111 +53,64 @@ JW_VECDB_MEMORY = 0x10
 
 JW_SUCCESS = 0  # C 状态码: 成功
 
-def _try_load_cdll(path):
-    """尝试加载动态库，成功返回 (lib, path)，失败返回 (None, None)"""
-    try:
-        lib = ctypes.CDLL(str(path))
-        # 验证库包含核心函数（防止加载了错误的 .so）
-        if hasattr(lib, 'jw_vecdb_open'):
-            return lib, path
-        else:
-            print(f"  [DEBUG] Loaded {path} but missing jw_vecdb_open, skipping", flush=True)
-            return None, None
-    except OSError as e:
-        print(f"  [DEBUG] Failed to load {path}: {e}", flush=True)
-        return None, None
-
-
 def _load_library():
-    """加载 JinWo C 动态库（优先加载纯 C 共享库，避免 Python API 符号冲突）"""
+    """加载 JinWo C 动态库"""
     package_dir = Path(__file__).parent
 
-    # ================================================================
-    # 2026-05-24: 分离纯 C 库和 Python 模块
-    # 纯 C 库 (jinwo.so / jinwo.dylib / libjinwo.dll) 不含 Python API,
-    # ctypes 加载时不会与解释器冲突。_jinwo.so 是 Python 模块,
-    # 包含 Python C API, 由 import 系统使用, ctypes 不应加载它。
-    # ================================================================
+    # 优先搜索包内的 _jinwo.*.so / _jinwo.*.pyd (CMake 编译的 Python C 扩展)
+    for f in package_dir.glob("_jinwo*.so"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+    for f in package_dir.glob("_jinwo*.pyd"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+    for f in package_dir.glob("_jinwo*.dylib"):
+        try:
+            return ctypes.CDLL(str(f))
+        except OSError:
+            continue
+
     if sys.platform == "win32":
-        # Windows: libjinwo.dll (SHARED) 是纯 C 库,
-        #         _jinwo.pyd (MODULE) 是 Python 模块
-        primary_names = ["libjinwo.dll"]
-        fallback_names = ["jinwo.dll", "_jinwo.dll"]
+        lib_names = ["jinwo.dll", "libjinwo.dll"]
+        ext = ".dll"
     elif sys.platform == "darwin":
-        # macOS: jinwo.dylib (SHARED) 是纯 C 库,
-        #       _jinwo.so (MODULE) 是 Python 模块
-        primary_names = ["jinwo.dylib"]
-        fallback_names = ["libjinwo.dylib", "_jinwo.dylib"]
+        lib_names = ["libjinwo.dylib", "jinwo.dylib"]
+        ext = ".dylib"
     else:
-        # Linux: libjinwo.so (SHARED) 是纯 C 库 (lib 前缀避免与 jinwo.py 冲突),
-        #       _jinwo.cpython*.so (MODULE) 是 Python 模块
-        primary_names = ["libjinwo.so"]
-        fallback_names = ["jinwo.so", "_jinwo.so"]
+        lib_names = ["libjinwo.so", "jinwo.so"]
+        ext = ".so"
 
-    # 搜索顺序：每个平台只搜自己对应的目录
-    #   - 开发环境：库在包目录下
-    #   - wheel 安装后：库在平台专属子目录
-    #     Linux  (auditwheel)     → .libs/
-    #     macOS  (delocate-wheel) → .dylibs/
-    #     Windows(delvewheel)     → 包目录（不创建子目录）
-    #   - Windows 开发环境：Release/
-    #   - 系统路径（最后兜底，开发用）
+    possible_paths = []
+    for lib_name in lib_names:
+        possible_paths.append(package_dir / lib_name)
+        possible_paths.append(package_dir / "py_jinwo" / lib_name)
+        possible_paths.append(package_dir.parent / lib_name)
 
-    if sys.platform == "darwin":
-        wheel_subdir = ".dylibs"
-    elif sys.platform == "win32":
-        wheel_subdir = None
-    else:
-        wheel_subdir = ".libs"
+    for lib_name in lib_names:
+        possible_paths.append(Path("/usr/local/lib") / lib_name)
+        possible_paths.append(Path("/usr/lib") / lib_name)
 
-    # 第一步: 包目录（开发环境 / Windows wheel）
-    for lib_name in primary_names:
-        path = package_dir / lib_name
+    for env_var in ["LD_LIBRARY_PATH", "PATH"]:
+        if env_var in os.environ:
+            for p in os.environ[env_var].split(os.pathsep):
+                for lib_name in lib_names:
+                    possible_paths.append(Path(p) / lib_name)
+
+    for path in possible_paths:
         if path.exists():
-            lib, found_path = _try_load_cdll(path)
-            if lib is not None:
-                print(f"  [DEBUG] Loaded (package): {found_path}", flush=True)
+            try:
+                lib = ctypes.CDLL(str(path))
                 return lib
-
-    # 第二步: wheel 子目录（仅 Linux / macOS）
-    if wheel_subdir is not None:
-        wheel_dir = package_dir / wheel_subdir
-        if wheel_dir.exists() and wheel_dir.is_dir():
-            for lib_name in primary_names:
-                for f in wheel_dir.glob(
-                        lib_name.replace(".so", "*.so")
-                                .replace(".dylib", "*.dylib")):
-                    lib, found_path = _try_load_cdll(f)
-                    if lib is not None:
-                        print(f"  [DEBUG] Loaded ({wheel_subdir}): {found_path}", flush=True)
-                        return lib
-
-    # 第三步: Release 目录（Windows MSVC 开发环境）
-    if sys.platform == "win32":
-        release_dir = package_dir / "Release"
-        if release_dir.exists() and release_dir.is_dir():
-            for lib_name in primary_names:
-                path = release_dir / lib_name
-                if path.exists():
-                    lib, found_path = _try_load_cdll(path)
-                    if lib is not None:
-                        print(f"  [DEBUG] Loaded (Release): {found_path}", flush=True)
-                        return lib
-
-    # 第四步: 系统路径（开发时安装的库）
-    for lib_name in primary_names + fallback_names:
-        for sys_dir in ["/usr/local/lib", "/usr/lib"]:
-            path = Path(sys_dir) / lib_name
-            if path.exists():
-                lib, found_path = _try_load_cdll(path)
-                if lib is not None:
-                    print(f"  [DEBUG] Loaded (system): {found_path}", flush=True)
-                    return lib
+            except OSError:
+                continue
 
     raise ImportError(
-        f"Failed to load JinWo dynamic library. "
-        f"Please ensure jinwo_vecdb is correctly installed.\n"
-        f"Primary names: {primary_names}"
+        f"无法加载 JinWo 动态库。请确保已正确安装 jinwo_vecdb 包。\n"
+        f"尝试的路径: {[str(p) for p in possible_paths]}"
     )
 
 
@@ -166,9 +119,7 @@ _lib = None
 def _get_lib():
     global _lib
     if _lib is None:
-        print("  [DEBUG] Loading library...", flush=True)
         _lib = _load_library()
-        print("  [DEBUG] Library loaded, setting function signatures...", flush=True)
 
         # jw_vecdb_open(jw_str_t* path, uint32 flags, jw_vecdb_t** db) -> status
         _lib.jw_vecdb_open.restype = ctypes.c_int
@@ -218,11 +169,45 @@ def _get_lib():
         _lib.jw_collection_build_index.restype = ctypes.c_int
         _lib.jw_collection_build_index.argtypes = [ctypes.c_void_p]
 
+        # jw_collection_rebuild_index(jw_collection_t* coll) -> status
+        _lib.jw_collection_rebuild_index.restype = ctypes.c_int
+        _lib.jw_collection_rebuild_index.argtypes = [ctypes.c_void_p]
+
+        # jw_collection_drop_index(jw_collection_t* coll) -> status
+        _lib.jw_collection_drop_index.restype = ctypes.c_int
+        _lib.jw_collection_drop_index.argtypes = [ctypes.c_void_p]
+
+        # jw_collection_has_index(jw_collection_t* coll) -> jw_bool_t
+        _lib.jw_collection_has_index.restype = ctypes.c_int
+        _lib.jw_collection_has_index.argtypes = [ctypes.c_void_p]
+
+        # jw_collection_upsert(jw_collection_t* coll, jw_vid_t vid, jw_cvec_t vec) -> status
+        _lib.jw_collection_upsert.restype = ctypes.c_int
+        _lib.jw_collection_upsert.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.POINTER(ctypes.c_float)]
+
+        # jw_collection_get(jw_collection_t* coll, jw_vid_t vid, jw_vec_t vec) -> status
+        _lib.jw_collection_get.restype = ctypes.c_int
+        _lib.jw_collection_get.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.POINTER(ctypes.c_float)]
+
+        # jw_collection_stats_t (used by jw_collection_get_stats)
+        class _jw_collection_stats_t(ctypes.Structure):
+            _fields_ = [
+                ("count", ctypes.c_size_t),
+                ("capacity", ctypes.c_size_t),
+                ("memory_used", ctypes.c_size_t),
+                ("dim", ctypes.c_uint32),
+                ("index_type", ctypes.c_int),
+                ("index_ready", ctypes.c_int),
+            ]
+        _lib._jw_collection_stats_t = _jw_collection_stats_t
+
+        # jw_collection_get_stats(jw_collection_t* coll, jw_collection_stats_t* stats) -> status
+        _lib.jw_collection_get_stats.restype = ctypes.c_int
+        _lib.jw_collection_get_stats.argtypes = [ctypes.c_void_p, ctypes.POINTER(_jw_collection_stats_t)]
+
         # jw_vecdb_version(void) -> jw_str_t (returns struct by value)
         _lib.jw_vecdb_version.restype = jw_str_t
         _lib.jw_vecdb_version.argtypes = []
-
-        print("  [DEBUG] Function signatures set successfully", flush=True)
 
     return _lib
 
@@ -368,6 +353,91 @@ class Collection:
         if status != JW_SUCCESS:
             raise RuntimeError(f"build_index 失败, 状态码: {status}")
 
+    def rebuild_index(self):
+        """
+        重建索引
+        """
+        lib = _get_lib()
+        status = lib.jw_collection_rebuild_index(self._handle)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"rebuild_index 失败, 状态码: {status}")
+
+    def drop_index(self):
+        """
+        删除索引
+        """
+        lib = _get_lib()
+        status = lib.jw_collection_drop_index(self._handle)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"drop_index 失败, 状态码: {status}")
+
+    def has_index(self) -> bool:
+        """
+        检查索引是否就绪
+        """
+        lib = _get_lib()
+        return lib.jw_collection_has_index(self._handle) != 0
+
+    def update(self, vid: int, vector: List[float]):
+        """
+        更新指定向量
+
+        Args:
+            vid: 向量 ID
+            vector: 新的向量数据
+        """
+        if len(vector) != self._dim:
+            raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {len(vector)}")
+        lib = _get_lib()
+        vec_arr = (ctypes.c_float * len(vector))(*vector)
+        status = lib.jw_collection_upsert(self._handle, vid, vec_arr)
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"update 失败 (vid={vid}), 状态码: {status}")
+
+    def get(self, vid: int) -> Optional[List[float]]:
+        """
+        获取指定向量
+
+        Args:
+            vid: 向量 ID
+
+        Returns:
+            向量数据，不存在返回 None
+        """
+        lib = _get_lib()
+        vec_buf = (ctypes.c_float * self._dim)()
+        status = lib.jw_collection_get(self._handle, vid, vec_buf)
+        if status != JW_SUCCESS:
+            return None
+        return list(vec_buf)
+
+    def stats(self) -> dict:
+        """
+        获取 Collection 统计信息
+
+        Returns:
+            包含 count, capacity, memory_used, dim, index_type, index_ready 的字典
+        """
+        lib = _get_lib()
+        stats_t = lib._jw_collection_stats_t
+        s = stats_t()
+        status = lib.jw_collection_get_stats(self._handle, ctypes.byref(s))
+        if status != JW_SUCCESS:
+            raise RuntimeError(f"get_stats 失败, 状态码: {status}")
+        return {
+            'count': s.count,
+            'capacity': s.capacity,
+            'memory_used': s.memory_used,
+            'dim': s.dim,
+            'index_type': s.index_type,
+            'index_ready': s.index_ready != 0,
+        }
+
+    @property
+    def count(self) -> int:
+        """当前向量数量"""
+        return self.stats()['count']
+
 
 #==============================================================================
 # JinWoDB 类
@@ -407,7 +477,6 @@ class JinWoDB:
         """
         self._path = path
         self._flags = flags
-        self._collection_dims = {}  # 缓存 Collection 维度: name -> dim
         lib = _get_lib()
 
         if path:
@@ -465,7 +534,6 @@ class JinWoDB:
         )
         if status != JW_SUCCESS or not coll_out.value:
             raise RuntimeError(f"无法创建 Collection: {name}, 状态码: {status}")
-        self._collection_dims[name] = dim  # 缓存维度
         return Collection(self, name, dim, coll_out.value)
 
     def get_collection(self, name: str) -> Optional[Collection]:
@@ -483,7 +551,12 @@ class JinWoDB:
         handle = lib.jw_vecdb_get_collection(self._handle, ctypes.byref(name_str))
         if not handle:
             return None
-        dim = self._collection_dims.get(name, 0)
+        # 从 stats 获取实际 dim
+        dim = 0
+        stats_t = lib._jw_collection_stats_t
+        s = stats_t()
+        if lib.jw_collection_get_stats(handle, ctypes.byref(s)) == JW_SUCCESS:
+            dim = s.dim
         return Collection(self, name, dim, handle)
 
     def drop_collection(self, name: str) -> bool:
@@ -580,7 +653,37 @@ class JinWoDB:
         coll = self.get_collection(collection)
         if coll is None:
             raise ValueError(f"Collection 不存在: {collection}")
-        return coll.delete(vid)
+        coll.delete(vid)
+
+    def update(self, collection: str, vid: int, vector: List[float]):
+        """
+        快速更新向量
+
+        Args:
+            collection: Collection 名称
+            vid: 向量 ID
+            vector: 新的向量数据
+        """
+        coll = self.get_collection(collection)
+        if coll is None:
+            raise ValueError(f"Collection 不存在: {collection}")
+        coll.update(vid, vector)
+
+    def get(self, collection: str, vid: int) -> Optional[List[float]]:
+        """
+        快速获取向量
+
+        Args:
+            collection: Collection 名称
+            vid: 向量 ID
+
+        Returns:
+            向量数据，不存在返回 None
+        """
+        coll = self.get_collection(collection)
+        if coll is None:
+            raise ValueError(f"Collection 不存在: {collection}")
+        return coll.get(vid)
 
 
 #==============================================================================

@@ -48,7 +48,7 @@ static jw_arena_t* create_test_arena(void)
     config.max_size = 65536;
 
     jw_arena_t *arena = NULL;
-    jw_status_t status = jw_arena_create(&config, &arena);
+    jw_status_t status = jw_arena_create(65536, &arena);
     if (status != JW_SUCCESS) {
         return NULL;
     }

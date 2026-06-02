@@ -118,6 +118,7 @@ static int jw_fsync_wrapper(int fd)
 struct jw_storage {
     jw_storage_config_t config;
     jw_arena_t *arena;
+    jw_bool_t owns_arena;       /* 是否自己创建的arena (需要在close时销毁) */
     
     /* 文件存储 */
     int fd;                     /* 文件描述符 */
@@ -217,6 +218,7 @@ JW_API jw_storage_t *jw_storage_create(jw_arena_t *arena,
     }
     
     storage->arena = local_arena;
+    storage->owns_arena = (arena == NULL) ? JW_TRUE : JW_FALSE;
     storage->config = *config;
     storage->fd = -1;
     
@@ -273,11 +275,6 @@ JW_API jw_storage_t *jw_storage_create(jw_arena_t *arena,
                 break;
             case JW_STORAGE_APPEND:
                 flags = O_WRONLY | O_APPEND | O_CREAT;
-                break;
-            case JW_STORAGE_EXCL:
-                flags = O_RDWR | O_CREAT | O_EXCL;
-                break;
-            default:
                 break;
         }
         
@@ -382,6 +379,11 @@ JW_API jw_status_t jw_storage_close(jw_storage_t *storage)
     
     jw_mutex_unlock((jw_mutex_t *)storage->lock);
     jw_mutex_destroy((jw_mutex_t *)storage->lock);
+    
+    /* 如果是自己创建的arena，需要销毁 */
+    if (storage->owns_arena && storage->arena != NULL) {
+        jw_arena_destroy(storage->arena);
+    }
     
     return JW_SUCCESS;
 }
@@ -547,8 +549,8 @@ JW_API jw_status_t jw_storage_write(jw_storage_t *storage,
         storage->stats.used_size += size;
         
         if (offset != NULL) {
-                *offset = write_offset + size;
-            }
+            *offset = write_offset + size;
+        }
     }
 
 cleanup:
@@ -1172,6 +1174,9 @@ JW_API jw_status_t jw_storage_write_collection_header(
     JW_CHECK(jw_storage_write_u64(storage, header->meta_offset, &write_offset));
     JW_CHECK(jw_storage_write_u64(storage, header->meta_size, &write_offset));
     
+    /* 自动建索引阈值 */
+    JW_CHECK(jw_storage_write_u32(storage, header->index_threshold, &write_offset));
+    
     /* 校验和 */
     JW_CHECK(jw_storage_write_u32(storage, header->checksum, &write_offset));
     
@@ -1204,6 +1209,7 @@ JW_API jw_status_t jw_storage_read_collection_header(
     }
     
     /* 转换字节序 */
+    header->magic = jw_letoh32(header->magic);
     header->version = jw_letoh32(header->version);
     header->create_time = jw_letoh64(header->create_time);
     header->update_time = jw_letoh64(header->update_time);
@@ -1223,6 +1229,7 @@ JW_API jw_status_t jw_storage_read_collection_header(
     header->index_size = jw_letoh64(header->index_size);
     header->meta_offset = jw_letoh64(header->meta_offset);
     header->meta_size = jw_letoh64(header->meta_size);
+    header->index_threshold = jw_letoh32(header->index_threshold);
     header->checksum = jw_letoh32(header->checksum);
     
     return JW_SUCCESS;

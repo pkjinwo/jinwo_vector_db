@@ -1,0 +1,27 @@
+{
+  "buildFiles": [
+    "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/src/main/jni/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/fanjiayi0921/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/.cxx/Debug/5w1c6r2u/armeabi-v7a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/fanjiayi0921/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/.cxx/Debug/5w1c6r2u/armeabi-v7a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "jinwo_vecdb::@6890427a1f51a3e7e1df": {
+      "artifactName": "jinwo_vecdb",
+      "abi": "armeabi-v7a",
+      "output": "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db/bindings/android/library/build/intermediates/cxx/Debug/5w1c6r2u/obj/armeabi-v7a/libjinwo_vecdb.so",
+      "runtimeFiles": []
+    }
+  }
+}

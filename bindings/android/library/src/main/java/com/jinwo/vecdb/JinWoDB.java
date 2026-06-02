@@ -35,6 +35,9 @@ public class JinWoDB implements AutoCloseable {
     /** JNI: list collections */
     private static native String[] nativeListCollections(long ptr);
 
+    /** JNI: get existing collection by name (for reopen) */
+    private static native long nativeGetCollection(long ptr, String name);
+
     /**
      * Open or create a database.
      * @param path   file path, or ":memory:" for in-memory
@@ -68,6 +71,17 @@ public class JinWoDB implements AutoCloseable {
     public String[] listCollections() {
         checkClosed();
         return nativeListCollections(ptr);
+    }
+
+    /**
+     * Get an existing collection by name (for reopen scenarios).
+     * @return the Collection, or null if not found
+     */
+    public Collection getCollection(String name) {
+        checkClosed();
+        long collPtr = nativeGetCollection(ptr, name);
+        if (collPtr == 0) return null;
+        return new Collection(collPtr);
     }
 
     @Override

@@ -22,4 +22,3 @@ Thumbs.db
 
 # Wheel files (we only commit source, not pre-built wheels)
 *.whl
-important/

@@ -195,7 +195,7 @@ Benchmark results in standard desktop environment (128-dimensional vectors):
 
 ## Roadmap
 
-### v0.1.20 (Completed)
+### v0.1.30 (Completed)
 - [x] Basic type definitions
 - [x] Memory pool management
 - [x] Vector operations (with SIMD acceleration)

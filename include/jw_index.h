@@ -32,7 +32,7 @@
  *   - 支持PQ/SQ量化减少内存占用
  *   - 批量建索引和查询
  * 
- * 版本: 0.1.20
+ * 版本: 0.1.30
  * 作者: 灵活就业码农
  */
 
@@ -210,6 +210,7 @@ typedef struct jw_hnsw_node {
     jw_uint8_t *code;               /* 量化编码 (可选) */
     jw_uint32_t level;              /* 节点层级 */
     jw_uint32_t max_level;          /* 最大可达层级 */
+    jw_bool_t deleted;              /* 是否已删除 */
     
     /* 连接表: 每层一个连接数组 */
     jw_vid_t **links;               /* links[level][i] = 邻居ID */

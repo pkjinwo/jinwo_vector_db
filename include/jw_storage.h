@@ -31,7 +31,7 @@
  *   - 支持压缩和校验
  *   - 跨平台兼容
  * 
- * 版本: 0.1.20
+ * 版本: 0.1.30
  * 作者: 灵活就业码农
  */
 
@@ -230,11 +230,14 @@ typedef struct jw_collection_header_fixed {
     jw_uint64_t meta_offset;        /* 8: 元数据偏移 */
     jw_uint64_t meta_size;          /* 8: 元数据大小 */
     
+    /* 自动建索引 */
+    jw_uint32_t index_threshold;     /* 4: 自动建索引阈值 */
+    
     /* 校验 */
     jw_uint32_t checksum;           /* 4: CRC32校验 */
     
     /* 预留 */
-    jw_uint8_t reserved[8];         /* 8: 保留 */
+    jw_uint8_t reserved[4];         /* 4: 保留 */
 } jw_collection_header_fixed_t;     /* 总计: 256 bytes */
 
 /*

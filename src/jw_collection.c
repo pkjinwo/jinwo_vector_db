@@ -127,18 +127,12 @@ JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
         index_config.pq.max_iter = 20; /* 默认值 */
     }
     
-    coll->index = jw_index_create(local_arena, &index_config);
+    coll->index = jw_index_create(NULL, &index_config);  /* 独立arena，不共享集合arena */
     coll->index_enabled = JW_TRUE;
     coll->index_threshold = 100000000;  /* 默认禁用自动训练，需手动build_index */
-    /* 注: Linux GCC -O2 下 IVF 索引训练存在内存访问问题，
-       暂时禁用自动训练。macOS Clang 不受影响。后续修复 IVF K-means 代码后可恢复。 */
     
     /* 初始化锁 */
-    if (jw_rwlock_create(local_arena, NULL, &coll->lock) != JW_SUCCESS || coll->lock == NULL) {
-        jw_index_destroy(coll->index);
-        jw_arena_destroy(local_arena);
-        return NULL;
-    }
+    jw_rwlock_create(local_arena, NULL, &coll->lock);
     
     /* 设置时间戳 */
     coll->create_time = jw_time_now();
@@ -445,8 +439,8 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
         for (jw_size_t j = 0; j < record->field_count; j++) {
             const jw_meta_field_t *field = &record->fields[j];
             
-            jw_str_t fn_str = { (char *)field_name, strlen(field_name) };
-            if (jw_strcasecmp(&field->name, &fn_str) == 0) {
+            jw_str_t fname_str = { (char *)field_name, strlen(field_name) };
+            if (jw_strcasecmp(&field->name, &fname_str) == 0) {
                 found = JW_TRUE;
                 
                 /* 根据字段类型进行比较 */
@@ -469,8 +463,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                             case JW_CMP_LE:
                                 /* 字符串不支持比较操作 */
                                 return JW_FALSE;
-                            default:
-                                break;
                         }
                         break;
                         
@@ -505,8 +497,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 if (field->value.i32 > filter->value.i32) {
                                     return JW_FALSE;
                                 }
-                                break;
-                            default:
                                 break;
                         }
                         break;
@@ -543,8 +533,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                     return JW_FALSE;
                                 }
                                 break;
-                            default:
-                                break;
                         }
                         break;
                         
@@ -579,8 +567,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 if (field->value.f32 > filter->value.f32) {
                                     return JW_FALSE;
                                 }
-                                break;
-                            default:
                                 break;
                         }
                         break;
@@ -617,8 +603,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                     return JW_FALSE;
                                 }
                                 break;
-                            default:
-                                break;
                         }
                         break;
                         
@@ -638,8 +622,6 @@ static jw_bool_t match_filter(const jw_record_t *record, const jw_filter *filter
                                 /* 布尔值不支持比较操作 */
                                 return JW_FALSE;
                         }
-                        break;
-                    default:
                         break;
                 }
                 
@@ -717,7 +699,7 @@ JW_API jw_status_t jw_collection_clear(jw_collection_t *coll)
         
         jw_index_config_t config;
         init_default_index_config(&config, coll->dim);
-        coll->index = jw_index_create(coll->arena, &config);
+        coll->index = jw_index_create(NULL, &config);  /* 独立arena，不共享集合arena */
     }
     
     jw_rwlock_wrunlock(coll->lock);
@@ -833,7 +815,7 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
     
     /* 使用索引搜索（只有索引有足够数据时才使用） */
     if (coll->index != NULL && coll->index_enabled && coll->count >= coll->index_threshold) {
-        jw_search_result_t *index_results = jw_arena_alloc(coll->arena,
+        jw_search_result_t *index_results = (jw_search_result_t *)jw_malloc(
                                                            k * sizeof(jw_search_result_t));
         if (index_results != NULL) {
             result_count = jw_index_search(coll->index, query, k, index_results);
@@ -859,6 +841,7 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
                     }
                 }
             }
+            jw_free(index_results);
         }
     } else {
         /* 暴力搜索 */
@@ -866,7 +849,7 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
         
         /* 计算所有距离 */
         typedef struct { jw_vid_t vid; jw_float32_t dist; } vec_dist_t;
-        vec_dist_t *distances = jw_arena_alloc(coll->arena, coll->count * sizeof(vec_dist_t));
+        vec_dist_t *distances = (vec_dist_t *)jw_malloc(coll->count * sizeof(vec_dist_t));
         
         if (distances != NULL) {
             for (jw_size_t i = 0; i < coll->count; i++) {
@@ -898,6 +881,7 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
             }
             
             result_count = actual_k;
+            jw_free(distances);
         }
     }
     
@@ -957,12 +941,26 @@ JW_API jw_status_t jw_collection_build_index(jw_collection_t *coll)
     }
     
     jw_rwlock_wrlock(coll->lock);
+
+    /** 如果索引不存在（如被 drop_index 后），需要先创建 */
+    if (coll->index == NULL) {
+        jw_index_config_t config;
+        init_default_index_config(&config, coll->dim);
+        coll->index = jw_index_create(NULL, &config);
+        if (coll->index == NULL) {
+            jw_rwlock_wrunlock(coll->lock);
+            return JW_UNKNOWN_ERROR;
+        }
+        coll->index_enabled = JW_TRUE;
+    }
     
-    /* 收集所有向量 */
-    jw_cvec_t vectors = jw_arena_alloc(coll->arena, coll->count * coll->dim * sizeof(jw_float32_t));
-    jw_vid_t *vids = jw_arena_alloc(coll->arena, coll->count * sizeof(jw_vid_t));
+    /* 收集所有向量（使用malloc，不消耗arena） */
+    jw_cvec_t vectors = (jw_float32_t *)jw_malloc(coll->count * coll->dim * sizeof(jw_float32_t));
+    jw_vid_t *vids = (jw_vid_t *)jw_malloc(coll->count * sizeof(jw_vid_t));
     
     if (vectors == NULL || vids == NULL) {
+        jw_free(vectors);
+        jw_free(vids);
         jw_rwlock_wrunlock(coll->lock);
         return JW_OUT_OF_MEMORY;
     }
@@ -976,6 +974,8 @@ JW_API jw_status_t jw_collection_build_index(jw_collection_t *coll)
     /* 训练索引 */
     jw_status_t status = jw_index_train(coll->index, vectors, coll->count);
     if (status != JW_SUCCESS) {
+        jw_free(vectors);
+        jw_free(vids);
         jw_rwlock_wrunlock(coll->lock);
         return status;
     }
@@ -983,6 +983,12 @@ JW_API jw_status_t jw_collection_build_index(jw_collection_t *coll)
     /* 添加向量到索引 */
     status = jw_index_add_batch(coll->index, vids, vectors, coll->count);
     
+    if (status == JW_SUCCESS) {
+        coll->index_threshold = 0;  /* 手动建索引后始终使用索引搜索 */
+    }
+    
+    jw_free(vectors);
+    jw_free(vids);
     jw_rwlock_wrunlock(coll->lock);
     
     return status;
@@ -1002,7 +1008,7 @@ JW_API jw_status_t jw_collection_rebuild_index(jw_collection_t *coll)
         
         jw_index_config_t config;
         init_default_index_config(&config, coll->dim);
-        coll->index = jw_index_create(coll->arena, &config);
+        coll->index = jw_index_create(NULL, &config);  /* 独立arena，不共享集合arena */
     }
     
     jw_rwlock_wrunlock(coll->lock);
@@ -1158,6 +1164,7 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
     header.index_type = coll->index ? coll->index->type : JW_INDEX_NONE;
     header.vector_count = coll->count;
     header.next_vid = coll->next_vid;
+    header.index_threshold = coll->index_threshold;
     
     /* 索引配置 */
     if (coll->index != NULL && 
@@ -1179,6 +1186,7 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
     
     /* 写入头部（在storage header之后，不要覆盖storage magic） */
     jw_uint64_t header_offset = sizeof(jw_storage_header_t);
+    jw_uint64_t header_start = header_offset;  /* 保存原始位置用于回写 */
     jw_uint64_t current_offset = 0;
     
     /* 先写入一个空的头部占位 */
@@ -1189,7 +1197,8 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
         return status;
     }
     
-    current_offset = header_offset + sizeof(header);
+    /* jw_storage_write 已自动前进 header_offset，current_offset 直接使用 */
+    current_offset = header_offset;
     
     /* 写入向量数据 */
     header.vectors_offset = current_offset;
@@ -1229,8 +1238,8 @@ JW_API jw_status_t jw_collection_save(const jw_collection_t *coll,
     /* 计算校验和 */
     header.checksum = jw_hash_murmur3_32(&header, sizeof(header) - 4, 0);
     
-    /* 回写头部 */
-    status = jw_storage_write_collection_header(storage, &header, &header_offset);
+    /* 回写头部（写回原始位置覆盖占位header） */
+    status = jw_storage_write_collection_header(storage, &header, &header_start);
     
     jw_storage_close(storage);
     jw_rwlock_rdunlock(coll->lock);
@@ -1297,11 +1306,16 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
     coll->records = jw_arena_calloc(local_arena, coll->capacity, sizeof(jw_record_t));
     coll->count = 0;
     coll->next_vid = header.next_vid;
+    coll->index_threshold = header.index_threshold;
+    if (coll->index_threshold == 0) {
+        coll->index_threshold = 100000000;  /* 兼容旧格式文件，默认禁用自动训练 */
+    }
     
     /* 初始化锁 */
     jw_rwlock_t *lock;
     if (jw_rwlock_create(local_arena, NULL, &lock) != JW_SUCCESS || lock == NULL) {
         jw_arena_destroy(local_arena);
+        jw_storage_close(storage);
         return NULL;
     }
     coll->lock = lock;
@@ -1323,7 +1337,7 @@ JW_API jw_collection_t *jw_collection_load(jw_arena_t *arena,
             index_config.params.ivf.nprobe = header.ivf_nprobe;
         }
         
-        coll->index = jw_index_create(local_arena, &index_config);
+        coll->index = jw_index_create(NULL, &index_config);  /* 独立arena，不共享集合arena */
         coll->index_enabled = JW_TRUE;
     }
     

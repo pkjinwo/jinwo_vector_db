@@ -52,14 +52,26 @@ func jw_vecdb_strerror(_ code: jw_status_t) -> UnsafePointer<CChar>?
 @_silgen_name("jw_ios_collection_create")
 func jw_collection_create(_ db: OpaquePointer?, _ name: UnsafePointer<CChar>?, _ dim: UInt32) -> OpaquePointer?
 
+@_silgen_name("jw_ios_collection_get")
+func jw_collection_get(_ db: OpaquePointer?, _ name: UnsafePointer<CChar>?) -> OpaquePointer?
+
 @_silgen_name("jw_ios_collection_destroy")
 func jw_collection_close(_ coll: OpaquePointer?)
 
 @_silgen_name("jw_ios_collection_insert")
 func jw_collection_insert(_ coll: OpaquePointer?, _ vec: UnsafePointer<Float>?, _ dim: UInt32) -> Int32
 
+@_silgen_name("jw_ios_collection_insert_vid")
+func jw_collection_insert_vid(_ coll: OpaquePointer?, _ vec: UnsafePointer<Float>?, _ dim: UInt32) -> UInt64
+
 @_silgen_name("jw_ios_collection_delete")
 func jw_collection_delete(_ coll: OpaquePointer?, _ vid: UInt64) -> Int32
+
+@_silgen_name("jw_ios_collection_get_vector")
+func jw_collection_get_vector(_ coll: OpaquePointer?, _ vid: UInt64, _ out_vec: UnsafeMutablePointer<Float>?) -> Int32
+
+@_silgen_name("jw_ios_collection_count")
+func jw_collection_count(_ coll: OpaquePointer?) -> UInt
 
 @_silgen_name("jw_ios_collection_search")
 func jw_collection_search(_ coll: OpaquePointer?, _ query: UnsafePointer<Float>?, _ dim: UInt32, _ k: Int32, _ results: UnsafeMutablePointer<jw_search_result>?) -> Int32
@@ -76,7 +88,7 @@ func jw_collection_list(_ db: OpaquePointer?) -> UnsafeMutablePointer<jw_strlist
 @_silgen_name("jw_ios_strlist_free")
 func jw_strlist_free(_ list: OpaquePointer?)
 
-// C structs
+// C structs - must match jw_ios_search_result_t in jw_ios_bridge.c exactly
 struct jw_search_result {
     var id: UInt64
     var distance: Float

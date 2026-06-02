@@ -15,6 +15,11 @@ public final class Collection {
         }
     }
 
+    /// Init from an existing collection pointer (for getCollection / reopen).
+    init(existing: OpaquePointer?, name: String) {
+        self.ptr = existing
+    }
+
     deinit { close() }
 
     /// Insert a vector. Returns the assigned vector ID.
@@ -30,6 +35,39 @@ public final class Collection {
         }
         if rc != 0 { throw VecDBError(rawValue: Int(rc)) ?? .unknown }
         return 0 // last insert ID approximation
+    }
+
+    /// Insert a vector with correct VID return.
+    @discardableResult
+    public func insertVid(_ vector: [Float]) throws -> UInt64 {
+        guard !closed else { throw VecDBError.collectionNotFound }
+        let dim = dimension()
+        guard vector.count == dim else {
+            throw VecDBError.invalidDimension
+        }
+        let vid = vector.withUnsafeBufferPointer { buf in
+            jw_collection_insert_vid(ptr, buf.baseAddress, UInt32(dim))
+        }
+        if vid == 0 { throw VecDBError.unknown }
+        return vid
+    }
+
+    /// Get a vector by ID.
+    public func get(vid: UInt64) throws -> [Float] {
+        guard !closed else { throw VecDBError.collectionNotFound }
+        let dim = dimension()
+        var vec = [Float](repeating: 0, count: dim)
+        let rc = vec.withUnsafeMutableBufferPointer { buf in
+            jw_collection_get_vector(ptr, vid, buf.baseAddress)
+        }
+        if rc != 0 { throw VecDBError.vectorNotFound }
+        return vec
+    }
+
+    /// Count of vectors in the collection.
+    public func count() -> Int {
+        guard !closed else { return 0 }
+        return Int(jw_collection_count(ptr))
     }
 
     /// Delete a vector by ID.
@@ -69,10 +107,9 @@ public final class Collection {
     }
 
     /// Close the collection.
+    /// Does NOT destroy the underlying collection — the DB owns it
+    /// and will clean up all collections when the DB is closed.
     public func close() {
-        if !closed {
-            jw_collection_close(ptr)
-            closed = true
-        }
+        closed = true
     }
 }

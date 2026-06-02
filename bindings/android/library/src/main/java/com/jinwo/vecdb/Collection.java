@@ -35,11 +35,22 @@ public class Collection implements AutoCloseable {
     /** JNI: get encoding dimension */
     private static native int nativeGetDimension(long ptr);
 
+    /** JNI: get vector by ID */
+    private static native float[] nativeGetVector(long ptr, long vid);
+
+    /** JNI: get collection count */
+    private static native long nativeGetCount(long ptr);
+
     Collection(long dbPtr, String name, int dimension) {
         this.ptr = nativeCreateCollection(dbPtr, name, dimension);
         if (this.ptr == 0) {
             throw new RuntimeException("jinwo_vecdb: failed to create collection '" + name + "'");
         }
+    }
+
+    /** Construct from existing collection pointer (for getCollection / reopen). */
+    Collection(long ptr) {
+        this.ptr = ptr;
     }
 
     long getPtr() { return ptr; }
@@ -98,6 +109,26 @@ public class Collection implements AutoCloseable {
         if (rc != 0) {
             throw new RuntimeException("jinwo_vecdb: buildIndex failed (code=" + rc + ")");
         }
+    }
+
+    /**
+     * Get a vector by its ID.
+     */
+    public float[] get(long vid) {
+        checkClosed();
+        float[] vec = nativeGetVector(ptr, vid);
+        if (vec == null) {
+            throw new RuntimeException("jinwo_vecdb: get failed for vid=" + vid);
+        }
+        return vec;
+    }
+
+    /**
+     * Get number of vectors in the collection.
+     */
+    public long count() {
+        checkClosed();
+        return nativeGetCount(ptr);
     }
 
     /**

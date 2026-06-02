@@ -46,7 +46,7 @@
  *   // 5. 关闭数据库
  *   jw_vecdb_close(db);
  * 
- * 版本: 0.1.20
+ * 版本: 0.1.30
  * 作者: 灵活就业码农
  */
 
@@ -71,12 +71,12 @@ JW_BEGIN_DECL
 /* 版本宏 */
 #define JW_VECDB_VERSION_MAJOR      0
 #define JW_VECDB_VERSION_MINOR      1
-#define JW_VECDB_VERSION_PATCH      0
-#define JW_VECDB_VERSION_STRING     "0.1.20"
+#define JW_VECDB_VERSION_PATCH      30
+#define JW_VECDB_VERSION_STRING     "0.1.30"
 
 /**
  * 获取版本字符串
- * @return 版本字符串，如 "JinWo VecDB 0.1.20"
+ * @return 版本字符串，如 "JinWo VecDB 0.1.30"
  */
 JW_API jw_str_t jw_vecdb_version(void);
 

@@ -22,7 +22,9 @@ public final class VecDB {
     ///   - create: If `true`, create the database if it doesn't exist.
     public init(path: String, create: Bool) throws {
         var cPath = path.cString(using: .utf8)!
-        let flags: Int32 = create ? 0 : 1  // JW_OPEN_READONLY = 1
+        // JW_VECDB_CREATE(0x04) | JW_VECDB_READWRITE(0x02) for new DB
+        // JW_VECDB_READWRITE(0x02) alone to reopen existing DB
+        let flags: Int32 = create ? (0x04 | 0x02) : 0x02
         ptr = jw_vecdb_open(&cPath, flags)
         if ptr == nil {
             throw VecDBError.ioError
@@ -41,6 +43,16 @@ public final class VecDB {
     public func createCollection(name: String, dimension: Int) throws -> Collection {
         guard !closed else { throw VecDBError.ioError }
         return Collection(db: ptr, name: name, dimension: dimension)
+    }
+
+    /// Get an existing collection by name (for reopen scenario).
+    public func getCollection(name: String) throws -> Collection {
+        guard !closed else { throw VecDBError.ioError }
+        var cName = name.cString(using: .utf8)!
+        guard let collPtr = jw_collection_get(ptr, &cName) else {
+            throw VecDBError.collectionNotFound
+        }
+        return Collection(existing: collPtr, name: name)
     }
 
     /// List all collection names.

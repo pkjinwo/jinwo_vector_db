@@ -267,11 +267,10 @@ JW_API jw_status_t jw_vecdb_open_ex(const jw_vecdb_config_t *config,
         }
     }
     
-    /* 如果是文件数据库，从磁盘加载已有collections */
+    /* 如果是文件数据库，尝试加载已有collections */
     if (database->config.db_path.ptr != NULL &&
         database->config.db_path.slen > 0 &&
-        database->config.storage_mode != JW_STORAGE_MEMORY &&
-        !database->config.create_if_missing) {
+        database->config.storage_mode != JW_STORAGE_MEMORY) {
         
         JW_LOG("open: loading collections from %s", database->config.db_path.ptr);
         

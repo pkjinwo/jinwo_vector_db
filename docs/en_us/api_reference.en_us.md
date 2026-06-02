@@ -36,8 +36,8 @@ JinWo VecDB is an embedded vector database library written in pure C99. It provi
 ```c
 #define JW_VERSION_MAJOR       0
 #define JW_VERSION_MINOR       1
-#define JW_VERSION_PATCH       20
-#define JW_VERSION_STRING      "0.1.20"
+#define JW_VERSION_PATCH       30
+#define JW_VERSION_STRING      "0.1.30"
 ```
 
 ---

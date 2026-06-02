@@ -477,6 +477,12 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
         for (jw_uint32_t i = 0; i < node->link_counts[level] && i < node->max_M; i++) {
             jw_vid_t neighbor = node->links[level][i];
 
+            /** 跳过已删除或无效的邻居 */
+            if (neighbor >= hnsw->capacity || hnsw->nodes[neighbor] == NULL
+                || hnsw->nodes[neighbor]->deleted) {
+                continue;
+            }
+
             /** 检查是否已访问 */
             jw_bool_t is_visited = JW_FALSE;
             for (jw_size_t v = 0; v < *visited_count; v++) {
@@ -540,78 +546,76 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                               jw_size_t *result_count,
                               jw_arena_t *arena)
 {
-    /** 初始化优先队列 */
-    priority_queue_t pq;
-    pq_init(&pq, ef_search, arena);
-
     /** 已访问节点数组 */
     jw_vid_t *visited = (jw_vid_t *)jw_arena_alloc(arena,
                          hnsw->capacity * sizeof(jw_vid_t));
     jw_size_t visited_count = 0;
 
-    /** 标记入口点已访问 */
-    visited[visited_count++] = ep_vid;
+    /** 结果优先队列 (最大堆: 堆顶是ef_search个结果中最远的) */
+    priority_queue_t pq;
+    pq_init(&pq, ef_search, arena);
 
-    /** 初始化优先队列，包含入口点 */
+    /** 待探索候选数组 (按加入顺序存储，每次选最近的来探索) */
+    jw_vid_t *todo = (jw_vid_t *)jw_arena_alloc(arena,
+                      hnsw->capacity * sizeof(jw_vid_t));
+    jw_float32_t *todo_dist = (jw_float32_t *)jw_arena_alloc(arena,
+                                hnsw->capacity * sizeof(jw_float32_t));
+    jw_size_t todo_count = 0;
+
+    /** 初始化: 入口点 */
+    visited[visited_count++] = ep_vid;
     jw_float32_t ep_dist = distance_sq(query, hnsw->nodes[ep_vid]->vec, hnsw->dim);
     pq_push(&pq, ep_vid, ep_dist, level);
-
-    /** 候选队列，用于存储待探索节点 */
-    jw_vid_t *candidates = (jw_vid_t *)jw_arena_alloc(arena,
-                            hnsw->capacity * sizeof(jw_vid_t));
-    jw_size_t candidate_count = 0;
+    todo[todo_count] = ep_vid;
+    todo_dist[todo_count] = ep_dist;
+    todo_count++;
 
     /**
-     * Best-First Search主循环
-     * 每次从优先队列取出距离最小的候选
-     * 如果该候选的距离大于结果中最大距离，搜索结束
+     * Best-First Search主循环:
+     * 每次从待探索列表中选择距离最近的候选探索其邻居
      */
-    while (pq.size > 0) {
-        /** 取出当前最优候选 */
-        search_candidate_t current = pq.items[0];
-
-        /** 将队列尾部元素移到堆顶并重新调整堆 */
-        if (pq.size > 1) {
-            pq.items[0] = pq.items[pq.size - 1];
-            pq.size--;
-
-            jw_size_t i = 0;
-            while (1) {
-                jw_size_t left = 2 * i + 1;
-                jw_size_t right = 2 * i + 2;
-                jw_size_t largest = i;
-
-                if (left < pq.size && pq.items[left].score > pq.items[largest].score) {
-                    largest = left;
-                }
-                if (right < pq.size && pq.items[right].score > pq.items[largest].score) {
-                    largest = right;
-                }
-
-                if (largest == i) break;
-
-                search_candidate_t tmp = pq.items[i];
-                pq.items[i] = pq.items[largest];
-                pq.items[largest] = tmp;
-                i = largest;
+    while (todo_count > 0) {
+        /** 在 todo 中找距离最小的候选 */
+        jw_size_t best_idx = 0;
+        jw_float32_t best_dist = todo_dist[0];
+        for (jw_size_t t = 1; t < todo_count; t++) {
+            if (todo_dist[t] < best_dist) {
+                best_dist = todo_dist[t];
+                best_idx = t;
             }
-        } else {
-            pq.size--;
         }
 
-        /** 获取结果中的最大距离 (堆顶) */
-        jw_float32_t max_result_dist = (pq.size > 0) ? pq.items[0].score : JW_FLT_MAX;
+        jw_vid_t current_vid = todo[best_idx];
+        jw_float32_t current_dist = best_dist;
 
-        /** 如果当前候选距离大于结果中最大距离，可以结束搜索 */
-        if (current.score > max_result_dist) {
+        /** 从 todo 中移除 (用最后一个覆盖) */
+        todo[best_idx] = todo[todo_count - 1];
+        todo_dist[best_idx] = todo_dist[todo_count - 1];
+        todo_count--;
+
+        /**
+         * 终止条件:
+         * 当前候选距离 > 结果集中最远的距离 → 不可能有更近的了
+         */
+        jw_float32_t max_result_dist = (pq.size > 0) ?
+                                        pq.items[0].score : JW_FLT_MAX;
+        if (current_dist > max_result_dist) {
             break;
         }
 
         /** 探索当前候选的邻居 */
-        jw_hnsw_node_t *node = hnsw->nodes[current.vid];
+        jw_hnsw_node_t *node = hnsw->nodes[current_vid];
+        jw_uint32_t link_end = node->link_counts[level];
+        if (link_end > node->max_M) link_end = node->max_M;
 
-        for (jw_uint32_t i = 0; i < node->link_counts[level] && i < node->max_M; i++) {
+        for (jw_uint32_t i = 0; i < link_end; i++) {
             jw_vid_t neighbor = node->links[level][i];
+
+            /** 跳过已删除或无效的邻居 */
+            if (neighbor >= hnsw->capacity || hnsw->nodes[neighbor] == NULL
+                || hnsw->nodes[neighbor]->deleted) {
+                continue;
+            }
 
             /** 检查是否已访问 */
             jw_bool_t is_visited = JW_FALSE;
@@ -625,17 +629,21 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
             if (!is_visited) {
                 visited[visited_count++] = neighbor;
 
-                jw_float32_t dist = distance_sq(query, hnsw->nodes[neighbor]->vec, hnsw->dim);
+                jw_float32_t dist = distance_sq(query,
+                    hnsw->nodes[neighbor]->vec, hnsw->dim);
 
-                /** 如果邻居距离小于结果中最大距离，加入优先队列 */
-                if (dist < max_result_dist || pq.size < ef_search) {
-                    pq_push(&pq, neighbor, dist, level);
-                }
+                /** 加入结果集 (最大堆) */
+                pq_push(&pq, neighbor, dist, level);
+
+                /** 加入待探索列表 */
+                todo[todo_count] = neighbor;
+                todo_dist[todo_count] = dist;
+                todo_count++;
             }
         }
     }
 
-    /** 复制结果 */
+    /** 复制结果 (最大堆中的条目，需要排序输出) */
     *result_count = (pq.size < ef_search) ? pq.size : ef_search;
     for (jw_size_t i = 0; i < *result_count; i++) {
         results[i] = pq.items[i];
@@ -713,21 +721,24 @@ JW_API jw_index_t *jw_index_create(jw_arena_t *arena,
         return NULL;
     }
 
-    jw_index_t *index = (jw_index_t *)jw_arena_calloc(arena, 1, sizeof(jw_index_t));
+    /** 如果未传入arena，则创建独立的内存池 */
+    jw_arena_t *local_arena = arena;
+    jw_bool_t owns_arena = JW_FALSE;
+    if (!local_arena) {
+        if (jw_arena_create(4096 * 1024, &local_arena) != JW_SUCCESS) {
+            return NULL;
+        }
+        owns_arena = JW_TRUE;
+    }
+
+    jw_index_t *index = (jw_index_t *)jw_arena_calloc(local_arena, 1, sizeof(jw_index_t));
     if (index == NULL) {
+        if (owns_arena) jw_arena_destroy(local_arena);
         return NULL;
     }
 
     index->type = config->type;
-
-    /** 创建内存池: 如果传入的arena为NULL，则创建独立的内存池 */
-    if (arena) {
-        index->arena = arena;
-    } else {
-        if (jw_arena_create(4096 * 1024, &index->arena) != JW_SUCCESS) {
-            return NULL;
-        }
-    }
+    index->arena = local_arena;
 
     /** 根据索引类型创建对应的实现 */
     switch (config->type) {
@@ -993,21 +1004,25 @@ JW_API void jw_ivf_destroy(jw_ivf_index_t *index)
         return;
     }
 
-    /** 销毁每个倒排列表的锁 */
+    /** 销毁每个倒排列表的锁 (由jw_malloc分配，需手动释放) */
     if (index->lists != NULL) {
         for (jw_uint32_t i = 0; i < index->nlist; i++) {
             if (index->lists[i].lock != NULL) {
                 jw_rwlock_destroy(index->lists[i].lock);
+                jw_free(index->lists[i].lock);
+                index->lists[i].lock = NULL;
             }
         }
     }
 
-    /** 销毁全局锁 */
+    /** 销毁全局锁 (由jw_malloc分配，需手动释放) */
     if (index->lock != NULL) {
         jw_mutex_destroy(index->lock);
+        jw_free(index->lock);
+        index->lock = NULL;
     }
 
-    /** 注意: 内存由外部内存池统一释放 */
+    /** 注意: 其余内存由外部内存池统一释放 */
 }
 
 /**
@@ -1249,6 +1264,13 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
 
         jw_rwlock_wrlock(hnsw->lock);
 
+        /** 预分配批量插入所需的临时数组（只需分配一次） */
+        jw_vid_t *insert_visited = (jw_vid_t *)jw_arena_alloc(index->arena,
+                                     hnsw->capacity * sizeof(jw_vid_t));
+        jw_uint32_t ef_constr = hnsw->config.ef_construction;
+        search_candidate_t *insert_layer_results = (search_candidate_t *)jw_arena_alloc(
+                index->arena, ef_constr * sizeof(search_candidate_t));
+
         for (jw_size_t i = 0; i < count; i++) {
             jw_vid_t vid = vids[i];
             jw_cvec_t vec = vectors + i * dim;
@@ -1308,20 +1330,183 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             hnsw->nodes[vid] = node;
             hnsw->ntotal++;
 
-            /** 如果是第一个节点，设置入口点 */
-            if (hnsw->entry_point == ((jw_vid_t)-1) && hnsw->ntotal == 1) {
-                hnsw->entry_point = vid;
-                hnsw->max_level = node_level;
-            }
-
             /**
              * HNSW插入算法:
              * 1. 从当前最大层级开始搜索，找到每层的最近邻
-             * 2. 在每层添加连接边
+             * 2. 在每层添加双向连接边
              * 3. 更新入口点和最大层级
-             *
-             * 简化实现: 暂时只添加到第0层
              */
+            if (hnsw->entry_point == ((jw_vid_t)-1) && hnsw->ntotal == 1) {
+                /** 第一个节点：直接设为入口点就好了 */
+                hnsw->entry_point = vid;
+                hnsw->max_level = node_level;
+            } else {
+                /** 非首个节点：执行完整的 HNSW 插入 */
+                jw_size_t visited_count = 0;
+                jw_vid_t current_ep = hnsw->entry_point;
+                jw_uint32_t current_max_level = hnsw->max_level;
+
+                /**
+                 * 第一阶段: 从顶层向下贪婪搜索
+                 * 对于高于新节点层级的层，只需找到向下传递的入口点
+                 */
+                for (jw_uint32_t l = current_max_level; l > node_level; l--) {
+                    current_ep = hnsw_greedy_search(hnsw, vec, current_ep, l,
+                                                    insert_visited,
+                                                    &visited_count,
+                                                    index->arena);
+                }
+
+                /**
+                 * 第二阶段: 在新节点所在层级及以下建立连接
+                 * 从 min(node_level, current_max_level) 向下搜索到第0层
+                 */
+                jw_uint32_t conn_start = (node_level < current_max_level) ?
+                                          node_level : current_max_level;
+
+                for (jw_int32_t l = (jw_int32_t)conn_start; l >= 0; l--) {
+                    jw_uint32_t level = (jw_uint32_t)l;
+                    jw_size_t result_count = 0;
+
+                    /** 在第level层搜索 ef_construction 个候选 */
+                    hnsw_layer_search(hnsw, vec, current_ep, level,
+                                     ef_constr, insert_layer_results,
+                                     &result_count, index->arena);
+
+                    /**
+                     * 若层搜索没找到足够候选（图还太小或太稀疏），
+                     * 暴力扫描所有已有节点，选出最近的M个建立连接
+                     */
+                    if (result_count == 0) {
+                        jw_uint32_t max_links = (level == 0) ?
+                                               node->max_M0 : node->max_M;
+
+                        /** 收集该层可达的所有已有节点 (跳过已删除的) */
+                        jw_size_t existing_count = 0;
+                        for (jw_size_t n = 0; n < hnsw->capacity; n++) {
+                            if (hnsw->nodes[n] != NULL
+                                && !hnsw->nodes[n]->deleted
+                                && hnsw->nodes[n]->vid != vid
+                                && level <= hnsw->nodes[n]->level) {
+                                existing_count++;
+                            }
+                        }
+
+                        if (existing_count == 0) {
+                            continue;
+                        }
+
+                        jw_hnsw_node_t **all_candidates = (jw_hnsw_node_t **)jw_arena_alloc(
+                                index->arena,
+                                existing_count * sizeof(jw_hnsw_node_t *));
+                        jw_size_t ac = 0;
+                        for (jw_size_t n = 0; n < hnsw->capacity; n++) {
+                            if (hnsw->nodes[n] != NULL
+                                && !hnsw->nodes[n]->deleted
+                                && hnsw->nodes[n]->vid != vid
+                                && level <= hnsw->nodes[n]->level) {
+                                all_candidates[ac++] = hnsw->nodes[n];
+                            }
+                        }
+
+                        hnsw_select_neighbors(all_candidates,
+                                             (jw_uint32_t)existing_count,
+                                             max_links,
+                                             hnsw, vec, level, index->arena);
+
+                        jw_uint32_t link_count = (existing_count < (jw_size_t)max_links) ?
+                                                (jw_uint32_t)existing_count : max_links;
+                        for (jw_uint32_t c = 0; c < link_count; c++) {
+                            jw_hnsw_node_t *nb = all_candidates[c];
+                            jw_uint32_t nb_max = (level == 0) ?
+                                                nb->max_M0 : nb->max_M;
+
+                            if (node->link_counts[level] < max_links) {
+                                node->links[level][node->link_counts[level]++] = nb->vid;
+                            }
+                            if (nb->link_counts[level] < nb_max) {
+                                nb->links[level][nb->link_counts[level]++] = vid;
+                            }
+                        }
+                        continue;
+                    }
+
+                    /** 把搜索结果转成节点指针数组 */
+                    jw_hnsw_node_t **candidates = (jw_hnsw_node_t **)jw_arena_alloc(
+                            index->arena,
+                            result_count * sizeof(jw_hnsw_node_t *));
+                    jw_uint32_t valid_count = 0;
+                    for (jw_size_t c = 0; c < result_count; c++) {
+                        jw_vid_t cvid = insert_layer_results[c].vid;
+                        if (cvid < hnsw->capacity && hnsw->nodes[cvid] != NULL) {
+                            candidates[valid_count++] = hnsw->nodes[cvid];
+                        }
+                    }
+
+                    if (valid_count == 0) {
+                        continue;
+                    }
+
+                    /** 选择最近的M个邻居（第0层用M0=2*M） */
+                    jw_uint32_t max_links = (level == 0) ?
+                                           node->max_M0 : node->max_M;
+                    hnsw_select_neighbors(candidates, valid_count, max_links,
+                                         hnsw, vec, level, index->arena);
+
+                    /** 建立双向连接 */
+                    jw_uint32_t link_count = (valid_count < max_links) ?
+                                            valid_count : max_links;
+                    for (jw_uint32_t c = 0; c < link_count; c++) {
+                        jw_hnsw_node_t *neighbor = candidates[c];
+                        jw_vid_t nvid = neighbor->vid;
+
+                        /** node -> neighbor */
+                        if (node->link_counts[level] < max_links) {
+                            node->links[level][node->link_counts[level]++] = nvid;
+                        }
+
+                        /** neighbor -> node */
+                        jw_uint32_t neigh_max = (level == 0) ?
+                                               neighbor->max_M0 : neighbor->max_M;
+                        if (neighbor->link_counts[level] < neigh_max) {
+                            neighbor->links[level][neighbor->link_counts[level]++] = vid;
+                        } else {
+                            /** 邻居的连接已满，尝试替换最远的连接 */
+                            jw_float32_t max_dist = -1.0f;
+                            jw_uint32_t max_idx = 0;
+                            for (jw_uint32_t k = 0; k < neighbor->link_counts[level]; k++) {
+                                jw_vid_t nv = neighbor->links[level][k];
+                                if (nv < hnsw->capacity && hnsw->nodes[nv] != NULL) {
+                                    jw_float32_t d = distance_sq(neighbor->vec,
+                                                    hnsw->nodes[nv]->vec,
+                                                    hnsw->dim);
+                                    if (d > max_dist) {
+                                        max_dist = d;
+                                        max_idx = k;
+                                    }
+                                }
+                            }
+                            jw_float32_t new_dist = distance_sq(neighbor->vec,
+                                                           node->vec,
+                                                           hnsw->dim);
+                            if (new_dist < max_dist) {
+                                neighbor->links[level][max_idx] = vid;
+                            }
+                        }
+                    }
+
+                    /** 为下一层搜索更新入口点 */
+                    if (result_count > 0 && result_count <= ef_constr) {
+                        current_ep = insert_layer_results[0].vid;
+                    }
+                }
+
+                /** 第三阶段: 如果新节点层级更高，更新全局入口点 */
+                if (node_level > hnsw->max_level) {
+                    hnsw->entry_point = vid;
+                    hnsw->max_level = node_level;
+                }
+            }
         }
 
         jw_rwlock_wrunlock(hnsw->lock);
@@ -1344,7 +1529,37 @@ JW_API jw_status_t jw_index_remove(jw_index_t *index, jw_vid_t vid)
         return JW_INVALID_PARAM;
     }
 
-    /** 简化实现: 标记删除，实际删除需要重建索引 */
+    if (index->type == JW_INDEX_HNSW) {
+        jw_hnsw_index_t *hnsw = (jw_hnsw_index_t *)index->impl;
+        jw_rwlock_wrlock(hnsw->lock);
+
+        if (vid < hnsw->capacity && hnsw->nodes[vid] != NULL) {
+            /** 直接置空节点的指针, 搜索时会跳过 NULL 节点 */
+            hnsw->nodes[vid] = NULL;
+
+            /** 如果删除的是入口点, 找新的 */
+            if (hnsw->entry_point == vid) {
+                hnsw->entry_point = ((jw_vid_t)-1);
+                hnsw->max_level = 0;
+                for (jw_size_t n = 0; n < hnsw->capacity; n++) {
+                    if (hnsw->nodes[n] != NULL) {
+                        hnsw->entry_point = hnsw->nodes[n]->vid;
+                        hnsw->max_level = hnsw->nodes[n]->level;
+                        break;
+                    }
+                }
+            }
+        }
+
+        jw_rwlock_wrunlock(hnsw->lock);
+        return JW_SUCCESS;
+    }
+
+    if (index->type == JW_INDEX_IVF || index->type == JW_INDEX_IVF_PQ || index->type == JW_INDEX_IVF_SQ) {
+        /** IVF删除通过上层 collection 的 records 移动实现，此处为占位 */
+        return JW_SUCCESS;
+    }
+
     return JW_SUCCESS;
 }
 
@@ -1544,6 +1759,30 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         jw_size_t visited_count = 0;
         jw_vid_t current_ep = hnsw->entry_point;
         jw_uint32_t max_level = (hnsw->max_level > 0) ? hnsw->max_level : 0;
+
+        /** 如果入口点无效或已删除，寻找新的有效入口点 */
+        if (current_ep == ((jw_vid_t)-1)
+            || current_ep >= hnsw->capacity
+            || hnsw->nodes[current_ep] == NULL
+            || hnsw->nodes[current_ep]->deleted) {
+            jw_vid_t new_ep = ((jw_vid_t)-1);
+            for (jw_size_t n = 0; n < hnsw->capacity; n++) {
+                if (hnsw->nodes[n] != NULL && !hnsw->nodes[n]->deleted) {
+                    new_ep = hnsw->nodes[n]->vid;
+                    hnsw->max_level = hnsw->nodes[n]->level;
+                    break;
+                }
+            }
+            if (new_ep == ((jw_vid_t)-1)) {
+                /** 没有有效节点，返回空 */
+                jw_free(layer_results);
+                jw_free(visited);
+                jw_rwlock_rdunlock(hnsw->lock);
+                return 0;
+            }
+            current_ep = new_ep;
+            max_level = hnsw->max_level;
+        }
 
         /**
          * 第一阶段: 从顶层向下进行贪婪搜索

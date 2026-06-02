@@ -200,7 +200,9 @@ func (db *DB) GetCollection(name string) *Collection {
 	if coll == nil {
 		return nil
 	}
-	return &Collection{handle: coll}
+	var stats C.jw_collection_stats_t
+	C.jw_collection_get_stats(coll, &stats)
+	return &Collection{handle: coll, dim: int(stats.dim)}
 }
 
 // DropCollection 删除集合
@@ -314,7 +316,12 @@ func (c *Collection) Name() string {
 
 // Dim 返回向量维度
 func (c *Collection) Dim() int {
-	return c.dim
+	if c.dim != 0 {
+		return c.dim
+	}
+	var stats C.jw_collection_stats_t
+	C.jw_collection_get_stats(c.handle, &stats)
+	return int(stats.dim)
 }
 
 // Insert 插入向量，返回分配的向量ID

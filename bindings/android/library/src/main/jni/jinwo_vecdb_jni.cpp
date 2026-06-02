@@ -105,6 +105,21 @@ Java_com_jinwo_vecdb_JinWoDB_nativeListCollections(
     return arr;
 }
 
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_jinwo_vecdb_JinWoDB_nativeGetCollection(
+    JNIEnv *env, jclass /*clazz*/, jlong dbPtr, jstring jname)
+{
+    auto *db = reinterpret_cast<jw_vecdb_t *>(dbPtr);
+    if (!db) return 0;
+    const char *name = env->GetStringUTFChars(jname, nullptr);
+    if (name == nullptr) return 0;
+    jw_str_t name_str = {(char *)name, (jw_size_t)strlen(name)};
+    jw_collection_t *coll = jw_vecdb_get_collection(db, &name_str);
+    env->ReleaseStringUTFChars(jname, name);
+    return reinterpret_cast<jlong>(coll);
+}
+
 // ============================================================
 // Collection JNI
 // ============================================================
@@ -251,4 +266,43 @@ Java_com_jinwo_vecdb_Collection_nativeGetDimension(
 {
     auto *coll = reinterpret_cast<jw_collection_t *>(ptr);
     return (jint)coll->dim;
+}
+
+extern "C"
+JNIEXPORT jfloatArray JNICALL
+Java_com_jinwo_vecdb_Collection_nativeGetVector(
+    JNIEnv *env, jclass /*clazz*/, jlong ptr, jlong vid)
+{
+    auto *coll = reinterpret_cast<jw_collection_t *>(ptr);
+    if (coll == nullptr) return nullptr;
+
+    jw_dim_t dim = coll->dim;
+    if (dim == 0) return nullptr;
+
+    jfloat *vec = (jfloat *)malloc(dim * sizeof(jfloat));
+    if (!vec) return nullptr;
+
+    jw_status_t rc = jw_collection_get(coll, (jw_vid_t)vid, vec);
+    if (rc != JW_SUCCESS) {
+        free(vec);
+        return nullptr;
+    }
+
+    jfloatArray arr = env->NewFloatArray((jsize)dim);
+    env->SetFloatArrayRegion(arr, 0, (jsize)dim, vec);
+    free(vec);
+    return arr;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_jinwo_vecdb_Collection_nativeGetCount(
+    JNIEnv * /*env*/, jclass /*clazz*/, jlong ptr)
+{
+    auto *coll = reinterpret_cast<jw_collection_t *>(ptr);
+    if (coll == nullptr) return 0;
+
+    jw_collection_stats_t stats;
+    jw_collection_get_stats(coll, &stats);
+    return (jlong)stats.count;
 }
