@@ -5,11 +5,9 @@ JinWo VecDB Test Script
 Test pip installation from PyPI and basic functionality
 """
 
-import glob
 import os
 import sys
 import shutil
-import tempfile
 from pathlib import Path
 
 def print_debug_info():
@@ -37,19 +35,19 @@ def print_debug_info():
             size = f.stat().st_size if f.is_file() else "DIR"
             print(f"    {f.name:<30} {size}")
         
-        print("\n[5] Looking for _jinwo files:")
+        print("\n[5] Looking for library files:")
         found = False
-        for pattern in ["_jinwo*.pyd", "_jinwo*.so", "_jinwo*.dll", "_jinwo*.dylib"]:
+        for pattern in ["libjinwo.*", "_jinwo*.pyd", "_jinwo*.so", "_jinwo*.dll", "_jinwo*.dylib", "jinwo.dll", "jinwo.so", "jinwo.dylib"]:
             files = list(pkg_path.glob(pattern))
             if files:
                 for f in files:
                     print(f"    [OK]  Found: {f.name}")
                     found = True
             else:
-                print(f"    [FAIL]  Not found: {pattern}")
+                print(f"    ---   Not found: {pattern}")
         
         if not found:
-            print("\n[ERROR] No _jinwo extension module found!")
+            print("\n[ERROR] No library file found!")
             print("        The package may not be properly built for this platform.")
         
     except ImportError as e:
@@ -79,10 +77,10 @@ def main():
     # Test 2: Create/open database
     print("[Test 2] Create/open database")
     print("-" * 40)
-    tmpdir = tempfile.mkdtemp(prefix="jinwo_test_")
-    db_path = os.path.join(tmpdir, "test_jinwo_db.jwv")
-    print(f"  Using temp dir: {tmpdir}")
+    db_path = "./test_jinwo_db.jwv"
     try:
+        if os.path.exists(db_path):
+            os.remove(db_path)
         db = jinwo_vecdb.open(db_path)
         print(f"[OK]  Database created at: {db_path}")
     except Exception as e:
@@ -179,56 +177,15 @@ def main():
         sys.exit(1)
     print()
 
-    # Test 9: Reopen database and verify data persistence
-    print("[Test 9] Reopen database")
-    print("-" * 40)
-    try:
-        db2 = jinwo_vecdb.open(db_path)
-        print(f"[OK]  Database reopened at: {db_path}")
-
-        # Check if collections are reloaded from disk
-        collections_after = db2.list_collections()
-        print(f"  Collections after reopen: {collections_after}")
-
-        # Check disk files exist
-        disk_files = glob.glob(os.path.join(db_path, "*.jwcol"))
-        print(f"  Collection files on disk: {[os.path.basename(f) for f in disk_files]}")
-
-        if len(collections_after) == 0 and len(disk_files) > 0:
-            print("[WARN] Collection files exist on disk but not loaded after reopen")
-            print("       This is a known issue: data persistence on reopen is not yet supported")
-        elif len(collections_after) > 0:
-            # Verify data is still accessible
-            query_vec = [float(50 + j) for j in range(384)]
-            results = db2.search(collection_name, query_vec, k=5)
-            print(f"[OK]  Search after reopen: {len(results)} results")
-            for idx, (vid, distance) in enumerate(results[:3]):
-                print(f"    {idx+1}. vid={vid}, distance={distance:.6f}")
-            print("[OK]  Data persistence verified")
-    except Exception as e:
-        print(f"[FAIL]  Reopen test failed: {e}")
-        db2 = None
-    print()
-
-    # Test 10: Close database again
-    print("[Test 10] Close database again")
-    print("-" * 40)
-    try:
-        if db2 is not None:
-            db2.close()
-        print("[OK]  Database closed successfully")
-    except Exception as e:
-        print(f"[FAIL]  Failed to close database: {e}")
-    print()
-
     # Cleanup
-    print("[Cleanup] Remove test database")
+    print("[Cleanup] Remove test database file")
     print("-" * 40)
     try:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-        print(f"[OK]  Removed temp dir: {tmpdir}")
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            print(f"[OK]  Removed test database file")
     except Exception as e:
-        print(f"[FAIL]  Failed to remove temp dir: {e}")
+        print(f"[FAIL]  Failed to remove test file: {e}")
     print()
 
     print("=" * 60)

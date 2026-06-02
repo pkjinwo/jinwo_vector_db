@@ -54,28 +54,11 @@ JW_VECDB_MEMORY = 0x10
 JW_SUCCESS = 0  # C 状态码: 成功
 
 def _load_library():
-    """加载 JinWo C 动态库"""
+    """加载 JinWo C 动态库（纯 C 库，不含 Python C API，ctypes 安全加载）"""
     package_dir = Path(__file__).parent
 
-    # 优先搜索包内的 _jinwo.*.so / _jinwo.*.pyd (CMake 编译的 Python C 扩展)
-    for f in package_dir.glob("_jinwo*.so"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
-    for f in package_dir.glob("_jinwo*.pyd"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
-    for f in package_dir.glob("_jinwo*.dylib"):
-        try:
-            return ctypes.CDLL(str(f))
-        except OSError:
-            continue
-
     if sys.platform == "win32":
-        lib_names = ["jinwo.dll", "libjinwo.dll"]
+        lib_names = ["libjinwo.dll", "jinwo.dll"]
         ext = ".dll"
     elif sys.platform == "darwin":
         lib_names = ["libjinwo.dylib", "jinwo.dylib"]
@@ -108,8 +91,15 @@ def _load_library():
             except OSError:
                 continue
 
+    # 列出包目录下实际存在的文件，帮助调试
+    pkg_files = []
+    if package_dir.exists():
+        pkg_files = sorted([f.name for f in package_dir.iterdir()])
+
     raise ImportError(
         f"无法加载 JinWo 动态库。请确保已正确安装 jinwo_vecdb 包。\n"
+        f"包目录: {package_dir}\n"
+        f"包目录文件: {pkg_files}\n"
         f"尝试的路径: {[str(p) for p in possible_paths]}"
     )
 

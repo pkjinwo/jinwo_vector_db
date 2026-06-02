@@ -86,6 +86,18 @@ class CMakeBuild(build_ext):
         else:
             build_cmd = ["cmake", "--build", ".", "--", "-j4"]
         _run_cmake(build_cmd, build_temp, "build")
+
+        # 2026-06-02: 修复 Windows MSVC Release/ 子目录问题
+        # 即使 CMake 配置了 *_OUTPUT_DIRECTORY_RELEASE，某些 MSVC 版本仍会创建子目录
+        if sys.platform == "win32":
+            import shutil as _shutil
+            release_dir = ext_dir / "Release"
+            if release_dir.is_dir():
+                for f in release_dir.iterdir():
+                    dest = ext_dir / f.name
+                    if not dest.exists():
+                        _shutil.copy2(str(f), str(dest))
+                        print(f"Copied {f.name} from Release/ to package dir")
         
         # 确保扩展文件在正确位置
         ext_path = self.get_ext_fullpath(ext.name)

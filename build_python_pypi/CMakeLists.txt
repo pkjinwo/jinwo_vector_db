@@ -98,6 +98,20 @@ set_target_properties(_jinwo PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
+# 2026-06-02: 修复 Windows MSVC 多配置生成器 Release/ 子目录问题
+# MSVC 默认将输出放到 Release/ 子目录，导致 DLL 不被 setuptools 打包进 wheel
+if(WIN32)
+    set_target_properties(jinwo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    )
+    set_target_properties(_jinwo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+    )
+endif()
+
 if(APPLE)
     set_target_properties(_jinwo PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup"
