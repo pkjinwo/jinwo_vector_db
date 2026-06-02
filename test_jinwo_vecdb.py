@@ -62,7 +62,9 @@ def main():
     print("=" * 60)
     print()
 
+    # ======================================================
     # Test 1: Import module
+    # ======================================================
     print("[Test 1] Import jinwo_vecdb")
     print("-" * 40)
     try:
@@ -75,16 +77,26 @@ def main():
         sys.exit(1)
     print()
 
-    # Test 2: Create/open database
-    print("[Test 2] Create/open database")
-    print("-" * 40)
     tmp_dir = tempfile.mkdtemp(prefix="jinwo_test_")
     db_path = os.path.join(tmp_dir, "test_jinwo_db.jwv")
+    collection_name = "round1_docs"
+
+    # ============================================================
+    # 第 1 轮: 新建 → CRUD → 关闭
+    # ============================================================
+    print("=" * 60)
+    print("  ROUND 1: Create -> CRUD -> Close")
+    print("=" * 60)
+    print()
+
+    # Test 2: Open database（新建）
+    print("[Test 2] Open (create) database")
+    print("-" * 40)
     try:
         db = jinwo_vecdb.open(db_path)
-        print(f"[OK]  Database created at: {db_path}")
+        print(f"[OK]  Database opened at: {db_path}")
     except Exception as e:
-        print(f"[FAIL]  Failed to create database: {e}")
+        print(f"[FAIL]  Failed to open database: {e}")
         print_debug_info()
         sys.exit(1)
     print()
@@ -93,11 +105,10 @@ def main():
     print("[Test 3] Create collection")
     print("-" * 40)
     try:
-        collection_name = "documents"
         db.create_collection(collection_name, 384)
-        print(f"[OK]  Collection '{collection_name}' created")
+        print(f"[OK]  Collection '{collection_name}' created (dim=384)")
     except Exception as e:
-        print(f"[FAIL]  Failed to create collection: {e}")
+        print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
     print()
@@ -109,83 +120,165 @@ def main():
         for i in range(100):
             vec = [float(i + j) for j in range(384)]
             db.insert(collection_name, vec)
-        print("[OK]  Successfully inserted 100 vectors")
+        print("[OK]  Inserted 100 vectors")
     except Exception as e:
-        print(f"[FAIL]  Failed to insert vectors: {e}")
+        print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
     print()
 
-    # Test 5: Search vectors
+    # Test 5: Search
     print("[Test 5] Search vectors")
     print("-" * 40)
     try:
         query_vec = [float(50 + j) for j in range(384)]
         results = db.search(collection_name, query_vec, k=10)
-        print(f"[OK]  Search completed")
-        print(f"  Results count: {len(results)}")
-        print("\n  Top 5 results:")
-        for idx, (vid, distance) in enumerate(results[:5]):
-            print(f"    {idx+1}. vid={vid}, distance={distance:.6f}")
+        print(f"[OK]  Search returned {len(results)} results")
+        print("  Top 3:")
+        for idx, (vid, distance) in enumerate(results[:3]):
+            print(f"    {idx+1}. vid={vid}, dist={distance:.6f}")
     except Exception as e:
-        print(f"[FAIL]  Failed to search vectors: {e}")
+        print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
     print()
 
-    # Test 6: Delete vector
+    # Test 6: Delete one vector
     print("[Test 6] Delete vector")
     print("-" * 40)
     try:
         query_vec = [float(50 + j) for j in range(384)]
         results = db.search(collection_name, query_vec, k=1)
         if results:
-            vid_to_delete = results[0][0]
-            db.delete(collection_name, vid_to_delete)
-            print(f"[OK]  Deleted vector with vid={vid_to_delete}")
+            vid_to_del = results[0][0]
+            db.delete(collection_name, vid_to_del)
+            print(f"[OK]  Deleted vid={vid_to_del}")
             results_after = db.search(collection_name, query_vec, k=5)
-            print(f"  Results after delete: {len(results_after)}")
+            print(f"  After delete: {len(results_after)} results")
         else:
             print("[FAIL]  No results to delete")
     except Exception as e:
-        print(f"[FAIL]  Failed to delete vector: {e}")
+        print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
     print()
 
     # Test 7: Batch insert
-    print("[Test 7] Batch insert vectors")
+    print("[Test 7] Batch insert")
     print("-" * 40)
     try:
         vectors = [[float(200 + i + j) for j in range(384)] for i in range(50)]
         vids = db.insert_batch(collection_name, vectors)
-        print(f"[OK]  Successfully inserted {len(vids)} vectors in batch")
+        print(f"[OK]  Batch inserted {len(vids)} vectors")
     except Exception as e:
-        print(f"[FAIL]  Failed to batch insert: {e}")
+        print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
     print()
 
-    # Test 8: Close database
-    print("[Test 8] Close database")
+    # Test 8: Close
+    print("[Test 8] Close database (round 1)")
     print("-" * 40)
     try:
         db.close()
-        print("[OK]  Database closed successfully")
+        print("[OK]  Database closed")
     except Exception as e:
-        print(f"[FAIL]  Failed to close database: {e}")
+        print(f"[FAIL]  {e}")
         sys.exit(1)
     print()
 
+    # ============================================================
+    # 第 2 轮: 重新打开 → 验证旧数据 → 新增 CRUD → 关闭
+    # ============================================================
+    print("=" * 60)
+    print("  ROUND 2: Reopen -> Verify -> CRUD -> Close")
+    print("=" * 60)
+    print()
+
+    # Test 9: Reopen database
+    print("[Test 9] Reopen database")
+    print("-" * 40)
+    try:
+        db = jinwo_vecdb.open(db_path)
+        print(f"[OK]  Database reopened at: {db_path}")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        print_debug_info()
+        sys.exit(1)
+    print()
+
+    # Test 10: Search old data (验证持久化)
+    print("[Test 10] Search old data (persistence check)")
+    print("-" * 40)
+    try:
+        query_vec = [float(50 + j) for j in range(384)]
+        results = db.search(collection_name, query_vec, k=10)
+        print(f"[OK]  Search returned {len(results)} results")
+        if len(results) > 0:
+            print(f"[OK]  Data persisted correctly!")
+            print("  Top 3:")
+            for idx, (vid, distance) in enumerate(results[:3]):
+                print(f"    {idx+1}. vid={vid}, dist={distance:.6f}")
+        else:
+            print("[FAIL]  No data found after reopen - persistence broken!")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 11: Insert more vectors
+    print("[Test 11] Insert more vectors")
+    print("-" * 40)
+    try:
+        for i in range(30):
+            vec = [float(300 + i + j) for j in range(384)]
+            db.insert(collection_name, vec)
+        print("[OK]  Inserted 30 more vectors")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 12: Search newly inserted data
+    print("[Test 12] Search new vectors")
+    print("-" * 40)
+    try:
+        query_vec = [float(310 + j) for j in range(384)]
+        results = db.search(collection_name, query_vec, k=5)
+        print(f"[OK]  Search returned {len(results)} results")
+        print("  Top 3:")
+        for idx, (vid, distance) in enumerate(results[:3]):
+            print(f"    {idx+1}. vid={vid}, dist={distance:.6f}")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 13: Close
+    print("[Test 13] Close database (round 2)")
+    print("-" * 40)
+    try:
+        db.close()
+        print("[OK]  Database closed")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        sys.exit(1)
+    print()
+
+    # ============================================================
     # Cleanup
-    print("[Cleanup] Remove test database files")
+    # ============================================================
+    print("[Cleanup] Remove test files")
     print("-" * 40)
     try:
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
-            print(f"[OK]  Removed test temp directory")
+            print(f"[OK]  Removed: {tmp_dir}")
     except Exception as e:
-        print(f"[FAIL]  Failed to remove test files: {e}")
+        print(f"[FAIL]  {e}")
     print()
 
     print("=" * 60)
