@@ -7,6 +7,7 @@ Test pip installation from PyPI and basic functionality
 
 import os
 import sys
+import time
 import shutil
 import tempfile
 from pathlib import Path
@@ -176,16 +177,21 @@ def main():
         sys.exit(1)
     print()
 
-    # Test 8: Close
-    print("[Test 8] Close database (round 1)")
+    # Test 8: Sync then close
+    print("[Test 8] Sync & Close database (round 1)")
     print("-" * 40)
     try:
+        db.sync()
+        print("  sync() done")
         db.close()
         print("[OK]  Database closed")
     except Exception as e:
         print(f"[FAIL]  {e}")
         sys.exit(1)
     print()
+
+    # 短暂等待确保文件句柄释放
+    time.sleep(0.5)
 
     # ============================================================
     # 第 2 轮: 重新打开 → 验证旧数据 → 新增 CRUD → 关闭
