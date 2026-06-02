@@ -97,10 +97,10 @@ def _load_library():
         pkg_files = sorted([f.name for f in package_dir.iterdir()])
 
     raise ImportError(
-        f"无法加载 JinWo 动态库。请确保已正确安装 jinwo_vecdb 包。\n"
-        f"包目录: {package_dir}\n"
-        f"包目录文件: {pkg_files}\n"
-        f"尝试的路径: {[str(p) for p in possible_paths]}"
+        f"Failed to load JinWo dynamic library. Please ensure jinwo_vecdb is properly installed.\n"
+        f"Package dir: {package_dir}\n"
+        f"Package files: {pkg_files}\n"
+        f"Searched paths: {[str(p) for p in possible_paths]}"
     )
 
 
@@ -236,7 +236,7 @@ class Collection:
             向量 ID
         """
         if len(vector) != self._dim:
-            raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {len(vector)}")
+            raise ValueError(f"Vector dimension mismatch: expected {self._dim}, got {len(vector)}")
         lib = _get_lib()
         name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
         vec_arr = (ctypes.c_float * len(vector))(*vector)
@@ -249,7 +249,7 @@ class Collection:
             ctypes.byref(vid_out)
         )
         if status != JW_SUCCESS:
-            raise RuntimeError(f"插入向量失败, 状态码: {status}")
+            raise RuntimeError(f"Insert failed, status: {status}")
         return vid_out.value
 
     def insert_batch(self, vectors: List[List[float]]) -> List[int]:
@@ -267,11 +267,11 @@ class Collection:
         count = len(vectors)
         first_dim = len(vectors[0])
         if first_dim != self._dim:
-            raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {first_dim}")
+            raise ValueError(f"Vector dimension mismatch: expected {self._dim}, got {first_dim}")
 
         for i, vec in enumerate(vectors):
             if len(vec) != self._dim:
-                raise ValueError(f"第 {i} 个向量维度不匹配: 期望 {self._dim}, 实际 {len(vec)}")
+                raise ValueError(f"Vector[{i}] dimension mismatch: expected {self._dim}, got {len(vec)}")
 
         lib = _get_lib()
         name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
@@ -290,7 +290,7 @@ class Collection:
             vids_buf
         )
         if status != JW_SUCCESS:
-            raise RuntimeError(f"批量插入失败, 状态码: {status}")
+            raise RuntimeError(f"Batch insert failed, status: {status}")
         return list(vids_buf)
 
     def search(self, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
@@ -305,7 +305,7 @@ class Collection:
             [(vid, distance), ...] 列表，按距离升序排列
         """
         if len(query) != self._dim:
-            raise ValueError(f"查询向量维度不匹配: 期望 {self._dim}, 实际 {len(query)}")
+            raise ValueError(f"Query vector dimension mismatch: expected {self._dim}, got {len(query)}")
 
         lib = _get_lib()
         name_str = _bytes_to_jwstr(self._name.encode('utf-8'))
@@ -332,7 +332,7 @@ class Collection:
         lib = _get_lib()
         status = lib.jw_collection_delete(self._handle, vid)
         if status != JW_SUCCESS:
-            raise RuntimeError(f"删除向量失败 (vid={vid}), 状态码: {status}")
+            raise RuntimeError(f"Delete failed (vid={vid}), status: {status}")
 
     def build_index(self):
         """
@@ -341,7 +341,7 @@ class Collection:
         lib = _get_lib()
         status = lib.jw_collection_build_index(self._handle)
         if status != JW_SUCCESS:
-            raise RuntimeError(f"build_index 失败, 状态码: {status}")
+            raise RuntimeError(f"build_index failed, status: {status}")
 
     def rebuild_index(self):
         """
@@ -350,7 +350,7 @@ class Collection:
         lib = _get_lib()
         status = lib.jw_collection_rebuild_index(self._handle)
         if status != JW_SUCCESS:
-            raise RuntimeError(f"rebuild_index 失败, 状态码: {status}")
+            raise RuntimeError(f"rebuild_index failed, status: {status}")
 
     def drop_index(self):
         """
@@ -359,7 +359,7 @@ class Collection:
         lib = _get_lib()
         status = lib.jw_collection_drop_index(self._handle)
         if status != JW_SUCCESS:
-            raise RuntimeError(f"drop_index 失败, 状态码: {status}")
+            raise RuntimeError(f"drop_index failed, status: {status}")
 
     def has_index(self) -> bool:
         """
@@ -377,12 +377,12 @@ class Collection:
             vector: 新的向量数据
         """
         if len(vector) != self._dim:
-            raise ValueError(f"向量维度不匹配: 期望 {self._dim}, 实际 {len(vector)}")
+            raise ValueError(f"Vector dimension mismatch: expected {self._dim}, got {len(vector)}")
         lib = _get_lib()
         vec_arr = (ctypes.c_float * len(vector))(*vector)
         status = lib.jw_collection_upsert(self._handle, vid, vec_arr)
         if status != JW_SUCCESS:
-            raise RuntimeError(f"update 失败 (vid={vid}), 状态码: {status}")
+            raise RuntimeError(f"update failed (vid={vid}), status: {status}")
 
     def get(self, vid: int) -> Optional[List[float]]:
         """
@@ -413,7 +413,7 @@ class Collection:
         s = stats_t()
         status = lib.jw_collection_get_stats(self._handle, ctypes.byref(s))
         if status != JW_SUCCESS:
-            raise RuntimeError(f"get_stats 失败, 状态码: {status}")
+            raise RuntimeError(f"get_stats failed, status: {status}")
         return {
             'count': s.count,
             'capacity': s.capacity,
@@ -486,7 +486,7 @@ class JinWoDB:
         db_out = ctypes.c_void_p()
         status = lib.jw_vecdb_open(ctypes.byref(path_str), flags, ctypes.byref(db_out))
         if status != JW_SUCCESS or not db_out.value:
-            raise RuntimeError(f"无法打开数据库, 状态码: {status}")
+            raise RuntimeError(f"Failed to open database, status: {status}")
         self._handle = db_out.value
 
     def __enter__(self):
@@ -532,7 +532,7 @@ class JinWoDB:
             ctypes.byref(coll_out)
         )
         if status != JW_SUCCESS or not coll_out.value:
-            raise RuntimeError(f"无法创建 Collection: {name}, 状态码: {status}")
+            raise RuntimeError(f"Failed to create collection: {name}, status: {status}")
         return Collection(self, name, dim, coll_out.value)
 
     def get_collection(self, name: str) -> Optional[Collection]:
@@ -603,9 +603,9 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         if coll.dim == 0:
-            raise ValueError(f"无法确定 Collection 维度，请先使用 create_collection")
+            raise ValueError(f"Cannot determine Collection dimension, please use create_collection first")
         return coll.insert(vector)
 
     def insert_batch(self, collection: str, vectors: List[List[float]]) -> List[int]:
@@ -621,7 +621,7 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         return coll.insert_batch(vectors)
 
     def search(self, collection: str, query: List[float], k: int = 10) -> List[Tuple[int, float]]:
@@ -638,7 +638,7 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         return coll.search(query, k)
 
     def delete(self, collection: str, vid: int):
@@ -651,7 +651,7 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         coll.delete(vid)
 
     def update(self, collection: str, vid: int, vector: List[float]):
@@ -665,7 +665,7 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         coll.update(vid, vector)
 
     def get(self, collection: str, vid: int) -> Optional[List[float]]:
@@ -681,7 +681,7 @@ class JinWoDB:
         """
         coll = self.get_collection(collection)
         if coll is None:
-            raise ValueError(f"Collection 不存在: {collection}")
+            raise ValueError(f"Collection not found: {collection}")
         return coll.get(vid)
 
 
