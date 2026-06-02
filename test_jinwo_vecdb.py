@@ -195,11 +195,11 @@ def main():
     print("=" * 60)
     print()
 
-    # Test 9: Reopen database（已存在，不加 CREATE 标志）
+    # Test 9: Reopen database（自动判断文件存在，直接打开）
     print("[Test 9] Reopen database")
     print("-" * 40)
     try:
-        db = jinwo_vecdb.open(db_path, jinwo_vecdb.JW_VECDB_READWRITE)
+        db = jinwo_vecdb.open(db_path)
         print(f"[OK]  Database reopened at: {db_path}")
     except Exception as e:
         print(f"[FAIL]  {e}")

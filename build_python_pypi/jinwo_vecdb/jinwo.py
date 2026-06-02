@@ -454,18 +454,27 @@ class JinWoDB:
         db.close()
     """
 
-    def __init__(self, path: str = "", flags: int = JW_VECDB_CREATE | JW_VECDB_READWRITE):
+    def __init__(self, path: str = "", flags: int = 0):
         """
         打开或创建数据库
 
         Args:
             path: 数据库文件路径，空字符串表示内存数据库
-            flags: 打开标志
+            flags: 打开标志，0 表示自动模式（文件存在→只打开，不存在→创建）
+                   也可手动指定，如 JW_VECDB_READONLY / JW_VECDB_READWRITE / JW_VECDB_CREATE 等
 
         Raises:
             RuntimeError: 数据库打开失败
         """
         self._path = path
+
+        # 自动模式: 根据文件是否存在自动选择标志
+        if flags == 0:
+            if path and os.path.exists(path):
+                flags = JW_VECDB_READWRITE
+            else:
+                flags = JW_VECDB_CREATE | JW_VECDB_READWRITE
+
         self._flags = flags
         lib = _get_lib()
 
