@@ -8,6 +8,7 @@ Test pip installation from PyPI and basic functionality
 import os
 import sys
 import shutil
+import tempfile
 from pathlib import Path
 
 def print_debug_info():
@@ -77,7 +78,7 @@ def main():
     # Test 2: Create/open database
     print("[Test 2] Create/open database")
     print("-" * 40)
-    db_path = "./test_jinwo_db.jwv"
+    db_path = os.path.join(tempfile.gettempdir(), "test_jinwo_db.jwv")
     try:
         if os.path.exists(db_path):
             os.remove(db_path)
