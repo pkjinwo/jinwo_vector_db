@@ -78,10 +78,9 @@ def main():
     # Test 2: Create/open database
     print("[Test 2] Create/open database")
     print("-" * 40)
-    db_path = os.path.join(tempfile.gettempdir(), "test_jinwo_db.jwv")
+    tmp_dir = tempfile.mkdtemp(prefix="jinwo_test_")
+    db_path = os.path.join(tmp_dir, "test_jinwo_db.jwv")
     try:
-        if os.path.exists(db_path):
-            os.remove(db_path)
         db = jinwo_vecdb.open(db_path)
         print(f"[OK]  Database created at: {db_path}")
     except Exception as e:
@@ -179,14 +178,14 @@ def main():
     print()
 
     # Cleanup
-    print("[Cleanup] Remove test database file")
+    print("[Cleanup] Remove test database files")
     print("-" * 40)
     try:
-        if os.path.exists(db_path):
-            os.remove(db_path)
-            print(f"[OK]  Removed test database file")
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+            print(f"[OK]  Removed test temp directory")
     except Exception as e:
-        print(f"[FAIL]  Failed to remove test file: {e}")
+        print(f"[FAIL]  Failed to remove test files: {e}")
     print()
 
     print("=" * 60)
