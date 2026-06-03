@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import shutil
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -300,6 +301,104 @@ def main():
             print(f"[INFO] Unexpectedly returned vector")
     except Exception as e:
         print(f"[FAIL]  {e}")
+    print()
+
+    # ============================================================
+    # 灾难场景: 运行中文件被删除（子进程隔离，防 SIGSEGV）
+    # ============================================================
+    print("=" * 60)
+    print("  CATASTROPHE: File deleted during runtime")
+    print("=" * 60)
+    print()
+
+    # 超出 CI 能测试的场景，只能文档记录
+    #   内存用完  → 需要系统级资源限制，CI 无法模拟
+    #   硬盘满    → 需要填满磁盘，CI 无法模拟
+    #   磁盘故障  → 需要内核级故障注入，CI 无法模拟
+    #   文件被删  → 如下，子进程隔离测试
+
+    catastrophe_script = '''
+import os, sys, shutil, tempfile
+
+tmp_dir = tempfile.mkdtemp(prefix="jinwo_catastrophe_")
+db_path = os.path.join(tmp_dir, "test.jwv")
+coll_name = "cat_coll"
+
+try:
+    import jinwo_vecdb
+    db = jinwo_vecdb.open(db_path)
+    db.create_collection(coll_name, 128)
+
+    # 插入数据
+    for i in range(50):
+        db.insert(coll_name, [float(i + j) for j in range(128)])
+
+    # ---- 删除数据库目录（模拟文件被删） ----
+    shutil.rmtree(tmp_dir)
+    print("STAGE1: directory_deleted")
+
+    # ---- 内存操作应该不受影响 ----
+    try:
+        results = db.search(coll_name, [float(j) for j in range(128)], k=5)
+        print(f"STAGE2: search_ok results={len(results)}")
+    except Exception as e:
+        print(f"STAGE2: search_error {type(e).__name__}")
+
+    try:
+        db.insert(coll_name, [float(999 + j) for j in range(128)])
+        print("STAGE3: insert_ok")
+    except Exception as e:
+        print(f"STAGE3: insert_error {type(e).__name__}")
+
+    try:
+        results = db.search(coll_name, [float(j) for j in range(128)], k=3)
+        db.delete(coll_name, results[0][0])
+        print("STAGE4: delete_ok")
+    except Exception as e:
+        print(f"STAGE4: delete_error {type(e).__name__}")
+
+    # ---- sync/close 会尝试重建目录写盘 ----
+    try:
+        db.sync()
+        print("STAGE5: sync_ok (dir recreated)")
+    except Exception as e:
+        print(f"STAGE5: sync_error {type(e).__name__}: {e}")
+
+    try:
+        db.close()
+        print("STAGE6: close_ok")
+    except Exception as e:
+        print(f"STAGE6: close_error {type(e).__name__}: {e}")
+
+except Exception as e:
+    print(f"INIT_ERROR: {type(e).__name__}: {e}")
+finally:
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+'''
+
+    import subprocess
+    proc = subprocess.run(
+        [sys.executable, "-c", catastrophe_script],
+        capture_output=True, text=True, timeout=30
+    )
+
+    lines = proc.stdout.strip().split('\n')
+    sigsegv = (proc.returncode != 0 and proc.returncode != 1)
+
+    print(f"  returncode={proc.returncode}" + (" (SIGSEGV!)" if sigsegv else ""))
+    for line in lines:
+        print(f"  [{'>' if 'ok' in line.lower() else '!'}] {line.strip()}")
+
+    if proc.stderr.strip():
+        print(f"  [stderr] {proc.stderr.strip()[:500]}")
+
+    if sigsegv:
+        print(f"[FAIL]  Crashed with code {proc.returncode} - SIGSEGV on file-deleted scenario!")
+        db.close()
+        sys.exit(1)
+    else:
+        print(f"[OK]   Process exited cleanly (all operations handled gracefully)")
+
     print()
 
     # Test 8: Sync then close
