@@ -177,6 +177,131 @@ def main():
         sys.exit(1)
     print()
 
+    # ============================================================
+    # 边界测试: 不存在 / 重复 / 非法参数
+    # ============================================================
+    print("=" * 60)
+    print("  EDGE CASES: NotFound / Duplicate / Invalid args")
+    print("=" * 60)
+    print()
+
+    # Edge: Search nonexistent collection
+    print("[Edge 1] Search nonexistent collection")
+    print("-" * 40)
+    try:
+        db.search("nonexistent_coll", [0.0] * 384)
+        print("[FAIL]  Should have raised ValueError")
+    except ValueError as e:
+        print(f"[OK]  ValueError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Delete nonexistent collection
+    print("[Edge 2] Delete from nonexistent collection")
+    print("-" * 40)
+    try:
+        db.delete("nonexistent_coll", 999)
+        print("[FAIL]  Should have raised ValueError")
+    except ValueError as e:
+        print(f"[OK]  ValueError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Update nonexistent collection
+    print("[Edge 3] Update nonexistent collection")
+    print("-" * 40)
+    try:
+        db.update("nonexistent_coll", 1, [0.0] * 384)
+        print("[FAIL]  Should have raised ValueError")
+    except ValueError as e:
+        print(f"[OK]  ValueError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Delete nonexistent vid
+    print("[Edge 4] Delete nonexistent vid")
+    print("-" * 40)
+    try:
+        db.delete(collection_name, 99999)
+        print("[FAIL]  Should have raised RuntimeError (JW_NOT_FOUND)")
+    except RuntimeError as e:
+        print(f"[OK]  RuntimeError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Update nonexistent vid (upsert = insert as new)
+    print("[Edge 5] Update nonexistent vid (upsert)")
+    print("-" * 40)
+    try:
+        new_vec = [float(888 + j) for j in range(384)]
+        db.update(collection_name, 99999, new_vec)
+        # upsert should have created vid=99999
+        vec = db.get(collection_name, 99999)
+        if vec is not None:
+            print(f"[OK]  Upsert created vid=99999 (got vector back)")
+        else:
+            print(f"[INFO] Upsert succeeded but get() returned None")
+    except Exception as e:
+        print(f"[INFO] Upsert raised: {e}")
+    print()
+
+    # Edge: Insert with wrong dimension
+    print("[Edge 6] Insert vector with wrong dimension")
+    print("-" * 40)
+    try:
+        db.insert(collection_name, [1.0, 2.0, 3.0])  # dim=3, expected 384
+        print("[FAIL]  Should have raised ValueError")
+    except ValueError as e:
+        print(f"[OK]  ValueError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Search with wrong dimension
+    print("[Edge 7] Search with wrong query dimension")
+    print("-" * 40)
+    try:
+        db.search(collection_name, [1.0, 2.0])  # dim=2, expected 384
+        print("[FAIL]  Should have raised ValueError")
+    except ValueError as e:
+        print(f"[OK]  ValueError: {e}")
+    except Exception as e:
+        print(f"[FAIL]  Unexpected exception: {e}")
+    print()
+
+    # Edge: Search empty collection
+    print("[Edge 8] Search in empty/new collection")
+    print("-" * 40)
+    empty_coll = "empty_coll_test"
+    try:
+        db.create_collection(empty_coll, 384)
+        results = db.search(empty_coll, [0.0] * 384, k=10)
+        if len(results) == 0:
+            print(f"[OK]  Empty collection returned 0 results (as expected)")
+        else:
+            print(f"[INFO] Empty collection returned {len(results)} results")
+        db.drop_collection(empty_coll)
+    except Exception as e:
+        print(f"[INFO] {e}")
+    print()
+
+    # Edge: Get nonexistent vid
+    print("[Edge 9] Get nonexistent vid")
+    print("-" * 40)
+    try:
+        vec = db.get(collection_name, 999999)
+        if vec is None:
+            print(f"[OK]  Returned None (as expected)")
+        else:
+            print(f"[INFO] Unexpectedly returned vector")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+    print()
+
     # Test 8: Sync then close
     print("[Test 8] Sync & Close database (round 1)")
     print("-" * 40)
