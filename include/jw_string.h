@@ -26,7 +26,7 @@
  *   - 字符串分割
  *   - 字符串转换
  * 
- * 版本: 0.1.30
+ * 版本: 0.1.31
  * 作者: 灵活就业码农
  */
 
@@ -357,39 +357,12 @@ JW_API jw_str_t *jw_strlcat(jw_str_t *dest, const jw_str_t *src, jw_size_t dest_
 
 /*
  * =============================================================================
- * 内存操作函数 (类似C标准库)
+ * 内存操作函数
  * =============================================================================
- */
-
-/**
- * 内存复制
  *
- * @param dest 目标内存
- * @param src 源内存
- * @param n 字节数
- * @return dest
+ * 说明: jw_memcpy/jw_memset/jw_memmove 的声明已移至 jw_types.h，
+ * 以避免循环依赖。此处仅保留注释。
  */
-JW_API void *jw_memcpy(void *dest, const void *src, jw_size_t n);
-
-/**
- * 内存设置
- *
- * @param s 内存指针
- * @param c 填充值
- * @param n 字节数
- * @return s
- */
-JW_API void *jw_memset(void *s, int c, jw_size_t n);
-
-/**
- * 内存移动 (支持重叠区域)
- *
- * @param dest 目标内存
- * @param src 源内存
- * @param n 字节数
- * @return dest
- */
-JW_API void *jw_memmove(void *dest, const void *src, jw_size_t n);
 
 JW_END_DECL
 

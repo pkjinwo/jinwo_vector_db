@@ -615,6 +615,47 @@ typedef jw_bool_t (*jw_iterator_callback_t)(
 
 /*
  * =============================================================================
+ * 内存操作函数声明
+ * =============================================================================
+ *
+ * 说明: 使用自定义实现替代标准库 memcpy/memset/memmove，
+ * 避免编译器优化导致的对齐和重叠问题。
+ * 声明放在 jw_types.h 而非 jw_string.h，因为 jw_string.h 会
+ * include jw_types.h，声明在这里可避免循环依赖。
+ */
+
+/**
+ * 内存复制
+ *
+ * @param dest 目标内存
+ * @param src 源内存
+ * @param n 字节数
+ * @return dest
+ */
+JW_API void *jw_memcpy(void *dest, const void *src, jw_size_t n);
+
+/**
+ * 内存设置
+ *
+ * @param s 内存指针
+ * @param c 填充值
+ * @param n 字节数
+ * @return s
+ */
+JW_API void *jw_memset(void *s, int c, jw_size_t n);
+
+/**
+ * 内存移动 (支持重叠区域)
+ *
+ * @param dest 目标内存
+ * @param src 源内存
+ * @param n 字节数
+ * @return dest
+ */
+JW_API void *jw_memmove(void *dest, const void *src, jw_size_t n);
+
+/*
+ * =============================================================================
  * 字节序处理
  * =============================================================================
  */
@@ -697,17 +738,17 @@ JW_INLINE jw_uint64_t jw_swap64(jw_uint64_t val) {
 /* 浮点数字节序转换 */
 JW_INLINE jw_float32_t jw_swapf32(jw_float32_t val) {
     jw_uint32_t tmp;
-    memcpy(&tmp, &val, sizeof(tmp));
+    jw_memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap32(tmp);
-    memcpy(&val, &tmp, sizeof(tmp));
+    jw_memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
 JW_INLINE jw_float64_t jw_swapf64(jw_float64_t val) {
     jw_uint64_t tmp;
-    memcpy(&tmp, &val, sizeof(tmp));
+    jw_memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap64(tmp);
-    memcpy(&val, &tmp, sizeof(tmp));
+    jw_memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
