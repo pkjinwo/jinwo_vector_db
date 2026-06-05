@@ -697,17 +697,17 @@ JW_INLINE jw_uint64_t jw_swap64(jw_uint64_t val) {
 /* 浮点数字节序转换 */
 JW_INLINE jw_float32_t jw_swapf32(jw_float32_t val) {
     jw_uint32_t tmp;
-    jw_memcpy(&tmp, &val, sizeof(tmp));
+    memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap32(tmp);
-    jw_memcpy(&val, &tmp, sizeof(tmp));
+    memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
 JW_INLINE jw_float64_t jw_swapf64(jw_float64_t val) {
     jw_uint64_t tmp;
-    jw_memcpy(&tmp, &val, sizeof(tmp));
+    memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap64(tmp);
-    jw_memcpy(&val, &tmp, sizeof(tmp));
+    memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
