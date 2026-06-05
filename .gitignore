@@ -2,13 +2,25 @@
 build/
 build_temp/
 *.egg-info/
+dist/
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.so
 .Python
+
+# Node.js
+node_modules/
+npm_package/dist/
+npm_package/*.tgz
+
+# Android / Gradle
+.gradle/
+*.class
+local.properties
 
 # IDE
 .vscode/
@@ -22,3 +34,16 @@ Thumbs.db
 
 # Wheel files (we only commit source, not pre-built wheels)
 *.whl
+
+# Python build artifacts
+build_python_pypi/build/
+build_python_pypi/dist/
+build_python_pypi/*.egg-info/
+build_python_pypi/build_temp/
+build_python_pypi/*.so
+build_python_pypi/*.pyd
+build_python_pypi/wheelhouse/
+
+# Local files
+important/
+local_doc/

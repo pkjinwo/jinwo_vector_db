@@ -27,8 +27,18 @@
 
 #include "jw_arena.h"
 #include "jw_types.h"
+#include "jw_string.h"
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#define JW_LOG_TAG "jinwo_vecdb"
+#define JW_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, JW_LOG_TAG, __VA_ARGS__)
+#else
+#define JW_LOGE(...) ((void)0)
+#endif
 
 /* ========================================================================== */
 
@@ -160,6 +170,16 @@ JW_API void *jw_arena_alloc(jw_arena_t *arena, jw_size_t size)
     void *ptr = (char *)block->data + block->used;
     block->used += size;
     arena->total_used += size;
+
+    /** 验证返回地址确实在 block 范围内 */
+    if ((char*)ptr < (char*)block->data || (char*)ptr + size > (char*)block->data + block->size) {
+        JW_LOGE("jw_arena_alloc: RETURNED PTR OUT OF BLOCK BOUNDS!"
+            " ptr=%p block_data=%p block_size=%" PRIu64 " used=%" PRIu64
+            " size=%" PRIu64,
+            ptr, block->data, (uint64_t)block->size,
+            (uint64_t)(block->used - size), (uint64_t)size);
+    }
+
     return ptr;
 }
 
@@ -174,7 +194,21 @@ JW_API void *jw_arena_calloc(jw_arena_t *arena, jw_size_t count, jw_size_t size)
 
     void *ptr = jw_arena_alloc(arena, total);
     if (ptr != NULL) {
-        memset(ptr, 0, total);
+        jw_memset(ptr, 0, total);
+
+        /** 验证 memset 确实执行了（防止编译器优化掉） */
+        volatile jw_uint8_t *check = (volatile jw_uint8_t *)ptr;
+        jw_bool_t not_zero = JW_FALSE;
+        for (jw_size_t i = 0; i < total && i < 64; i++) {
+            if (check[i] != 0) {
+                not_zero = JW_TRUE;
+                break;
+            }
+        }
+        if (not_zero) {
+            JW_LOGE("jw_arena_calloc: memset DID NOT ZERO!"
+                " ptr=%p total=%" PRIu64, ptr, (uint64_t)total);
+        }
     }
     return ptr;
 }
@@ -185,7 +219,7 @@ JW_API void *jw_arena_memdup(jw_arena_t *arena, const void *src, jw_size_t size)
 
     void *ptr = jw_arena_alloc(arena, size);
     if (ptr != NULL) {
-        memcpy(ptr, src, size);
+        jw_memcpy(ptr, src, size);
     }
     return ptr;
 }
@@ -197,7 +231,7 @@ JW_API char *jw_arena_strdup(jw_arena_t *arena, const char *src)
     size_t len = strlen(src);
     char *ptr = (char *)jw_arena_alloc(arena, (jw_size_t)(len + 1));
     if (ptr != NULL) {
-        memcpy(ptr, src, len + 1);
+        jw_memcpy(ptr, src, len + 1);
     }
     return ptr;
 }

@@ -1,0 +1,1 @@
+/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/Debug/6o5a164i/obj/arm64-v8a

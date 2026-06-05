@@ -137,14 +137,14 @@ JW_API void jw_insertion_sort(void *base,
 
     for (jw_size_t i = 1; i < nmemb; i++) {
         jw_size_t j = i;
-        memcpy(temp, arr + i * size, size);
+        jw_memcpy(temp, arr + i * size, size);
 
         while (j > 0 && compar(arr + (j - 1) * size, temp, user_data) > 0) {
-            memcpy(arr + j * size, arr + (j - 1) * size, size);
+            jw_memcpy(arr + j * size, arr + (j - 1) * size, size);
             j--;
         }
 
-        memcpy(arr + j * size, temp, size);
+        jw_memcpy(arr + j * size, temp, size);
     }
 
     jw_free(temp);

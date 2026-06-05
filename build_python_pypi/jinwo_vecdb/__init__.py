@@ -30,7 +30,7 @@ JinWo VecDB - Python 绑定
 
 from .jinwo import JinWoDB, Collection
 
-__version__ = "0.1.30"
+__version__ = "0.1.32"
 
 __all__ = ["JinWoDB", "Collection", "open", "__version__"]
 

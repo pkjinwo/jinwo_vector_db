@@ -1,0 +1,21 @@
+# ninja log v5
+3	162	1780625687611629919	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_error.c.o	7e00421ebeb1f2f7
+2	182	1780625687635126161	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_math.c.o	5bcb143a5dae6ae3
+2	280	1780625687736927629	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_sort.c.o	ac54cf4c779a0fce
+1	318	1780625687773843407	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_types.c.o	48a0a787bf126244
+2	321	1780625687774839138	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_hash.c.o	45132deeddf1e539
+4	323	1780625687760050343	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_log.c.o	b09dff8a71c8b80d
+1	328	1780625687781349865	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_stdio.c.o	44776029496276e9
+6	393	1780625687848344027	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_file.c.o	c2c8ddf571a1a968
+1	415	1780625687870892175	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_string.c.o	fea5be3562e33bf9
+281	428	1780625687878939760	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_arena.c.o	5633be69e1b2b7cd
+164	475	1780625687930515356	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_lock.c.o	ac89b5ec4ed4bea0
+1	477	1780625687929588645	CMakeFiles/jinwo_vecdb.dir/jinwo_vecdb_jni.cpp.o	4a7203490e45dadc
+182	478	1780625687930490738	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_config.c.o	a7d1564740b6b981
+321	478	1780625687932385082	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_quant.c.o	5127b884679f948b
+319	504	1780625687959410978	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_vector.c.o	8995d23586e60296
+328	550	1780625688003819362	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_collection.c.o	10ac369320e30231
+416	579	1780625688033970759	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_vecdb.c.o	41e376548b10dba3
+394	591	1780625688046099263	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_storage.c.o	81a5cdccb75a4878
+323	631	1780625688084304353	CMakeFiles/jinwo_vecdb.dir/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/src/jw_index.c.o	38ae230104f7bfea
+631	753	1780625688209371939	/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/Debug/6o5a164i/obj/x86/libjinwo_vecdb.so	6e98837924e1dbd4

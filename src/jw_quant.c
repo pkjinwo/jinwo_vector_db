@@ -333,7 +333,7 @@ JW_API jw_status_t jw_pq_create(
         if (quant->centroids[i] == NULL) {
             return JW_OUT_OF_MEMORY;
         }
-        memset(quant->centroids[i], 0, quant->k * quant->sub_dim * sizeof(jw_float32_t));
+        jw_memset(quant->centroids[i], 0, quant->k * quant->sub_dim * sizeof(jw_float32_t));
     }
     
     *pq = quant;
@@ -364,7 +364,7 @@ JW_API jw_status_t jw_pq_train(
         }
         
         for (jw_size_t j = 0; j < count; j++) {
-            memcpy(sub_vecs + j * pq->sub_dim, vectors + j * pq->dim + start, pq->sub_dim * sizeof(jw_float32_t));
+            jw_memcpy(sub_vecs + j * pq->sub_dim, vectors + j * pq->dim + start, pq->sub_dim * sizeof(jw_float32_t));
         }
         
         /* 对当前子空间进行K-means聚类 */
@@ -372,7 +372,7 @@ JW_API jw_status_t jw_pq_train(
         /* 暂时使用随机初始化聚类中心 */
         for (jw_uint32_t k = 0; k < pq->k; k++) {
             jw_size_t idx = (jw_uint32_t)(jw_rand() % count);
-            memcpy(pq->centroids[i] + k * pq->sub_dim, sub_vecs + idx * pq->sub_dim, pq->sub_dim * sizeof(jw_float32_t));
+            jw_memcpy(pq->centroids[i] + k * pq->sub_dim, sub_vecs + idx * pq->sub_dim, pq->sub_dim * sizeof(jw_float32_t));
         }
     }
     

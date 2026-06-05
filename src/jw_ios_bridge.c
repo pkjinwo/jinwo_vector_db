@@ -44,7 +44,7 @@ JW_API const char *jw_ios_version(void) {
     if (buf[0] == '\0') {
         jw_str_t ver = jw_vecdb_version();
         jw_size_t len = ver.slen < 63 ? ver.slen : 63;
-        memcpy(buf, ver.ptr, len);
+        jw_memcpy(buf, ver.ptr, len);
         buf[len] = '\0';
     }
     return buf;
@@ -167,7 +167,7 @@ JW_API jw_ios_strlist_t *jw_ios_collection_list(jw_vecdb_t *db) {
         jw_size_t len = names[i].slen;
         list->items[i] = (char *)malloc(len + 1);
         if (list->items[i]) {
-            memcpy(list->items[i], names[i].ptr, len);
+            jw_memcpy(list->items[i], names[i].ptr, len);
             list->items[i][len] = '\0';
         }
     }

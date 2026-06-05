@@ -93,7 +93,7 @@ static jw_int32_t output_signed_int(jw_int64_t value, char *buf, jw_size_t width
     for (i = 0; i < pad; i++) {
         buf[i] = ' ';
     }
-    memcpy(buf + pad, p, len);
+    jw_memcpy(buf + pad, p, len);
 
     return (jw_int32_t)(pad + len);
 }
@@ -121,7 +121,7 @@ static jw_int32_t output_unsigned_int(jw_uint64_t value, char *buf, int base, jw
     for (i = 0; i < pad; i++) {
         buf[i] = '0';
     }
-    memcpy(buf + pad, p, len);
+    jw_memcpy(buf + pad, p, len);
 
     return (jw_int32_t)(pad + len);
 }
@@ -156,11 +156,11 @@ static jw_int32_t output_float(double value, char *buf, int precision)
     jw_size_t len = (jw_size_t)(p - temp);
     if (negative) {
         buf[0] = '-';
-        memcpy(buf + 1, temp, len);
+        jw_memcpy(buf + 1, temp, len);
         return (jw_int32_t)(len + 1);
     }
 
-    memcpy(buf, temp, len);
+    jw_memcpy(buf, temp, len);
     return (jw_int32_t)len;
 }
 
@@ -260,7 +260,7 @@ static jw_int32_t format_and_output(const char *fmt, jw_va_list *args)
                 if (precision >= 0 && (jw_size_t)precision < len) {
                     len = (jw_size_t)precision;
                 }
-                memcpy(buffer, str, len);
+                jw_memcpy(buffer, str, len);
                 break;
             }
             case 'c': {

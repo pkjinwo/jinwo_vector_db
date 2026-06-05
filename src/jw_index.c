@@ -52,6 +52,68 @@
 #include "jw_math.h"
 #include <stdio.h>
 #include <fcntl.h>
+#include <inttypes.h>
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#define JW_LOG_TAG "jinwo_vecdb"
+#define JW_LOGE(...) __android_log_print(ANDROID_LOG_ERROR, JW_LOG_TAG, __VA_ARGS__)
+#define JW_LOGW(...) __android_log_print(ANDROID_LOG_WARN,  JW_LOG_TAG, __VA_ARGS__)
+#define JW_LOGI(...) __android_log_print(ANDROID_LOG_INFO,  JW_LOG_TAG, __VA_ARGS__)
+#else
+#define JW_LOGE(...) ((void)0)
+#define JW_LOGW(...) ((void)0)
+#define JW_LOGI(...) ((void)0)
+#endif
+
+/**
+ * 判断一个指针是否像是合法的堆/分配地址。
+ * 在 64 位系统上，低于 0x10000 的地址不可能是合法的用户态内存地址。
+ * 如果 arena 的 bump 分配失败或 memset 被优化掉，vec 可能会残留这种垃圾值。
+ */
+static int is_valid_heap_ptr(const void *ptr) {
+    return (ptr != NULL && ((uintptr_t)ptr) >= (uintptr_t)0x10000);
+}
+
+/**
+ * 模拟 GDB watchpoint：扫描所有已有节点，检测是否有 vec 被破坏。
+ * 在每次向量插入完成后调用，可以精确定位是插入哪个向量时破坏了哪个节点的 vec。
+ *
+ * @param hnsw   HNSW 索引
+ * @param vid    刚刚插入的向量 ID
+ */
+static void watch_all_nodes_vec(jw_hnsw_index_t *hnsw, jw_vid_t just_inserted_vid) {
+    const char *field = NULL;
+    for (jw_size_t i = 0; i < hnsw->capacity; i++) {
+        if (hnsw->nodes[i] == NULL) continue;
+
+        jw_hnsw_node_t *n = hnsw->nodes[i];
+        field = NULL;
+
+        if (!is_valid_heap_ptr(n->vec)) {
+            field = "vec";
+        } else if (!is_valid_heap_ptr((const void*)n->links)) {
+            field = "links";
+        } else if (n->max_M == 0 || n->max_M > 4096) {
+            field = "max_M";
+        } else if (n->level > 128) {
+            field = "level";
+        }
+
+        if (field != NULL) {
+            JW_LOGE("WATCHPOINT: node corrupted after inserting vid=%" PRIu64 "!"
+                " CorruptedNode[%zu]=%p vid=%" PRIu64 " field=%s"
+                " vec=%p links=%p max_M=%u max_M0=%u level=%u deleted=%d"
+                " link_counts=%p",
+                (uint64_t)just_inserted_vid,
+                i, (void*)n, (uint64_t)n->vid, field,
+                (void*)n->vec, (void*)n->links,
+                (unsigned)n->max_M, (unsigned)n->max_M0,
+                (unsigned)n->level, (int)n->deleted,
+                (void*)n->link_counts);
+        }
+    }
+}
 
 #if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
 #include <io.h>
@@ -84,7 +146,7 @@ typedef struct {
 } search_candidate_t;
 
 /* 前向声明 */
-static inline jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim);
+static jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim);
 static jw_status_t kmeans_cluster(jw_arena_t *arena,
                                    jw_cvec_t vectors,
                                    jw_size_t count,
@@ -271,8 +333,20 @@ static int compare_results(const void *a, const void *b)
  * @param dim   向量维度
  * @return      距离平方
  */
-static inline jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim)
+static jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim)
 {
+    if (a == NULL || b == NULL || dim == 0) {
+        return JW_FLT_MAX;
+    }
+    /** 防御：过滤不是合法堆地址的垃圾指针 */
+    if (!is_valid_heap_ptr(a)) {
+        JW_LOGE("distance_sq: GARBAGE VEC A! a=%p", (const void*)a);
+        return JW_FLT_MAX;
+    }
+    if (!is_valid_heap_ptr(b)) {
+        JW_LOGE("distance_sq: GARBAGE VEC B! b=%p", (const void*)b);
+        return JW_FLT_MAX;
+    }
     jw_float32_t dist_sq = 0.0f;
     for (jw_dim_t d = 0; d < dim; d++) {
         jw_float32_t diff = a[d] - b[d];
@@ -463,6 +537,19 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                                     jw_size_t *visited_count,
                                     jw_arena_t *arena)
 {
+    /** 入口点合法性检查 */
+    if (ep_vid >= hnsw->capacity || hnsw->nodes[ep_vid] == NULL
+        || hnsw->nodes[ep_vid]->deleted) {
+        return ep_vid;
+    }
+    jw_hnsw_node_t *gep_node = hnsw->nodes[ep_vid];
+    if (gep_node->vec == NULL || !is_valid_heap_ptr(gep_node->vec)) {
+        JW_LOGE("hnsw_greedy_search: BAD ENTRY POINT VEC!"
+            " ep_vid=%" PRIu64 " node=%p vec=%p",
+            (uint64_t)ep_vid, (void*)gep_node, (void*)gep_node->vec);
+        return ep_vid;
+    }
+
     jw_vid_t current = ep_vid;
     jw_vid_t nearest = ep_vid;
     jw_float32_t nearest_dist = distance_sq(query,
@@ -483,6 +570,23 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
+            /** 检查 vec 指针：仅 NULL 不够，还要过滤垃圾小值 */
+            jw_hnsw_node_t *gnb_node = hnsw->nodes[neighbor];
+            if (gnb_node->vec == NULL) {
+                continue;
+            }
+            if (!is_valid_heap_ptr(gnb_node->vec)) {
+                JW_LOGE("hnsw_greedy_search: GARBAGE VEC! neighbor=%" PRIu64
+                    " node=%p vec=%p vid=%" PRIu64 " level=%u deleted=%d"
+                    " links=%p link_counts=%p max_M=%u max_M0=%u",
+                    (uint64_t)neighbor, (void*)gnb_node, (void*)gnb_node->vec,
+                    (uint64_t)gnb_node->vid, (unsigned)gnb_node->level,
+                    (int)gnb_node->deleted,
+                    (void*)gnb_node->links, (void*)gnb_node->link_counts,
+                    (unsigned)gnb_node->max_M, (unsigned)gnb_node->max_M0);
+                continue;
+            }
+
             /** 检查是否已访问 */
             jw_bool_t is_visited = JW_FALSE;
             for (jw_size_t v = 0; v < *visited_count; v++) {
@@ -499,7 +603,7 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 }
 
                 /** 计算距离 */
-                current_dist = distance_sq(query, hnsw->nodes[neighbor]->vec, hnsw->dim);
+                current_dist = distance_sq(query, gnb_node->vec, hnsw->dim);
 
                 /** 如果找到更近的邻居，更新最近邻 */
                 if (current_dist < nearest_dist) {
@@ -546,6 +650,21 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                               jw_size_t *result_count,
                               jw_arena_t *arena)
 {
+    /** 入口点合法性检查 */
+    if (ep_vid >= hnsw->capacity || hnsw->nodes[ep_vid] == NULL
+        || hnsw->nodes[ep_vid]->deleted) {
+        *result_count = 0;
+        return;
+    }
+    jw_hnsw_node_t *ep_node = hnsw->nodes[ep_vid];
+    if (ep_node->vec == NULL || !is_valid_heap_ptr(ep_node->vec)) {
+        JW_LOGE("hnsw_layer_search: BAD ENTRY POINT VEC!"
+            " ep_vid=%" PRIu64 " node=%p vec=%p",
+            (uint64_t)ep_vid, (void*)ep_node, (void*)ep_node->vec);
+        *result_count = 0;
+        return;
+    }
+
     /** 已访问节点数组 */
     jw_vid_t *visited = (jw_vid_t *)jw_arena_alloc(arena,
                          hnsw->capacity * sizeof(jw_vid_t));
@@ -617,6 +736,23 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
+            /** 检查 vec 指针：仅 NULL 不够，还要过滤垃圾小值 */
+            jw_hnsw_node_t *nb_node = hnsw->nodes[neighbor];
+            if (nb_node->vec == NULL) {
+                continue;
+            }
+            if (!is_valid_heap_ptr(nb_node->vec)) {
+                JW_LOGE("hnsw_layer_search: GARBAGE VEC! neighbor=%" PRIu64
+                    " node=%p vec=%p vid=%" PRIu64 " level=%u deleted=%d"
+                    " links=%p link_counts=%p max_M=%u max_M0=%u",
+                    (uint64_t)neighbor, (void*)nb_node, (void*)nb_node->vec,
+                    (uint64_t)nb_node->vid, (unsigned)nb_node->level,
+                    (int)nb_node->deleted,
+                    (void*)nb_node->links, (void*)nb_node->link_counts,
+                    (unsigned)nb_node->max_M, (unsigned)nb_node->max_M0);
+                continue;
+            }
+
             /** 检查是否已访问 */
             jw_bool_t is_visited = JW_FALSE;
             for (jw_size_t v = 0; v < visited_count; v++) {
@@ -630,7 +766,7 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                 visited[visited_count++] = neighbor;
 
                 jw_float32_t dist = distance_sq(query,
-                    hnsw->nodes[neighbor]->vec, hnsw->dim);
+                    nb_node->vec, hnsw->dim);
 
                 /** 加入结果集 (最大堆) */
                 pq_push(&pq, neighbor, dist, level);
@@ -682,10 +818,14 @@ static void hnsw_select_neighbors(jw_hnsw_node_t **neighbors,
     /** 使用简单的选择排序保留最近的M个 */
     for (jw_uint32_t i = 0; i < M; i++) {
         jw_uint32_t min_idx = i;
-        jw_float32_t min_dist = distance_sq(query, neighbors[i]->vec, hnsw->dim);
+        jw_float32_t min_dist = (neighbors[i] != NULL && neighbors[i]->vec != NULL)
+            ? distance_sq(query, neighbors[i]->vec, hnsw->dim)
+            : JW_FLT_MAX;
 
         for (jw_uint32_t j = i + 1; j < count; j++) {
-            jw_float32_t dist = distance_sq(query, neighbors[j]->vec, hnsw->dim);
+            jw_float32_t dist = (neighbors[j] != NULL && neighbors[j]->vec != NULL)
+                ? distance_sq(query, neighbors[j]->vec, hnsw->dim)
+                : JW_FLT_MAX;
             if (dist < min_dist) {
                 min_dist = dist;
                 min_idx = j;
@@ -1322,13 +1462,28 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             node->link_counts = (jw_uint32_t *)jw_arena_alloc(index->arena,
                                 (node_level + 1) * sizeof(jw_uint32_t));
             for (jw_uint32_t l = 0; l <= node_level; l++) {
+                /* 第0层用 max_M0，其他层用 max_M */
+                jw_uint32_t alloc_M = (l == 0) ? node->max_M0 : node->max_M;
                 node->links[l] = (jw_vid_t *)jw_arena_alloc(index->arena,
-                            hnsw->config.M * sizeof(jw_vid_t));
+                            alloc_M * sizeof(jw_vid_t));
                 node->link_counts[l] = 0;
             }
 
             hnsw->nodes[vid] = node;
             hnsw->ntotal++;
+
+            /** 创建后验证：确认 vec 和 links 都是合法堆地址 */
+            if (!is_valid_heap_ptr(node->vec)) {
+                JW_LOGE("add_batch: NODE CREATED WITH GARBAGE VEC!"
+                    " vid=%" PRIu64 " node=%p vec=%p level=%u max_M=%u",
+                    (uint64_t)vid, (void*)node, (void*)node->vec,
+                    (unsigned)node->level, (unsigned)node->max_M);
+            }
+            if (!is_valid_heap_ptr((const void*)node->links)) {
+                JW_LOGE("add_batch: NODE CREATED WITH GARBAGE LINKS!"
+                    " vid=%" PRIu64 " node=%p links=%p",
+                    (uint64_t)vid, (void*)node, (void*)node->links);
+            }
 
             /**
              * HNSW插入算法:
@@ -1386,6 +1541,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                         for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                             if (hnsw->nodes[n] != NULL
                                 && !hnsw->nodes[n]->deleted
+                                && hnsw->nodes[n]->vec != NULL
                                 && hnsw->nodes[n]->vid != vid
                                 && level <= hnsw->nodes[n]->level) {
                                 existing_count++;
@@ -1403,6 +1559,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                         for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                             if (hnsw->nodes[n] != NULL
                                 && !hnsw->nodes[n]->deleted
+                                && hnsw->nodes[n]->vec != NULL
                                 && hnsw->nodes[n]->vid != vid
                                 && level <= hnsw->nodes[n]->level) {
                                 all_candidates[ac++] = hnsw->nodes[n];
@@ -1438,7 +1595,8 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                     jw_uint32_t valid_count = 0;
                     for (jw_size_t c = 0; c < result_count; c++) {
                         jw_vid_t cvid = insert_layer_results[c].vid;
-                        if (cvid < hnsw->capacity && hnsw->nodes[cvid] != NULL) {
+                        if (cvid < hnsw->capacity && hnsw->nodes[cvid] != NULL
+                            && hnsw->nodes[cvid]->vec != NULL) {
                             candidates[valid_count++] = hnsw->nodes[cvid];
                         }
                     }
@@ -1507,6 +1665,9 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                     hnsw->max_level = node_level;
                 }
             }
+
+            /** 模拟 GDB watchpoint：检查是否有节点被当前插入操作破坏 */
+            watch_all_nodes_vec(hnsw, vid);
         }
 
         jw_rwlock_wrunlock(hnsw->lock);
@@ -1764,10 +1925,12 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         if (current_ep == ((jw_vid_t)-1)
             || current_ep >= hnsw->capacity
             || hnsw->nodes[current_ep] == NULL
-            || hnsw->nodes[current_ep]->deleted) {
+            || hnsw->nodes[current_ep]->deleted
+            || hnsw->nodes[current_ep]->vec == NULL) {
             jw_vid_t new_ep = ((jw_vid_t)-1);
             for (jw_size_t n = 0; n < hnsw->capacity; n++) {
-                if (hnsw->nodes[n] != NULL && !hnsw->nodes[n]->deleted) {
+                if (hnsw->nodes[n] != NULL && !hnsw->nodes[n]->deleted
+                    && hnsw->nodes[n]->vec != NULL) {
                     new_ep = hnsw->nodes[n]->vid;
                     hnsw->max_level = hnsw->nodes[n]->level;
                     break;
@@ -2433,7 +2596,9 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                     }
                     
                     node->link_counts[l] = link_count;
-                    node->links[l] = (jw_vid_t *)jw_arena_alloc(arena, M * sizeof(jw_vid_t));
+                    /* 第0层用 max_M0，其他层用 max_M */
+                    jw_uint32_t alloc_M_load = (l == 0) ? (node->max_M0) : (node->max_M);
+                    node->links[l] = (jw_vid_t *)jw_arena_alloc(arena, alloc_M_load * sizeof(jw_vid_t));
                     if (node->links[l] == NULL) {
                         goto cleanup;
                     }

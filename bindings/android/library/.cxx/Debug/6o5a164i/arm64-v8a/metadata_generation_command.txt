@@ -1,0 +1,20 @@
+                        -H/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/src/main/jni
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+-DCMAKE_SYSTEM_VERSION=23
+-DANDROID_PLATFORM=android-23
+-DANDROID_ABI=arm64-v8a
+-DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+-DANDROID_NDK=/Users/fanjiayi0921/Library/Android/sdk/ndk/26.1.10909125
+-DCMAKE_ANDROID_NDK=/Users/fanjiayi0921/Library/Android/sdk/ndk/26.1.10909125
+-DCMAKE_TOOLCHAIN_FILE=/Users/fanjiayi0921/Library/Android/sdk/ndk/26.1.10909125/build/cmake/android.toolchain.cmake
+-DCMAKE_MAKE_PROGRAM=/Users/fanjiayi0921/Library/Android/sdk/cmake/3.22.1/bin/ninja
+-DCMAKE_CXX_FLAGS=-std=c++17
+-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/Debug/6o5a164i/obj/arm64-v8a
+-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/Debug/6o5a164i/obj/arm64-v8a
+-DCMAKE_BUILD_TYPE=Debug
+-B/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/Debug/6o5a164i/arm64-v8a
+-GNinja
+-DANDROID_STL=c++_static
+                        Build command args: []
+                        Version: 2

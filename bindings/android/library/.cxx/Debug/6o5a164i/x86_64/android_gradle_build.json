@@ -1,0 +1,40 @@
+{
+  "buildFiles": [
+    "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/src/main/jni/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/fanjiayi0921/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/Debug/6o5a164i/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/fanjiayi0921/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/.cxx/Debug/6o5a164i/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "jinwo_vecdb::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "jinwo_vecdb",
+      "output": "/Users/fanjiayi0921/workspace/pkjinwo/jinwo_vector_db_local/bindings/android/library/build/intermediates/cxx/Debug/6o5a164i/obj/x86_64/libjinwo_vecdb.so",
+      "runtimeFiles": []
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/fanjiayi0921/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/fanjiayi0921/Library/Android/sdk/ndk/26.1.10909125/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [
+    "c"
+  ],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}
