@@ -23,7 +23,7 @@
  * 本文件定义了JinWo VecDB所需的所有基础类型，确保跨平台兼容性。
  * 支持平台: Linux, Android, iOS, macOS, Windows, WebAssembly (Emscripten)
  * 
- * 版本: 0.1.30
+ * 版本: 0.1.31
  * 作者: 灵活就业码农
  * 创建日期: 2026-04-23
  */
@@ -129,8 +129,8 @@ JW_BEGIN_DECL
 
 #define JW_VERSION_MAJOR       0
 #define JW_VERSION_MINOR       1
-#define JW_VERSION_PATCH       30
-#define JW_VERSION_STRING      "0.1.30"
+#define JW_VERSION_PATCH       31
+#define JW_VERSION_STRING      "0.1.31"
 #define JW_VERSION_NUM         (JW_VERSION_MAJOR * 10000 + \
                                  JW_VERSION_MINOR * 100 + \
                                  JW_VERSION_PATCH)
@@ -697,17 +697,17 @@ JW_INLINE jw_uint64_t jw_swap64(jw_uint64_t val) {
 /* 浮点数字节序转换 */
 JW_INLINE jw_float32_t jw_swapf32(jw_float32_t val) {
     jw_uint32_t tmp;
-    memcpy(&tmp, &val, sizeof(tmp));
+    jw_memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap32(tmp);
-    memcpy(&val, &tmp, sizeof(tmp));
+    jw_memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
 JW_INLINE jw_float64_t jw_swapf64(jw_float64_t val) {
     jw_uint64_t tmp;
-    memcpy(&tmp, &val, sizeof(tmp));
+    jw_memcpy(&tmp, &val, sizeof(tmp));
     tmp = jw_swap64(tmp);
-    memcpy(&val, &tmp, sizeof(tmp));
+    jw_memcpy(&val, &tmp, sizeof(tmp));
     return val;
 }
 
