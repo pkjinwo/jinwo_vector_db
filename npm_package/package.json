@@ -1,6 +1,6 @@
 {
   "name": "jinwo-vecdb",
-  "version": "0.1.34",
+  "version": "0.1.35",
   "description": "JinWo VecDB - Embedded vector database for JavaScript (WASM)",
   "type": "module",
   "main": "dist/index.js",
