@@ -1,11 +1,11 @@
 /**
  * JinWo VecDB - JavaScript/TypeScript API
  *
- * WASM 驱动的嵌入式向量数据库
+ * WASM 驱动的嵌入式向量数据库（仅支持内存模式）
  *
  * 用法:
  *   import { open } from 'jinwo-vecdb';
- *   const db = await open('my_vecs.jwv');
+ *   const db = await open('');
  *   const coll = db.createCollection('docs', 384);
  *   coll.insert([0.1, 0.2, ...]);
  *   const results = coll.search(query, 5);
@@ -67,7 +67,7 @@ export declare class JinWoDB {
      */
     search(collName: string, query: number[], k?: number): SearchResult[];
     /**
-     * 关闭数据库，保存数据到磁盘
+     * 关闭数据库（内存数据不会持久化）
      */
     close(): void;
     /**
@@ -80,21 +80,19 @@ export declare class JinWoDB {
     version(): string;
 }
 /**
- * 打开或创建数据库
+ * 打开内存数据库
  *
- * @param path 文件路径，空字符串 '' 表示内存数据库
+ * 注意：WASM 构建仅支持内存模式，不支持文件持久化。
+ *
+ * @param path 必须为空字符串 ''
  * @returns JinWoDB 实例
  *
  * @example
  * ```ts
- * // 文件数据库
- * const db = await open('my_vecs.jwv');
- *
- * // 内存数据库
  * const db = await open('');
  * ```
  */
-export declare function open(path?: string): Promise<JinWoDB>;
+export declare function open(path?: ''): Promise<JinWoDB>;
 declare const _default: {
     open: typeof open;
     JinWoDB: typeof JinWoDB;

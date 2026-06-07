@@ -275,43 +275,37 @@ export class JinWoDB {
 /**
  * 打开或创建数据库
  *
- * @param path 文件路径，空字符串 '' 表示内存数据库
+ * 注意：WASM 构建不支持文件持久化，仅支持内存模式。
+ * 如需文件持久化，请使用 Python (jinwo-vecdb) 或 C 原生库。
+ *
+ * @param path 传空字符串 '' 表示内存数据库；传非空路径会直接报错
  * @returns JinWoDB 实例
  *
  * @example
  * ```ts
- * // 文件数据库
- * const db = await open('my_vecs.jwv');
- *
  * // 内存数据库
  * const db = await open('');
  * ```
  */
 export async function open(path = '') {
+    if (path !== '') {
+        throw new Error(
+            `jinwo-vecdb (WASM) 仅支持内存模式，请使用 open('')。\n` +
+            `文件持久化请使用 Python 版 (pip install jinwo-vecdb) 或 C 原生库。\n` +
+            `传入的路径: '${path}'`
+        );
+    }
     await ensureWasm();
-    const pathStr = writeJwStr(path);
+    const pathStr = writeJwStr('');
     const dbPtrPtr = M._malloc(4); // jw_vecdb_t **
     M.setValue(dbPtrPtr, 0, '*');
-    let flags = JW_VECDB_READWRITE;
-    if (path === '') {
-        flags |= JW_VECDB_MEMORY;
-    } else {
-        // 自动检测：若目录已存在则不传 CREATE，避免重新初始化覆盖已有数据
-        try {
-            const { statSync } = await import('fs');
-            if (!statSync(path).isDirectory()) {
-                flags |= JW_VECDB_CREATE;
-            }
-        } catch {
-            flags |= JW_VECDB_CREATE;
-        }
-    }
+    const flags = JW_VECDB_READWRITE | JW_VECDB_MEMORY;
     const status = M._jw_vecdb_open(pathStr, flags, dbPtrPtr);
     const dbHandle = M.getValue(dbPtrPtr, '*');
     M._free(dbPtrPtr);
     freeJwStr(pathStr);
     if (status !== JW_SUCCESS) {
-        throw new Error(`打开数据库失败 '${path || ':memory:'}': status ${status}`);
+        throw new Error(`打开数据库失败 ':memory:': status ${status}`);
     }
     return new JinWoDB(dbHandle);
 }
