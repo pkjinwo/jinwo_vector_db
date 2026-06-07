@@ -80,10 +80,11 @@ emcc \
         "_malloc",
         "_free"
     ]' \
-    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","getValue","setValue","UTF8ToString","stringToUTF8","lengthBytesUTF8","HEAPU8","HEAPF32","HEAP32"]' \
+    -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","getValue","setValue","UTF8ToString","stringToUTF8","lengthBytesUTF8","HEAPU8","HEAPF32","HEAP32","FS"]' \
     -s ALLOW_MEMORY_GROWTH=1 \
     -s INITIAL_MEMORY=64MB \
     -s MAXIMUM_MEMORY=512MB \
+    -lnodefs.js \
     -I "$INCLUDE_DIR" \
     "${SOURCES[@]}" \
     -o "$WASM_DIR/jinwo.js"

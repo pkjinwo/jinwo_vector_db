@@ -5,7 +5,9 @@
  *
  * 用法:
  *   import { open } from 'jinwo-vecdb';
- *   const db = await open('my_vecs.jwv');
+ *   const db = await open('');              // 内存模式 (浏览器/Node.js)
+ *   // 或
+ *   const db = await open('/data/my_db');   // 文件持久化 (仅Node.js)
  *   const coll = db.createCollection('docs', 384);
  *   coll.insert([0.1, 0.2, ...]);
  *   const results = coll.search(query, 5);
@@ -240,13 +242,18 @@ export class JinWoDB {
         return results;
     }
     /**
-     * 关闭数据库，保存数据到磁盘
+     * 关闭数据库，保存数据到磁盘（NODEFS 模式）或释放内存
      */
     close() {
         if (this.handle === 0)
             return;
         M._jw_vecdb_close(this.handle);
         this.handle = 0;
+        // 卸载 NODEFS（如果有），确保数据刷写到磁盘
+        if (this._nodfsMounted) {
+            M.FS.unmount(this._nodfsMountPath);
+            this._nodfsMounted = false;
+        }
     }
     /**
      * 数据库是否已打开
@@ -275,27 +282,74 @@ export class JinWoDB {
 /**
  * 打开或创建数据库
  *
- * 注意：WASM 构建不支持文件持久化，仅支持内存模式。
- * 如需文件持久化，请使用 Python (jinwo-vecdb) 或 C 原生库。
+ * - 传 '' : 内存模式，浏览器和 Node.js 均可用
+ * - 传路径: 文件持久化模式，仅 Node.js 可用（底层用 NODEFS 映射真实文件系统）
  *
- * @param path 传空字符串 '' 表示内存数据库；传非空路径会直接报错
+ * @param path 空字符串 '' 为内存数据库；非空路径为文件数据库
  * @returns JinWoDB 实例
  *
  * @example
  * ```ts
- * // 内存数据库
+ * // 内存数据库 (浏览器/Node.js)
  * const db = await open('');
+ *
+ * // 文件持久化 (仅 Node.js)
+ * const db = await open('/data/my_vectors');
  * ```
  */
 export async function open(path = '') {
-    if (path !== '') {
-        throw new Error(
-            `jinwo-vecdb (WASM) 仅支持内存模式，请使用 open('')。\n` +
-            `文件持久化请使用 Python 版 (pip install jinwo-vecdb) 或 C 原生库。\n` +
-            `传入的路径: '${path}'`
-        );
-    }
     await ensureWasm();
+
+    // 文件持久化模式 (NODEFS, 仅 Node.js)
+    if (path !== '') {
+        const isNode = typeof process !== 'undefined' && process.versions && process.versions.node;
+        if (!isNode) {
+            throw new Error(
+                `jinwo-vecdb (WASM): 文件持久化仅支持 Node.js 环境。\n` +
+                `浏览器请使用 open('') 内存模式。\n` +
+                `传入的路径: '${path}'`
+            );
+        }
+
+        // 动态加载 Node.js 模块
+        const { existsSync, mkdirSync } = await import('fs');
+        const { resolve } = await import('path');
+        const absPath = resolve(path);
+        const isNew = !existsSync(absPath);
+        if (isNew) {
+            mkdirSync(absPath, { recursive: true });
+        }
+
+        // 挂载 NODEFS: 将真实目录映射到虚拟 /jwfs
+        const NODEFS = M.FS.filesystems.NODEFS;
+        try {
+            M.FS.mkdir('/jwfs');
+        } catch (e) {
+            // /jwfs 可能已存在（上次 open 留下的），忽略
+        }
+        M.FS.mount(NODEFS, { root: absPath }, '/jwfs');
+
+        const pathStr = writeJwStr('/jwfs');
+        const dbPtrPtr = M._malloc(4);
+        M.setValue(dbPtrPtr, 0, '*');
+        let flags = JW_VECDB_READWRITE;
+        if (isNew) flags |= JW_VECDB_CREATE;
+        const status = M._jw_vecdb_open(pathStr, flags, dbPtrPtr);
+        const dbHandle = M.getValue(dbPtrPtr, '*');
+        M._free(dbPtrPtr);
+        freeJwStr(pathStr);
+        if (status !== JW_SUCCESS) {
+            // 失败时清理 NODEFS
+            M.FS.unmount('/jwfs');
+            throw new Error(`打开数据库失败 '${path}': status ${status}`);
+        }
+        const db = new JinWoDB(dbHandle);
+        db._nodfsMounted = true;
+        db._nodfsMountPath = '/jwfs';
+        return db;
+    }
+
+    // 内存模式
     const pathStr = writeJwStr('');
     const dbPtrPtr = M._malloc(4); // jw_vecdb_t **
     M.setValue(dbPtrPtr, 0, '*');
