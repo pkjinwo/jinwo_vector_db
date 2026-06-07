@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jinwo_vecdb"
-version = "0.1.32"
+version = "0.1.33"
 description = "JinWo VecDB - 嵌入式向量数据库，零配置、零依赖、跨平台"
 readme = "README.md"
 license = {text = "Apache-2.0"}

@@ -68,19 +68,21 @@ func TestInsertSearch(t *testing.T) {
 		t.Fatalf("CreateCollection failed: %v", err)
 	}
 
-	// 插入
-	vec := make([]float32, 128)
-	for i := range vec {
-		vec[i] = rand.Float32()
+	// 插入多条向量，确保搜索结果足够
+	for i := 0; i < 20; i++ {
+		vec := make([]float32, 128)
+		for j := range vec {
+			vec[j] = rand.Float32()
+		}
+		_, err = coll.Insert(vec)
+		if err != nil {
+			t.Fatalf("Insert[%d] failed: %v", i, err)
+		}
 	}
-	vid, err := coll.Insert(vec)
-	if err != nil {
-		t.Fatalf("Insert failed: %v", err)
-	}
-	fmt.Println("Inserted vid:", vid)
+	fmt.Println("Inserted 20 vectors")
 
-	if coll.Count() != 1 {
-		t.Fatalf("expected count=1, got %d", coll.Count())
+	if coll.Count() != 20 {
+		t.Fatalf("expected count=20, got %d", coll.Count())
 	}
 
 	// 建索引
@@ -90,12 +92,16 @@ func TestInsertSearch(t *testing.T) {
 	}
 
 	// 搜索
-	results, err := coll.Search(vec, 5)
+	queryVec := make([]float32, 128)
+	for i := range queryVec {
+		queryVec[i] = rand.Float32()
+	}
+	results, err := coll.Search(queryVec, 5)
 	if err != nil {
 		t.Fatalf("Search failed: %v", err)
 	}
-	if len(results) == 0 {
-		t.Fatal("search should return results")
+	if len(results) != 5 {
+		t.Fatalf("search should return 5 results, got %d", len(results))
 	}
 	fmt.Printf("Search results: id=%d score=%f\n", results[0].ID, results[0].Score)
 	fmt.Println("Insert/Search: ✅")

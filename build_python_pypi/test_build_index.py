@@ -27,6 +27,7 @@ print("   已插入 200 个向量")
 print("4. 搜索 (无索引, 暴力扫描)...")
 query = [random.random() for _ in range(128)]
 results = coll.search(query, k=5)
+assert len(results) == 5, f"暴力搜索应返回 5 条, 实际 {len(results)}"
 print(f"   搜索结果: {len(results)} 条")
 
 print("5. build_index() ... 关键步骤! 如果崩溃会在这里")
@@ -36,6 +37,7 @@ print("   build_index() 成功!")
 
 print("6. 搜索 (有索引)...")
 results = coll.search(query, k=5)
+assert len(results) == 5, f"索引搜索应返回 5 条, 实际 {len(results)}"
 print(f"   搜索结果: {len(results)} 条")
 
 print("7. 再插入 100 个向量...")
@@ -45,6 +47,7 @@ for i in range(100):
 
 print("8. 再次搜索...")
 results = coll.search(query, k=5)
+assert len(results) == 5, f"再次搜索应返回 5 条, 实际 {len(results)}"
 print(f"   搜索结果: {len(results)} 条")
 
 print("\n✅ 全部测试通过!")

@@ -26,5 +26,6 @@ print("   done")
 print("3. 搜索 (threshold=1, 会走 IVF)...")
 sys.stdout.flush()
 results = coll.search([random.random() for _ in range(128)], k=5)
+assert len(results) == 5, f"索引搜索应返回 5 条, 实际 {len(results)}"
 print(f"   结果: {len(results)}")
 print("   done!")

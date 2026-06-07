@@ -841,6 +841,66 @@ JW_API jw_size_t jw_collection_search(const jw_collection_t *coll,
                     }
                 }
             }
+            
+            /* Fallback: 如果 IVF 返回少于 k 条，暴力搜索补齐剩余结果 */
+            if (result_count < k && coll->count > result_count) {
+                jw_size_t needed = k - result_count;
+                
+                typedef struct { jw_vid_t vid; jw_float32_t dist; } vec_dist_t;
+                jw_size_t max_candidates = coll->count - result_count;
+                vec_dist_t *candidates = (vec_dist_t *)jw_malloc(
+                    max_candidates * sizeof(vec_dist_t));
+                
+                if (candidates != NULL) {
+                    jw_size_t cand_count = 0;
+                    
+                    for (jw_size_t i = 0; i < coll->count; i++) {
+                        /* 跳过已在索引结果中的 vid */
+                        int already_in = 0;
+                        for (jw_size_t j = 0; j < result_count; j++) {
+                            if (coll->records[i].vid == results[j].vid) {
+                                already_in = 1;
+                                break;
+                            }
+                        }
+                        
+                        if (!already_in) {
+                            candidates[cand_count].vid = coll->records[i].vid;
+                            candidates[cand_count].dist = jw_vec_distance(
+                                query, coll->records[i].vec, coll->dim, coll->metric);
+                            cand_count++;
+                        }
+                    }
+                    
+                    /* 部分排序：取 top (needed) */
+                    jw_size_t fill_count = (needed < cand_count) ? needed : cand_count;
+                    for (jw_size_t i = 0; i < fill_count && i < cand_count; i++) {
+                        jw_size_t min_j = i;
+                        for (jw_size_t j = i + 1; j < cand_count; j++) {
+                            if (candidates[j].dist < candidates[min_j].dist) {
+                                min_j = j;
+                            }
+                        }
+                        vec_dist_t tmp = candidates[i];
+                        candidates[i] = candidates[min_j];
+                        candidates[min_j] = tmp;
+                    }
+                    
+                    /* 填充到 results */
+                    for (jw_size_t i = 0; i < fill_count; i++) {
+                        jw_size_t idx = result_count + i;
+                        results[idx].vid = candidates[i].vid;
+                        results[idx].score = candidates[i].dist;
+                        results[idx].vec = NULL;
+                        results[idx].fields = NULL;
+                        results[idx].field_count = 0;
+                    }
+                    
+                    result_count += fill_count;
+                    jw_free(candidates);
+                }
+            }
+            
             jw_free(index_results);
         }
     } else {

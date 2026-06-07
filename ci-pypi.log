@@ -1,33 +1,43 @@
 
-/github/workspace/dist/jinwo_vecdb-0.1.30-cp310-cp310-macosx_11_0_arm64.whl
-
-SHA256: 67da0e1030d307417b587ea1ea3da7ff35c4149141fe221cc13225ca7c4bbcd4
-MD5: 2b260aefbd63c7067abbaedb574bb4e5
-BLAKE2-256: c47ef587a75f4c6bbce41902eeb4505f8afe001ada5b3758ee317d8ddd6fdb14
-
-/github/workspace/dist/jinwo_vecdb-0.1.30-cp38-cp38-macosx_10_9_x86_64.whl
-
-SHA256: 2b8c487d0da20aae36d5b701610283d6a0e63d39e8cd468c64ad2429b315a770
-MD5: 88cc8d81f58ad80fde1e693a32637771
-BLAKE2-256: 9ca0f68d3c4eac1a535e50d2e7c5b61f01fa0664d22e2d34a83113897f7b77da
-
-/github/workspace/dist/jinwo_vecdb-0.1.30-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
-
-SHA256: 117fd9e03f5c56ff07a721cce28dfac6289634e757f31fd4633fee0fccf5bfd0
-MD5: cdd6035cdfb1646ccf3f1ca79ed0eaf4
-BLAKE2-256: 34a20b29ebc08b0a27d4128578086e3000b310a89fb63f33fea42c8884c83484
-
-/github/workspace/dist/jinwo_vecdb-0.1.30-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-
-SHA256: 565bfe60214deeab2953b39180e9c4e56ef8df83dc8ab09ccab181963267bb8f
-MD5: 4093ae343ed6875ef29ce3f97e0aa56a
-BLAKE2-256: 780d666e010c388bf15638b8d1adf71e516394e7430c573dc0df7090bf135ca0
-
-/github/workspace/dist/jinwo_vecdb-0.1.30-cp39-cp39-macosx_11_0_arm64.whl
-
-SHA256: 5a33dfa58a5ea608a34bc4e18bd8fa6e304374c26e23cf4b543cc4c089162cd2
-MD5: b3f8f6a48373727531e7f09cbc87dbb3
-BLAKE2-256: 336997adcc34f5276e81bfa043e9f950095f78b10321c94933dad3cbac14ce22
+Uploading distributions to https://upload.pypi.org/legacy/
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-macosx_10_9_universal2.whl (362.3  
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-macosx_10_9_x86_64.whl (362.3 KB)  
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-macosx_11_0_arm64.whl (361.8 KB)   
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-manylinux_2_17_aarch64.manylinux201
+         4_aarch64.whl (242.1 KB)                                               
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-manylinux_2_17_x86_64.manylinux2014
+         _x86_64.whl (242.6 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.30-cp310-cp310-win_amd64.whl (262.3 KB)           
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-macosx_10_9_universal2.whl (362.3  
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-macosx_10_9_x86_64.whl (362.3 KB)  
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-macosx_11_0_arm64.whl (361.8 KB)   
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-manylinux_2_17_aarch64.manylinux201
+         4_aarch64.whl (242.1 KB)                                               
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-manylinux_2_17_x86_64.manylinux2014
+         _x86_64.whl (242.5 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.30-cp311-cp311-win_amd64.whl (262.3 KB)           
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-macosx_10_13_universal2.whl (361.5 
+         KB)                                                                    
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-macosx_10_13_x86_64.whl (361.5 KB) 
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-macosx_11_0_arm64.whl (361.8 KB)   
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-manylinux_2_17_aarch64.manylinux201
+         4_aarch64.whl (242.1 KB)                                               
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-manylinux_2_17_x86_64.manylinux2014
+         _x86_64.whl (242.5 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.30-cp312-cp312-win_amd64.whl (262.3 KB)           
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-macosx_10_9_universal2.whl (362.3 KB)
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-macosx_10_9_x86_64.whl (362.3 KB)    
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-macosx_11_0_arm64.whl (361.8 KB)     
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_
+         aarch64.whl (242.1 KB)                                                 
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x
+         86_64.whl (242.6 KB)                                                   
+INFO     dist/jinwo_vecdb-0.1.30-cp38-cp38-win_amd64.whl (262.3 KB)             
+INFO     dist/jinwo_vecdb-0.1.30-cp39-cp39-macosx_10_9_universal2.whl (362.3 KB)
+INFO     dist/jinwo_vecdb-0.1.30-cp39-cp39-macosx_10_9_x86_64.whl (362.3 KB)    
+INFO     dist/jinwo_vecdb-0.1.30-cp39-cp39-macosx_11_0_arm64.whl (361.8 KB)     
 INFO     dist/jinwo_vecdb-0.1.30-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_
          aarch64.whl (242.1 KB)                                                 
 INFO     dist/jinwo_vecdb-0.1.30-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x
@@ -45,7 +55,7 @@ INFO     <html>
            <title>400 File already exists                                       
          ('jinwo_vecdb-0.1.30-cp310-cp310-macosx_10_9_universal2.whl', with     
          blake2_256 hash                                                        
-         '1e151696e19dd7ce06ecac8d565fc4fe711ac3c9da1bccf0c08787c0faaa34b8').   
+         'b9fba0433d76b986b4afc1e0dfa0ec2dc7190e959a327326c2470c8c2ec2ae70').   
          See https://pypi.org/help/#file-name-reuse for more                    
          information.</title>                                                   
           </head>                                                               
@@ -53,14 +63,14 @@ INFO     <html>
            <h1>400 File already exists                                          
          ('jinwo_vecdb-0.1.30-cp310-cp310-macosx_10_9_universal2.whl', with     
          blake2_256 hash                                                        
-         '1e151696e19dd7ce06ecac8d565fc4fe711ac3c9da1bccf0c08787c0faaa34b8').   
+         'b9fba0433d76b986b4afc1e0dfa0ec2dc7190e959a327326c2470c8c2ec2ae70').   
          See https://pypi.org/help/#file-name-reuse for more information.</h1>  
            The server could not comply with the request since it is either      
          malformed or otherwise incorrect.<br/><br/>                            
          File already exists                                                    
          (&#x27;jinwo_vecdb-0.1.30-cp310-cp310-macosx_10_9_universal2.whl&#x27;,
          with blake2_256 hash                                                   
-         &#x27;1e151696e19dd7ce06ecac8d565fc4fe711ac3c9da1bccf0c08787c0faaa34b8&
+         &#x27;b9fba0433d76b986b4afc1e0dfa0ec2dc7190e959a327326c2470c8c2ec2ae70&
          #x27;). See https://pypi.org/help/#file-name-reuse for more            
          information.                                                           
                                                                                 
@@ -68,4 +78,4 @@ INFO     <html>
           </body>                                                               
          </html>                                                                
 ERROR    HTTPError: 400 Bad Request from https://upload.pypi.org/legacy/        
-         Bad Request                                                            
+         Bad Request    

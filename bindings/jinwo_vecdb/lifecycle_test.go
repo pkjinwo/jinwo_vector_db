@@ -85,8 +85,8 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("Search failed: %v", err)
 	}
 	fmt.Printf("  [OK] 查询返回 %d 条结果\n", len(results))
-	if len(results) < 1 {
-		t.Fatal("搜索结果不应为空")
+	if len(results) != 10 {
+		t.Fatalf("搜索结果应返回 10 条, 实际 %d", len(results))
 	}
 	for i := 0; i < min(5, len(results)); i++ {
 		fmt.Printf("    #%d: vid=%d, score=%.6f\n", i+1, results[i].ID, results[i].Score)
@@ -278,7 +278,9 @@ func TestLifecycle(t *testing.T) {
 		t.Fatalf("新数据Search失败: %v", err)
 	}
 	fmt.Printf("  [OK] 查询新数据返回 %d 条结果\n", len(results))
-	for i := 0; i < min(3, len(results)); i++ {
+	if len(results) != 5 {
+		t.Fatalf("查询新数据应返回 5 条, 实际 %d", len(results))
+	}
 		fmt.Printf("    #%d: vid=%d, score=%.6f\n", i+1, results[i].ID, results[i].Score)
 	}
 

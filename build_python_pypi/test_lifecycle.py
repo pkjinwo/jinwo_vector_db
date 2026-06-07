@@ -89,7 +89,7 @@ log_ok(f"验证 update: first_val={vec_data2[0]}")
 query = [float(5000 + j) for j in range(DIM)]
 results = db.search(COLL_NAME, query, k=10)
 log_ok(f"查询返回 {len(results)} 条结果, count={count}")
-assert len(results) >= 1, "搜索结果不应为空"
+assert len(results) == 10, f"Phase 1 搜索应返回 10 条, 实际 {len(results)}"
 for idx, (vid, dist) in enumerate(results[:5]):
     log(f"  #{idx+1}: vid={vid}, dist={dist:.6f}")
 
@@ -217,6 +217,7 @@ log_ok(f"新插入后 count={count5}")
 # 3.8 Search 查询新数据
 new_query = [float(10000 + 500 + j) for j in range(DIM)]
 results5 = db3.search(COLL_NAME, new_query, k=5)
+assert len(results5) == 5, f"Phase 3 搜索应返回 5 条, 实际 {len(results5)}"
 log_ok(f"查询新数据返回 {len(results5)} 条结果")
 for idx, (vid, dist) in enumerate(results5[:5]):
     log(f"  #{idx+1}: vid={vid}, dist={dist:.6f}")
@@ -233,6 +234,7 @@ log_ok(f"再次删除后 count={count6}")
 
 # 3.11 验证删除后的查询
 results6 = db3.search(COLL_NAME, new_query, k=5)
+assert len(results6) == 5, f"Phase 3 删除后搜索应返回 5 条, 实际 {len(results6)}"
 log_ok(f"删除新数据后查询返回 {len(results6)} 条结果")
 new_deleted = set(new_vids[:10])
 for (vid, _) in results6:

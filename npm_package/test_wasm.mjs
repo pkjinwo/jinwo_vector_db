@@ -19,24 +19,30 @@ async function test() {
   console.log('\n2. 创建 Collection: test_docs (dim=384)');
 
   // 3. 插入向量
-  const vec = new Array(384).fill(0.1);
-  const vid = coll.insert(vec);
-  console.log('\n3. 插入向量: vid =', vid);
+  for (let i = 0; i < 20; i++) {
+    const vec = new Array(384).fill(0).map(() => Math.random());
+    coll.insert(vec);
+  }
+  console.log('\n3. 插入 20 个向量');
 
   // 4. 构建索引
   coll.buildIndex();
   console.log('\n4. 构建索引完成');
 
   // 5. 搜索
-  const results = db.search('test_docs', vec, 5);
-  console.log('\n5. 搜索结果:');
+  const queryVec = new Array(384).fill(0).map(() => Math.random());
+  const results = db.search('test_docs', queryVec, 5);
+  console.log('\n5. 搜索返回', results.length, '条结果 (预期 5 条)');
+  assert(results.length === 5, `搜索应返回 5 条, 实际 ${results.length}`);
+
   for (const r of results) {
     console.log(`   id=${r.id}, score=${r.score.toFixed(6)}`);
   }
 
-  // 6. 删除向量
-  coll.delete(vid);
-  console.log('\n6. 删除向量: vid =', vid);
+  // 6. 删除向量（删除第一个搜索结果）
+  const vidToDelete = results[0].id;
+  coll.delete(vidToDelete);
+  console.log('\n6. 删除向量: vid =', vidToDelete);
 
   // 7. 关闭
   db.close();

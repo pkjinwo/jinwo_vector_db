@@ -56,7 +56,7 @@ async function test() {
   const query = new Array(DIM).fill(0).map((_, j) => 5000 + j);
   let results = db.search(COLL_NAME, query, 10);
   log(`[OK] 查询返回 ${results.length} 条结果`);
-  assert(results.length >= 1, '搜索结果不应为空');
+  assert(results.length === 10, `搜索结果应返回 10 条, 实际 ${results.length}`);
   for (let i = 0; i < Math.min(5, results.length); i++) {
     log(`  #${i + 1}: vid=${results[i].id}, score=${results[i].score.toFixed(6)}`);
   }
@@ -157,7 +157,7 @@ async function test() {
   const newQuery = new Array(DIM).fill(0).map((_, j) => 10000 + 500 + j);
   results = db3.search(COLL_NAME, newQuery, 5);
   log(`[OK] 查询新数据返回 ${results.length} 条结果`);
-  for (let i = 0; i < Math.min(3, results.length); i++) {
+  assert(results.length === 5, `查询新数据应返回 5 条, 实际 ${results.length}`);
     log(`  #${i + 1}: vid=${results[i].id}, score=${results[i].score.toFixed(6)}`);
   }
 
