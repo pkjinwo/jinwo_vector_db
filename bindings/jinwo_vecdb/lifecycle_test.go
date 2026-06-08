@@ -281,8 +281,6 @@ func TestLifecycle(t *testing.T) {
 	if len(results) != 5 {
 		t.Fatalf("查询新数据应返回 5 条, 实际 %d", len(results))
 	}
-		fmt.Printf("    #%d: vid=%d, score=%.6f\n", i+1, results[i].ID, results[i].Score)
-	}
 
 	// Delete 新插入的前 10 条
 	for i := 0; i < 10; i++ {
