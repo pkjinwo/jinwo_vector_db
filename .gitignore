@@ -19,7 +19,9 @@ npm_package/*.tgz
 
 # Android / Gradle
 .gradle/
+.cxx/
 *.class
+*.o
 local.properties
 
 # IDE
