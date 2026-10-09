@@ -96,13 +96,13 @@ cd jinwo_vector_db
 mkdir build && cd build
 
 # 配置
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
 # 编译
-make -j$(nproc)
+cmake --build build -j$(nproc)
 
 # 安装
-sudo make install
+sudo cmake --install build
 ```
 
 ### 4.2 iOS
@@ -110,13 +110,13 @@ sudo make install
 ```bash
 # 配置 iOS 构建
 mkdir build && cd build
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=$(xcrun --sdk iphoneos --show-sdk-path) \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_BUILD_TYPE=Release
 
-make -j$(nproc)
+cmake --build build -j$(nproc)
 ```
 
 ### 4.3 Android
@@ -124,25 +124,25 @@ make -j$(nproc)
 ```bash
 # 配置 Android NDK 构建
 mkdir build && cd build
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
     -DANDROID_ABI=arm64-v8a \
     -DANDROID_PLATFORM=android-21 \
     -DCMAKE_BUILD_TYPE=Release
 
-make -j$(nproc)
+cmake --build build -j$(nproc)
 ```
 
 ### 4.4 Windows
 
 ```powershell
 # 使用 Visual Studio
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 
 # 或使用 MinGW
-cmake .. -G "MinGW Makefiles"
-mingw32-make
+cmake -S . -B build -G "MinGW Makefiles"
+cmake --build build
 ```
 
 ---

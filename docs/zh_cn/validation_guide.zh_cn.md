@@ -62,13 +62,13 @@
 mkdir -p build && cd build
 
 # 配置构建
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
 # 编译
-cmake --build . --config Release
+cmake --build build --config Release
 
 # 运行测试
-ctest -V
+ctest --test-dir build -V
 ```
 
 #### 3.1.2 不同构建类型
@@ -86,17 +86,17 @@ ctest -V
 
 ```bash
 # 在构建目录中
-ctest -V
+ctest --test-dir build -V
 ```
 
 #### 3.2.2 运行特定测试
 
 ```bash
 # 运行特定测试
-ctest -R test_name -V
+ctest --test-dir build -R test_name -V
 
 # 运行特定测试套件
-ctest -R "test_suite_*" -V
+ctest --test-dir build -R "test_suite_*" -V
 ```
 
 ### 3.3 内存检查
@@ -112,7 +112,7 @@ valgrind --leak-check=full --show-leak-kinds=all ./test_jw_vecdb
 
 ```bash
 # 配置带有 AddressSanitizer 的构建
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
 
 # 运行测试
 ./test_jw_vecdb
@@ -183,7 +183,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omi
 
 ```bash
 # 生成详细测试报告
-ctest -T Test -VV
+ctest --test-dir build -T Test -VV
 
 # 查看测试报告
 ls -la Testing/
@@ -230,7 +230,7 @@ ls -la Testing/
 
 3. **使用 CMake 调试模式**
    ```bash
-   cmake .. -DCMAKE_BUILD_TYPE=Debug
+   cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
    ```
 
 ---

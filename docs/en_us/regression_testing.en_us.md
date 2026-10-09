@@ -149,12 +149,12 @@ echo "=== JinWo VecDB Quick Regression Test ==="
 
 # 1. Compile
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
+cmake --build build -j$(nproc)
 
 # 2. Run core tests
 echo "Running core functionality tests..."
-ctest -R "test_vecdb|test_collection|test_vector" -V
+ctest --test-dir build -R "test_vecdb|test_collection|test_vector" -V
 
 # 3. Check results
 if [ $? -eq 0 ]; then
@@ -181,13 +181,12 @@ echo "=== JinWo VecDB Full Regression Test ==="
 
 # 1. Debug build
 mkdir -p build_debug && cd build_debug
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON
+cmake --build build -j$(nproc)
 
 # 2. Run all tests
 echo "Running all tests..."
-ctest -V
-
+ctest --test-dir build -V
 # 3. Return code check
 TEST_RESULT=$?
 
@@ -235,17 +234,17 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
 
       - name: Build
         run: |
           cd build
-          make -j$(nproc)
+          cmake --build build -j$(nproc)
 
       - name: Core Tests
         run: |
           cd build
-          ctest -R "test_vecdb|test_collection|test_vector" --output-on-failure
+          ctest --test-dir build -R "test_vecdb|test_collection|test_vector" --output-on-failure
 
       - name: Memory Check
         run: |
@@ -255,7 +254,7 @@ jobs:
       - name: Full Tests
         run: |
           cd build
-          ctest --output-on-failure
+          ctest --test-dir build --output-on-failure
 
   regression-macos:
     runs-on: macos-12
@@ -266,8 +265,8 @@ jobs:
       - name: Build and Test
         run: |
           mkdir -p build && cd build
-          cmake .. && make -j$(sysctl -n hw.ncpu)
-          ctest --output-on-failure
+          cmake -S . -B build && cmake --build build -j$(sysctl -n hw.ncpu)
+          ctest --test-dir build --output-on-failure
 
   regression-windows:
     runs-on: windows-2022
@@ -276,11 +275,11 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          cmake .. -G "Visual Studio 17 2022" -A x64
-          cmake --build . --config Release
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release
       - name: Test
         shell: pwsh
-        run: ctest -C Release --output-on-failure
+        run: ctest --test-dir build -C Release --output-on-failure
 ```
 
 ### 3.3 Regression Test Report
@@ -351,7 +350,7 @@ jobs:
 
 1. **View detailed logs**
    ```bash
-   ctest -V > test_log.txt 2>&1
+   ctest --test-dir build -V > test_log.txt 2>&1
    ```
 
 2. **Run failed test individually**

@@ -107,8 +107,8 @@ sudo pip3 install numpy scikit-learn
 
 # 构建 JinWo VecDB
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
 ```
 
 ---
@@ -347,8 +347,8 @@ echo "=== JinWo VecDB 基本性能测试 ==="
 
 # 构建测试
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
 
 # 运行基准测试
 echo "\n--- 运行基准测试 ---"
@@ -380,8 +380,8 @@ echo "=== JinWo VecDB 详细性能分析 ==="
 
 # 构建测试（带调试信息）
 mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build . --config RelWithDebInfo
+cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build --config RelWithDebInfo
 
 # 使用 perf 分析
 echo "\n--- 使用 perf 分析插入性能 ---"

@@ -146,9 +146,8 @@ NDK_DIR=$ANDROID_NDK_HOME
 TOOLCHAIN=$NDK_DIR/build/cmake/android.toolchain.cmake
 
 mkdir -p build
-cd build
 
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE=$TOOLCHAIN \
     -DANDROID_ABI="arm64-v8a" \
     -DANDROID_PLATFORM=android-24 \
@@ -156,7 +155,7 @@ cmake .. \
     -DJW_BUILD_SHARED=OFF \
     -DJW_BUILD_TESTS=OFF
 
-cmake --build . -- -j$(nproc)
+cmake --build build -- -j$(nproc)
 ```
 
 ---

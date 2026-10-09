@@ -47,33 +47,15 @@
 4. **验证安装**
    - 检查项目引用中是否包含 JinWoVecDB
 
-### 2.2 CMake 集成（源码编译）
+### 2.2 源码编译集成（本地 C 库）
 
-1. **克隆源码**
-   ```bash
-   git clone https://github.com/pkjinwo/jinwo_vector_db.git
-   cd jinwo_vecdb
-   ```
+如需从源码编译本地 C 库（产出 `libjinwo.lib` / `libjinwo.dll` 与头文件），
+请参见 `docs/zh_cn/build_guide.zh_cn.md`，其中给出各平台（含 Windows
+`cmake -G "Visual Studio 17 2022"`）的标准构建流程。本文不再重复构建步骤。
 
-2. **创建构建目录**
-   ```bash
-   mkdir build
-   cd build
-   ```
-
-3. **配置 CMake**
-   ```bash
-   cmake .. -G "Visual Studio 17 2022" -A x64
-   ```
-
-4. **编译**
-   ```bash
-   cmake --build . --config Release
-   ```
-
-5. **添加到项目**
-   - 将生成的 `jinwo_vecdb.lib` 和 `jinwo_vecdb.dll` 添加到项目
-   - 添加头文件路径到包含目录
+> 注意：本仓库统一产出 `libjinwo.*`（Windows 亦为 `libjinwo.dll` /
+> `libjinwo.lib`）。下文 C# P/Invoke 的 `DllName` 必须为 `"libjinwo"`，
+> 旧文档的 `"jinwo_vecdb.dll"` 已废弃。
 
 ---
 
@@ -308,7 +290,7 @@ namespace JinWoVecDB
 
     internal static class NativeMethods
     {
-        private const string DllName = "jinwo_vecdb.dll";
+        private const string DllName = "libjinwo";
 
         [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         public static extern int jw_vecdb_open(ref IntPtr db, string path, bool create);

@@ -143,7 +143,7 @@
 
 | 工具 | 用途 | 配置方法 |
 |------|------|----------|
-| Clang Static Analyzer | 静态代码分析 | `scan-build cmake .. && scan-build make` |
+| Clang Static Analyzer | 静态代码分析 | `scan-build cmake -S . -B build && scan-build make` |
 | PVS-Studio | 静态代码分析 | 安装并配置 PVS-Studio 插件 |
 | Coverity | 静态代码分析 | 集成 Coverity 扫描 |
 | SonarQube | 代码质量和安全分析 | 配置 SonarQube 扫描 |
@@ -319,7 +319,7 @@
 brew install llvm
 
 # 运行静态分析
-scan-build cmake ..
+scan-build cmake -S . -B build
 scan-build make
 ```
 

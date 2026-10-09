@@ -64,16 +64,16 @@ sudo yum install -y clang
 mkdir -p build && cd build
 
 # Debug build
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=gcc
+cmake --build build -j$(nproc)
 
 # Release build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc
+cmake --build build -j$(nproc)
 
 # Clang build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang
+cmake --build build -j$(nproc)
 ```
 
 ### 2.2 Test Execution
@@ -82,17 +82,16 @@ make -j$(nproc)
 
 ```bash
 # Enable tests
-cmake .. -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_TESTS=ON
+cmake --build build -j$(nproc)
 
 # Run all tests
-ctest -V
-
+ctest --test-dir build -V
 # Run specific test
-ctest -R test_vecdb -V
+ctest --test-dir build -R test_vecdb -V
 
 # Generate coverage report
-make coverage
+cmake --build build --target coverage
 ```
 
 #### 2.2.2 Memory Detection
@@ -102,9 +101,9 @@ make coverage
 valgrind --leak-check=full --show-leak-kinds=all ./tests/test_vecdb
 
 # Use AddressSanitizer
-cmake .. -DCMAKE_BUILD_TYPE=Debug \
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
-make -j$(nproc)
+cmake --build build -j$(nproc)
 ./tests/test_vecdb
 ```
 
@@ -154,14 +153,14 @@ brew install valgrind
 mkdir -p build && cd build
 
 # Using GCC
-cmake .. -DCMAKE_BUILD_TYPE=Release \
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER=gcc-13 \
     -DCMAKE_CXX_COMPILER=g++-13
-make -j$(sysctl -n hw.ncpu)
+cmake --build build -j$(sysctl -n hw.ncpu)
 
 # Using Apple Clang
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j$(sysctl -n hw.ncpu)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(sysctl -n hw.ncpu)
 ```
 
 ### 3.2 Test Execution
@@ -170,8 +169,7 @@ make -j$(sysctl -n hw.ncpu)
 
 ```bash
 # Run tests
-ctest -V
-
+ctest --test-dir build -V
 # Use Instruments to detect memory
 # Open Xcode -> Product -> Profile -> Leaks
 ./tests/test_vecdb
@@ -181,8 +179,8 @@ ctest -V
 
 ```bash
 # Build Universal Binary (arm64 + x86_64)
-cmake .. -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-make -j$(sysctl -n hw.ncpu)
+cmake -S . -B build -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+cmake --build build -j$(sysctl -n hw.ncpu)
 
 # Verify architecture
 lipo -info libjwvecdb.dylib
@@ -224,28 +222,28 @@ xcrun simctl list devices
 mkdir -p build_ios && cd build_ios
 
 # Configure iOS Simulator build (x86_64)
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=$(xcrun --sdk iphonesimulator --show-sdk-path) \
     -DCMAKE_OSX_ARCHITECTURES=x86_64 \
     -DCMAKE_BUILD_TYPE=Release \
     -DJW_BUILD_TESTS=ON
 
-make -j$(sysctl -n hw.ncpu)
+cmake --build build -j$(sysctl -n hw.ncpu)
 ```
 
 #### 4.1.3 Device Build
 
 ```bash
 # Device build (arm64)
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_SYSTEM_NAME=iOS \
     -DCMAKE_OSX_SYSROOT=$(xcrun --sdk iphoneos --show-sdk-path) \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_BUILD_TYPE=Release \
     -DJW_BUILD_TESTS=OFF
 
-make -j$(sysctl -n hw.ncpu)
+cmake --build build -j$(sysctl -n hw.ncpu)
 ```
 
 ### 4.2 Test Execution
@@ -304,14 +302,14 @@ open ios_test_project.xcodeproj
 mkdir -p build_android && cd build_android
 
 # Configure arm64-v8a
-cmake .. \
+cmake -S . -B build \
     -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
     -DANDROID_ABI=arm64-v8a \
     -DANDROID_PLATFORM=android-21 \
     -DCMAKE_BUILD_TYPE=Release \
     -DJW_BUILD_TESTS=OFF
 
-make -j$(nproc)
+cmake --build build -j$(nproc)
 
 # Copy library to project
 mkdir -p ../android_app/app/src/main/jniLibs/arm64-v8a/
@@ -324,12 +322,12 @@ cp libjwvecdb.so ../android_app/app/src/main/jniLibs/arm64-v8a/
 # Build all supported ABIs
 for ABI in armeabi-v7a arm64-v8a x86 x86_64; do
     mkdir -p build_$ABI && cd build_$ABI
-    cmake .. \
+    cmake -S . -B build \
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=$ABI \
         -DANDROID_PLATFORM=android-21 \
         -DCMAKE_BUILD_TYPE=Release
-    make -j$(nproc)
+    cmake --build build -j$(nproc)
     cd ..
 done
 ```
@@ -382,16 +380,16 @@ public class NativeTest {
 "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\Launch-VsDevShell.ps1"
 
 # Configure x64
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 ```
 
 #### 6.1.2 MinGW-w64
 
 ```bash
 # Using MinGW-w64
-cmake .. -G "MinGW Makefiles" -DCMAKE_C_COMPILER=gcc
-mingw32-make -j$(nproc)
+cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_C_COMPILER=gcc
+mingw32-cmake --build build -j$(nproc)
 ```
 
 ### 6.2 Test Execution
@@ -400,7 +398,7 @@ mingw32-make -j$(nproc)
 
 ```bash
 # Run tests
-ctest -C Release -V
+ctest --test-dir build -C Release -V
 
 # Using Visual Studio GUI
 # Test -> Run All Tests
@@ -498,9 +496,9 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake gcc g++ valgrind
       - name: Build
-        run: mkdir -p build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build -j$(nproc)
       - name: Test
-        run: cd build && ctest -V
+        run: ctest --test-dir build -V
       - name: Memory check
         run: valgrind --leak-check=full ./tests/test_vecdb
 
@@ -511,9 +509,9 @@ jobs:
       - name: Install dependencies
         run: brew install cmake
       - name: Build
-        run: mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)
+        run: cmake -S . -B build && cmake --build build -j$(sysctl -n hw.ncpu)
       - name: Test
-        run: cd build && ctest -V
+        run: ctest --test-dir build -V
 
   windows:
     runs-on: windows-2022
@@ -521,10 +519,10 @@ jobs:
       - uses: actions/checkout@v3
       - name: Build
         run: |
-          cmake .. -G "Visual Studio 17 2022" -A x64
-          cmake --build . --config Release
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          cmake --build build --config Release
       - name: Test
-        run: ctest -C Release -V
+        run: ctest --test-dir build -C Release -V
 ```
 
 ### 8.2 GitLab CI
@@ -540,7 +538,7 @@ linux-build:
   image: ubuntu:20.04
   script:
     - apt-get update && apt-get install -y cmake gcc g++ valgrind
-    - mkdir -p build && cd build && cmake .. && make -j$(nproc)
+    - cmake -S . -B build && cmake --build build -j$(nproc)
   artifacts:
     paths:
       - build/libjwvecdb.*
@@ -550,22 +548,22 @@ linux-test:
   image: ubuntu:20.04
   script:
     - apt-get update && apt-get install -y valgrind
-    - cd build && ctest -V
+    - ctest --test-dir build -V
 
 macos-build:
   stage: build
   tags:
     - macos
   script:
-    - mkdir -p build && cd build && cmake .. && make -j$(sysctl -n hw.ncpu)
+    - cmake -S . -B build && cmake --build build -j$(sysctl -n hw.ncpu)
 
 windows-build:
   stage: build
   tags:
     - windows
   script:
-    - cmake .. -G "Visual Studio 17 2022" -A x64
-    - cmake --build . --config Release
+    - cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+    - cmake --build build --config Release
 ```
 
 ### 8.3 Local Test Script
@@ -582,9 +580,9 @@ echo "=== JinWo VecDB Cross-Platform Test ==="
 test_linux() {
     echo "Testing on Linux..."
     mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-    make -j$(nproc)
-    ctest -V
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j$(nproc)
+    ctest --test-dir build -V
     cd ..
     echo "Linux test passed!"
 }
@@ -593,9 +591,9 @@ test_linux() {
 test_macos() {
     echo "Testing on macOS..."
     mkdir -p build && cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release
-    make -j$(sysctl -n hw.ncpu)
-    ctest -V
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build -j$(sysctl -n hw.ncpu)
+    ctest --test-dir build -V
     cd ..
     echo "macOS test passed!"
 }
@@ -605,11 +603,11 @@ test_android() {
     echo "Testing on Android..."
     export ANDROID_NDK=$HOME/Android/Ndk/latest
     mkdir -p build_android && cd build_android
-    cmake .. \
+    cmake -S . -B build \
         -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake \
         -DANDROID_ABI=arm64-v8a \
         -DANDROID_PLATFORM=android-21
-    make -j$(nproc)
+    cmake --build build -j$(nproc)
     cd ..
     echo "Android test passed!"
 }
@@ -617,9 +615,9 @@ test_android() {
 # Windows (PowerShell)
 test_windows() {
     echo "Testing on Windows..."
-    cmake .. -G "Visual Studio 17 2022" -A x64
-    cmake --build . --config Release
-    ctest -C Release -V
+    cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+    cmake --build build --config Release
+    ctest --test-dir build -C Release -V
     echo "Windows test passed!"
 }
 

@@ -1,273 +1,224 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-JinWo VecDB Python Demo（底层 FFI 示例）
+JinWo VecDB 低层 C FFI 演示（ctypes 直调 libjinwo）。
 
-⚠️ 这是直接通过 ctypes 调用 C 库的演示代码，用于学习/参考。
-   日常使用请安装 pip 包: pip install jinwo-vecdb
-   import jinwo_vecdb 即可，无需手动加载 .so/.dll。
+与文档 docs/zh_cn/usage_examples.zh_cn.md 的「C / C++」示例保持一致的 API：
+    jw_vecdb_open / jw_vecdb_create_collection /
+    jw_collection_insert / jw_vecdb_search / jw_vecdb_close
 
-This script demonstrates how to use JinWo VecDB with Python
-using ctypes to call the C API (low-level FFI binding).
+运行前请先构建 C 库：
+    cmake -S . -B build && cmake --build build
+（产物为 libjinwo.so / libjinwo.dylib / libjinwo.dll）
 """
 
 import ctypes
 import os
-import random
-from ctypes import c_void_p, c_char_p, c_int, c_size_t, c_uint64, c_float, byref
+import sys
 
-# Load the JinWo VecDB library
-library_path = os.path.join(os.path.dirname(__file__), '../../build/libjw_vecdb.so')
-try:
-    jw_vecdb = ctypes.CDLL(library_path)
-except OSError:
-    # Try Windows DLL
-    library_path = os.path.join(os.path.dirname(__file__), '../../build/jw_vecdb.dll')
-    try:
-        jw_vecdb = ctypes.CDLL(library_path)
-    except OSError:
-        print(f"Error: Could not load JinWo VecDB library. Please build the library first.")
-        exit(1)
+#==============================================================================
+# C 类型映射（与 include/jw_types.h 保持一致）
+#==============================================================================
 
-# Define function prototypes
-jw_vecdb.jw_vecdb_open.argtypes = [ctypes.POINTER(c_void_p), c_char_p, c_int]
-jw_vecdb.jw_vecdb_open.restype = c_int
-
-jw_vecdb.jw_vecdb_close.argtypes = [c_void_p]
-jw_vecdb.jw_vecdb_close.restype = c_int
-
-jw_vecdb.jw_version.argtypes = []
-jw_vecdb.jw_version.restype = c_char_p
-
-jw_vecdb.jw_collection_create.argtypes = [ctypes.POINTER(c_void_p), c_void_p, c_char_p, c_int]
-jw_vecdb.jw_collection_create.restype = c_int
-
-jw_vecdb.jw_collection_close.argtypes = [c_void_p]
-jw_vecdb.jw_collection_close.restype = c_int
-
-jw_vecdb.jw_collection_list.argtypes = [c_void_p, ctypes.POINTER(ctypes.POINTER(c_char_p)), ctypes.POINTER(c_size_t)]
-jw_vecdb.jw_collection_list.restype = c_int
-
-jw_vecdb.jw_collection_insert.argtypes = [c_void_p, ctypes.POINTER(c_float), ctypes.POINTER(c_uint64)]
-jw_vecdb.jw_collection_insert.restype = c_int
-
-jw_vecdb.jw_collection_search.argtypes = [c_void_p, ctypes.POINTER(c_float), c_size_t, ctypes.POINTER(ctypes.POINTER(c_void_p)), ctypes.POINTER(c_size_t)]
-jw_vecdb.jw_collection_search.restype = c_int
-
-# Define search result structure
-class JWSearchResult(ctypes.Structure):
+class jw_str_t(ctypes.Structure):
+    """JinWo 字符串类型: {char *ptr; size_t slen}"""
     _fields_ = [
-        ('id', c_uint64),
-        ('distance', c_float)
+        ("ptr", ctypes.c_char_p),
+        ("slen", ctypes.c_size_t),
     ]
 
-# Set search result pointer type
-SearchResultPtr = ctypes.POINTER(JWSearchResult)
 
-class VecDBError(Exception):
-    """VecDB error exception"""
-    def __init__(self, code):
-        self.code = code
-        self.message = self._get_error_message(code)
-        super().__init__(self.message)
-    
-    def _get_error_message(self, code):
-        error_messages = {
-            0: "Success",
-            -1: "Invalid parameter",
-            -2: "Out of memory",
-            -3: "File system error",
-            -4: "Collection already exists",
-            -5: "Collection does not exist",
-            -6: "Vector does not exist",
-            -7: "Index creation failed",
-            -8: "Dimension mismatch",
-            -9: "Internal error"
-        }
-        return error_messages.get(code, f"Unknown error: {code}")
+class jw_search_result_t(ctypes.Structure):
+    """搜索结果: {id; score; vector; dimension; metadata; metadata_size}"""
+    _fields_ = [
+        ("id", ctypes.c_uint64),
+        ("score", ctypes.c_float),
+        ("vector", ctypes.POINTER(ctypes.c_float)),
+        ("dimension", ctypes.c_size_t),
+        ("metadata", ctypes.c_void_p),
+        ("metadata_size", ctypes.c_size_t),
+    ]
 
-class VecDB:
-    """JinWo VecDB wrapper class"""
-    
-    def __init__(self, path, create=True):
-        """Open or create a database"""
-        self.db_ptr = c_void_p()
-        result = jw_vecdb.jw_vecdb_open(byref(self.db_ptr), path.encode('utf-8'), 1 if create else 0)
-        if result != 0:
-            raise VecDBError(result)
-    
-    def __del__(self):
-        """Close the database"""
-        if hasattr(self, 'db_ptr') and self.db_ptr:
-            jw_vecdb.jw_vecdb_close(self.db_ptr)
-    
-    @staticmethod
-    def get_version():
-        """Get JinWo VecDB version"""
-        version_ptr = jw_vecdb.jw_version()
-        return version_ptr.decode('utf-8')
-    
-    def create_collection(self, name, dimension):
-        """Create a collection"""
-        collection_ptr = c_void_p()
-        result = jw_vecdb.jw_collection_create(
-            byref(collection_ptr),
-            self.db_ptr,
-            name.encode('utf-8'),
-            dimension
-        )
-        if result != 0:
-            raise VecDBError(result)
-        return Collection(collection_ptr)
-    
-    def list_collections(self):
-        """List all collections"""
-        names_ptr = ctypes.POINTER(c_char_p)()
-        count = c_size_t(0)
-        result = jw_vecdb.jw_collection_list(
-            self.db_ptr,
-            byref(names_ptr),
-            byref(count)
-        )
-        if result != 0:
-            raise VecDBError(result)
-        
-        collections = []
-        for i in range(count.value):
-            name_ptr = names_ptr[i]
-            if name_ptr:
-                collections.append(name_ptr.decode('utf-8'))
-        
-        # Free the memory
-        for i in range(count.value):
-            if names_ptr[i]:
-                ctypes.free(names_ptr[i])
-        ctypes.free(names_ptr)
-        
-        return collections
+
+# 标志定义（与 include/jw_types.h 中 JW_* 宏一致）
+JW_VECDB_CREATE = 0x04
+JW_SUCCESS = 0
+
+#==============================================================================
+# 动态库加载（跨平台：自动查找 libjinwo / jinwo / libjw_vecdb）
+#==============================================================================
+
+def _load_library():
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    if sys.platform == "darwin":
+        exts = [".dylib"]
+    elif sys.platform == "win32":
+        exts = [".dll"]
+    else:
+        exts = [".so"]
+
+    names = ["libjinwo", "jinwo", "libjw_vecdb", "jw_vecdb"]
+    dirs = [
+        os.path.join(here, "..", "..", "build"),
+        os.path.join(here, "..", "..", "build_python_pypi", "jinwo_vecdb"),
+        here,
+        ".",
+    ]
+
+    for d in dirs:
+        for name in names:
+            for ext in exts:
+                path = os.path.join(d, name + ext)
+                if os.path.exists(path):
+                    try:
+                        return ctypes.CDLL(path)
+                    except Exception:
+                        continue
+    raise RuntimeError(
+        "找不到 JinWo VecDB 动态库。请先构建：\n"
+        "  cmake -S . -B build && cmake --build build"
+    )
+
+
+lib = _load_library()
+
+#==============================================================================
+# 函数原型声明（匹配真实 ABI）
+#==============================================================================
+
+lib.jw_version_string.restype = ctypes.c_char_p
+lib.jw_version_string.argtypes = []
+
+lib.jw_vecdb_open.restype = ctypes.c_int
+lib.jw_vecdb_open.argtypes = [
+    ctypes.POINTER(jw_str_t),   # const jw_str_t *path
+    ctypes.c_uint32,            # jw_uint32_t flags
+    ctypes.POINTER(ctypes.c_void_p),  # jw_vecdb_t **db
+]
+
+lib.jw_vecdb_create_collection.restype = ctypes.c_int
+lib.jw_vecdb_create_collection.argtypes = [
+    ctypes.c_void_p,            # jw_vecdb_t *db
+    ctypes.POINTER(jw_str_t),   # const jw_str_t *name
+    ctypes.c_uint32,            # jw_dim_t dim
+    ctypes.POINTER(ctypes.c_void_p),  # jw_collection_t **coll
+]
+
+lib.jw_collection_insert.restype = ctypes.c_int
+lib.jw_collection_insert.argtypes = [
+    ctypes.c_void_p,            # jw_collection_t *coll
+    ctypes.POINTER(ctypes.c_float),  # jw_cvec_t vec
+    ctypes.POINTER(ctypes.c_uint64),  # jw_vid_t *vid
+]
+
+lib.jw_vecdb_search.restype = ctypes.c_size_t
+lib.jw_vecdb_search.argtypes = [
+    ctypes.c_void_p,            # jw_vecdb_t *db
+    ctypes.POINTER(jw_str_t),   # const jw_str_t *coll_name
+    ctypes.POINTER(ctypes.c_float),  # jw_cvec_t query
+    ctypes.c_uint32,            # jw_dim_t dim
+    ctypes.c_size_t,            # jw_size_t k
+    ctypes.POINTER(jw_search_result_t),  # jw_search_result_t *results
+]
+
+lib.jw_vecdb_list_collections.restype = ctypes.c_size_t
+lib.jw_vecdb_list_collections.argtypes = [
+    ctypes.c_void_p,            # const jw_vecdb_t *db
+    ctypes.POINTER(jw_str_t),   # jw_str_t *names
+    ctypes.c_size_t,            # jw_size_t capacity
+]
+
+lib.jw_vecdb_close.restype = ctypes.c_int
+lib.jw_vecdb_close.argtypes = [ctypes.c_void_p]  # jw_vecdb_t *db
+
+
+#==============================================================================
+# 简易封装
+#==============================================================================
+
+def _to_jwstr(s):
+    b = s.encode("utf-8")
+    return jw_str_t(ctypes.c_char_p(b), len(b))
+
+
+def _from_jwstr(js):
+    return js.ptr[:js.slen].decode("utf-8")
+
 
 class Collection:
-    """Collection wrapper class"""
-    
-    def __init__(self, collection_ptr):
-        """Initialize collection"""
-        self.collection_ptr = collection_ptr
-    
-    def __del__(self):
-        """Close the collection"""
-        if hasattr(self, 'collection_ptr') and self.collection_ptr:
-            jw_vecdb.jw_collection_close(self.collection_ptr)
-    
-    def insert(self, vector):
-        """Insert a vector"""
-        vector_array = (c_float * len(vector))(*vector)
-        vector_ptr = ctypes.cast(vector_array, ctypes.POINTER(c_float))
-        vector_id = c_uint64(0)
-        
-        result = jw_vecdb.jw_collection_insert(
-            self.collection_ptr,
-            vector_ptr,
-            byref(vector_id)
-        )
-        if result != 0:
-            raise VecDBError(result)
-        
-        return vector_id.value
-    
-    def search(self, query, k):
-        """Search for similar vectors"""
-        query_array = (c_float * len(query))(*query)
-        query_ptr = ctypes.cast(query_array, ctypes.POINTER(c_float))
-        
-        results_ptr = SearchResultPtr()
-        count = c_size_t(0)
-        
-        result = jw_vecdb.jw_collection_search(
-            self.collection_ptr,
-            query_ptr,
-            k,
-            byref(results_ptr),
-            byref(count)
-        )
-        if result != 0:
-            raise VecDBError(result)
-        
-        search_results = []
-        for i in range(count.value):
-            search_results.append({
-                'id': results_ptr[i].id,
-                'distance': results_ptr[i].distance
-            })
-        
-        # Free the memory
-        ctypes.free(results_ptr)
-        
-        return search_results
+    def __init__(self, db_ptr, coll_ptr):
+        self.db_ptr = db_ptr
+        self.ptr = coll_ptr
 
-def generate_random_vector(dimension):
-    """Generate a random vector"""
-    return [random.uniform(-1.0, 1.0) for _ in range(dimension)]
+    def insert(self, vec):
+        arr = (ctypes.c_float * len(vec))(*vec)
+        vid = ctypes.c_uint64(0)
+        lib.jw_collection_insert(self.ptr, arr, ctypes.byref(vid))
+        return vid.value
+
+
+class VecDB:
+    def __init__(self, path):
+        self.ptr = ctypes.c_void_p(0)
+        st = lib.jw_vecdb_open(
+            ctypes.byref(_to_jwstr(path)), JW_VECDB_CREATE, ctypes.byref(self.ptr)
+        )
+        if st != JW_SUCCESS:
+            raise RuntimeError("jw_vecdb_open failed, status=%d" % st)
+
+    def create_collection(self, name, dim):
+        coll = ctypes.c_void_p(0)
+        st = lib.jw_vecdb_create_collection(
+            self.ptr, ctypes.byref(_to_jwstr(name)), ctypes.c_uint32(dim),
+            ctypes.byref(coll),
+        )
+        if st != JW_SUCCESS:
+            raise RuntimeError("jw_vecdb_create_collection failed, status=%d" % st)
+        return Collection(self.ptr, coll)
+
+    def search(self, name, vec, k):
+        arr = (ctypes.c_float * len(vec))(*vec)
+        results = (jw_search_result_t * k)()
+        n = lib.jw_vecdb_search(
+            self.ptr, ctypes.byref(_to_jwstr(name)), arr,
+            ctypes.c_uint32(len(vec)), ctypes.c_size_t(k), results,
+        )
+        return [(results[i].id, results[i].score) for i in range(n)]
+
+    def list_collections(self):
+        cap = 16
+        names = (jw_str_t * cap)()
+        n = lib.jw_vecdb_list_collections(self.ptr, names, ctypes.c_size_t(cap))
+        return [_from_jwstr(names[i]) for i in range(n)]
+
+    def close(self):
+        lib.jw_vecdb_close(self.ptr)
+
+
+#==============================================================================
+# 演示
+#==============================================================================
 
 def main():
-    """Main demo function"""
-    print("========================================")
-    print("  JinWo VecDB Python Demo")
-    print("========================================")
-    print()
-    
-    try:
-        # Get version
-        version = VecDB.get_version()
-        print(f"Version: {version}")
-        print()
-        
-        # Create database
-        db_path = "./vecdb_python"
-        print(f"Opening database at: {db_path}")
-        db = VecDB(db_path, create=True)
-        print("Database opened successfully")
-        print()
-        
-        # Create collection
-        print("Creating collection...")
-        collection = db.create_collection("test", 128)
-        print("Collection created successfully: test")
-        print()
-        
-        # Insert vectors
-        print("Inserting 10 vectors...")
-        for i in range(10):
-            vector = generate_random_vector(128)
-            vector_id = collection.insert(vector)
-            print(f"Inserted vector {i} successfully, ID: {vector_id}")
-        print("Insertion completed")
-        print()
-        
-        # Search
-        print("Searching for similar vectors...")
-        query = generate_random_vector(128)
-        results = collection.search(query, 5)
-        if results:
-            print(f"Search results (top {len(results)}):")
-            for i, result in enumerate(results):
-                print(f"ID: {result['id']}, Distance: {result['distance']:.4f}")
-        else:
-            print("Search failed, no results")
-        print()
-        
-        # List collections
-        print("Listing all collections...")
-        collections = db.list_collections()
-        print(f"Found {len(collections)} collections:")
-        for name in collections:
-            print(f"  {name}")
-        print()
-        
-        print("Demo completed successfully!")
-        
-    except VecDBError as e:
-        print(f"Error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
+    db_path = "vecdb_demo.jwv"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
+    print("version:", lib.jw_version_string().decode("utf-8"))
+
+    db = VecDB(db_path)
+    col = db.create_collection("docs", dim=4)
+    vid = col.insert([0.1, 0.2, 0.3, 0.4])
+    print("inserted vid:", vid)
+    print("collections:", db.list_collections())
+
+    results = db.search("docs", [0.1, 0.2, 0.3, 0.4], k=3)
+    print("search results (vid, score):", results)
+
+    db.close()
+    print("OK")
+
 
 if __name__ == "__main__":
     main()

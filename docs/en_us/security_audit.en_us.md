@@ -143,7 +143,7 @@ Security audit covers the following scope:
 
 | Tool | Purpose | Configuration Method |
 |------|---------|----------------------|
-| Clang Static Analyzer | Static code analysis | `scan-build cmake .. && scan-build make` |
+| Clang Static Analyzer | Static code analysis | `scan-build cmake -S . -B build && scan-build make` |
 | PVS-Studio | Static code analysis | Install and configure PVS-Studio plugin |
 | Coverity | Static code analysis | Integrate Coverity scan |
 | SonarQube | Code quality and security analysis | Configure SonarQube scan |
@@ -319,7 +319,7 @@ Security audit covers the following scope:
 brew install llvm
 
 # Run static analysis
-scan-build cmake ..
+scan-build cmake -S . -B build
 scan-build make
 ```
 

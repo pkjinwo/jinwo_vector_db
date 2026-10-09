@@ -157,8 +157,8 @@ int main() {
 
 ```bash
 # Compile benchmark
-cmake .. -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_EXAMPLES=ON
-make -j$(nproc)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DJW_BUILD_EXAMPLES=ON
+cmake --build build -j$(nproc)
 
 # Run insert benchmark
 ./examples/vector_bench --insert --count=100000 --dimension=128

@@ -100,18 +100,17 @@ TEST(VecDBTest, CreateCollection) {
 
 ```bash
 # Run all tests
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON
-make -j$(nproc)
-ctest -V
-
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON
+cmake --build build -j$(nproc)
+ctest --test-dir build -V
 # Run specific test
-ctest -R test_vecdb -V
+ctest --test-dir build -R test_vecdb -V
 
 # Generate coverage report
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON -DJW_ENABLE_COVERAGE=ON
-make -j$(nproc)
-ctest -V
-make coverage
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DJW_BUILD_TESTS=ON -DJW_ENABLE_COVERAGE=ON
+cmake --build build -j$(nproc)
+ctest --test-dir build -V
+cmake --build build --target coverage
 ```
 
 ---

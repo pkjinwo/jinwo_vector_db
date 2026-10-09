@@ -125,7 +125,7 @@ set(CMAKE_XCODE_ATTRIBUTE_ENABLE_BITCODE NO)
 mkdir build && cd build
 
 # Configure for iOS Simulator
-cmake .. -G Xcode \
+cmake -S . -B build -G Xcode \
     -DCMAKE_TOOLCHAIN_FILE=../cmake/ios.toolchain.cmake \
     -DPLATFORM=SIMULATOR64
 

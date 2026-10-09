@@ -75,7 +75,7 @@ if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 cd /d "%BUILD_DIR%"
 
 REM Configure with CMake
-cmake .. ^
+cmake -S . -B build ^
     -G "Visual Studio 17 2022" ^
     -A x64 ^
     -DCMAKE_BUILD_TYPE=Release ^
@@ -85,7 +85,7 @@ cmake .. ^
     -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%"
 
 REM Build
-cmake --build . --config Release --parallel
+cmake --build build --config Release --parallel
 
 REM Install
 cmake --install . --config Release
@@ -118,7 +118,7 @@ cmake "%JW_DIR%" ^
     -DJW_BUILD_SHARED=OFF
 
 REM Build
-cmake --build . --config Release --parallel
+cmake --build build --config Release --parallel
 
 endlocal
 ```
@@ -145,10 +145,10 @@ cmake "${JW_DIR}" \
     -DJW_BUILD_SHARED=OFF
 
 # Build
-mingw32-make -j$(nproc)
+mingw32-cmake --build build -j$(nproc)
 
 # Install
-mingw32-make install
+cmake --install build
 ```
 
 ---
@@ -240,10 +240,9 @@ target_link_libraries(my_vecdb_app jw_vecdb)
 ### Building
 
 ```batch
-mkdir build
-cd build
-cmake .. -G "Visual Studio 17 2022" -A x64
-cmake --build . --config Release
+
+cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+cmake --build build --config Release
 ```
 
 ---

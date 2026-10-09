@@ -18,29 +18,15 @@
 
 ## 快速开始
 
-### 构建项目
+### 本地构建（C 开发库与头文件）
 
-```bash
-# 克隆仓库
-git clone https://github.com/pkjinwo/jinwo_vector_db.git  #国外
-git clone https://gitee.com/pkjinwo/jinwo_vector_db.git  #国内
-cd jinwo_vector_db
+JinWo VecDB 的纯 C 核心（`src/` + `include/`）通过 CMake 跨平台构建，产出本地
+静态/共享库与头文件，供 C/C++ 开发集成使用。构建入口为仓库根目录 `CMakeLists.txt`。
 
-# 创建构建目录
-mkdir build && cd build
+分平台构建步骤（Unix/Linux、macOS、Windows，含 `cmake -G` 生成对应工程文件）请参见：
 
-# 配置
-cmake ..
-
-# 构建
-make -j$(nproc)
-
-# 运行测试
-make test
-
-# 安装
-sudo make install
-```
+- 中文：`docs/zh_cn/build_guide.zh_cn.md`
+- English：`docs/en_us/build_guide.en_us.md`
 
 ### 基本使用
 
