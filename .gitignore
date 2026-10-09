@@ -47,3 +47,6 @@ build_python_pypi/wheelhouse/
 # Local files
 important/
 local_doc/
+
+# Local test scripts (not for release)
+test_jinwo_vecdb.py
