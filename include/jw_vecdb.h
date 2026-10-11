@@ -68,15 +68,15 @@ JW_BEGIN_DECL
  * =============================================================================
  */
 
-/* 版本宏 */
-#define JW_VECDB_VERSION_MAJOR      0
-#define JW_VECDB_VERSION_MINOR      1
-#define JW_VECDB_VERSION_PATCH      31
-#define JW_VECDB_VERSION_STRING     "0.1.32"
+/* 版本宏（复用 jw_types.h 的 JW_VERSION_*，避免两份宏漂移） */
+#define JW_VECDB_VERSION_MAJOR      JW_VERSION_MAJOR
+#define JW_VECDB_VERSION_MINOR      JW_VERSION_MINOR
+#define JW_VECDB_VERSION_PATCH      JW_VERSION_PATCH
+#define JW_VECDB_VERSION_STRING     JW_VERSION_STRING
 
 /**
  * 获取版本字符串
- * @return 版本字符串，如 "JinWo VecDB 0.1.32"
+ * @return 版本字符串，如 "JinWo VecDB 0.1.34"
  */
 JW_API jw_str_t jw_vecdb_version(void);
 

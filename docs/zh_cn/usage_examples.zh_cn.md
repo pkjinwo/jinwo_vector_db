@@ -54,67 +54,105 @@ db.close()
 
 ## 2. Go
 
-Go binding 通过 cgo 直接链接 C 库。可使用仓库内 `examples/go/go_demo.go`，
-或 `bindings/jinwo_vecdb/vecdb.go` 高层封装。
+JinWo VecDB 提供两套官方 Go binding：
 
-最小示例（cgo 直调，取自 `examples/go/go_demo.go`）：
+- **`bindings/jinwo_vecdb_wasm`（推荐，零 C 工具链）**：基于纯 Go 的 wazero 运行时加载
+  `jinwo.wasm`，`go build` 一键跨平台，无需 C 编译器 / 预编译静态库。
+- **`bindings/jinwo_vecdb`（可选，原生高性能）**：cgo 链接预编译静态库 `libjinwo.a`，
+  仅在需要极致原生吞吐时使用（需各平台 `lib/<goos>_<goarch>/libjinwo.a` 与 C 链接器）。
+
+### 方式一：wazero + WASM（推荐，零 C 工具链）
+
+```bash
+go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb_wasm
+```
 
 ```go
 package main
 
-/*
-#cgo CFLAGS: -I../../include
-#cgo linux LDFLAGS: -L../../build -ljinwo -lm -pthread
-#cgo darwin LDFLAGS: -L../../build -ljinwo -lm
-#cgo windows LDFLAGS: -L../../build -ljinwo -lm
-#include <jw_vecdb.h>
-#include <stdlib.h>
-*/
-import "C"
 import (
     "fmt"
-    "unsafe"
+
+    vecdb "github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb_wasm"
 )
 
 func main() {
-    cPath := C.CString("./vecdb_go")
-    defer C.free(unsafe.Pointer(cPath))
-    pathStr := C.jw_str_t{ptr: cPath, slen: C.size_t(len("./vecdb_go"))}
-
-    var db *C.jw_vecdb_t
-    if C.jw_vecdb_open(&pathStr, C.uint32_t(C.JW_VECDB_CREATE), &db) != 0 { // 创建/打开
-        panic("open failed")
+    db, err := vecdb.OpenMemory() // 内存数据库，无需任何静态库 / C 工具链
+    if err != nil {
+        panic(err)
     }
-    defer C.jw_vecdb_close(db)
+    defer db.Close()
 
-    cName := C.CString("test")
-    defer C.free(unsafe.Pointer(cName))
-    nameStr := C.jw_str_t{ptr: cName, slen: C.size_t(len("test"))}
-
-    var coll *C.jw_collection_t
-    if C.jw_vecdb_create_collection(db, &nameStr, C.uint32_t(4), &coll) != 0 {
-        panic("create collection failed")
+    coll, err := db.CreateCollection("test", 4)
+    if err != nil {
+        panic(err)
     }
 
-    vec := []float32{0.1, 0.2, 0.3, 0.4}
-    cVec := (*C.float)(unsafe.Pointer(&vec[0]))
-    var id C.uint64_t
-    if C.jw_collection_insert(coll, cVec, &id) != 0 {
-        panic("insert failed")
+    vid, err := coll.Insert([]float32{0.1, 0.2, 0.3, 0.4})
+    if err != nil {
+        panic(err)
     }
 
-    var results [5]C.jw_search_result_t
-    count := C.jw_vecdb_search(
-        db, &nameStr, cVec,
-        C.uint32_t(4), C.size_t(5),
-        (*C.jw_search_result_t)(unsafe.Pointer(&results[0])),
-    )
-    fmt.Printf("got %d results, top id=%d score=%.4f\n",
-        uint64(count), uint64(results[0].id), float32(results[0].score))
+    results, err := db.Search("test", []float32{0.1, 0.2, 0.3, 0.4}, 5)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("inserted vid=%d, got %d results (top id=%d score=%.4f)\n",
+        vid, len(results), results[0].ID, results[0].Score)
 }
 ```
 
-编译前请先按 `build_guide` 构建并安装 `libjinwo`（确保 `-L../../build` 指向库所在目录）。
+### 方式二：cgo 静态库（可选，原生高性能）
+
+各平台（linux/darwin/windows × amd64/arm64）的预编译静态库 `libjinwo.a` 发布在
+`bindings/jinwo_vecdb/lib/<goos>_<goarch>/`，cgo 会在 `go build` 时按当前 `GOOS/GOARCH`
+自动链接（类似 Python 的多平台 wheel，用户需本机具备 C 链接器）。
+
+```bash
+go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb
+```
+
+```go
+package main
+
+import (
+    "fmt"
+
+    vecdb "github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb"
+)
+
+func main() {
+    db, err := vecdb.Open("./vecdb_go", vecdb.Create|vecdb.ReadWrite)
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    coll, err := db.CreateCollection("test", 4)
+    if err != nil {
+        panic(err)
+    }
+
+    vid, err := coll.Insert([]float32{0.1, 0.2, 0.3, 0.4})
+    if err != nil {
+        panic(err)
+    }
+
+    results, err := coll.Search([]float32{0.1, 0.2, 0.3, 0.4}, 5)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Printf("inserted vid=%d, got %d results (top id=%d score=%.4f)\n",
+        vid, len(results), results[0].ID, results[0].Score)
+}
+```
+
+若想从源码构建 `libjinwo` 后由 cgo 直调，可参考 `examples/go/go_demo.go`（需先按 `build_guide`
+构建，使 `-L../../build` 指向库所在目录）。
+
+> 平台静态库由 `bindings/jinwo_vecdb/scripts/build_static_libs.sh` 生成；
+> macOS 可本地构建 darwin/amd64 与 darwin/arm64，linux/windows 需对应交叉工具链
+> （建议在 CI / 对应平台上构建后提交产物）。
 
 ---
 
@@ -231,27 +269,31 @@ do {
 
 ## 6. JavaScript / TypeScript（Node.js）
 
-通过 npm 包 `jinwo-vecdb`（仓库 `npm_package/`）。
+通过 npm 包 `jinwo-vecdb`（仓库 `npm_package/`，WASM 实现，高层 API）。
 
 ```bash
 npm install jinwo-vecdb
 ```
 
 ```ts
-import { JinWoDB } from "jinwo-vecdb";
+import { open } from "jinwo-vecdb";
 
-const db = new JinWoDB("my_vecs.jwv");
-const col = db.createCollection("docs", 4);
+const db = await open("my_vecs.jwv");            // 打开/创建数据库
+console.log("version:", db.version());
 
-const vid = col.insert([0.1, 0.2, 0.3, 0.4]);
-const results = col.search([0.1, 0.2, 0.3, 0.4], 5);
+const coll = db.createCollection("docs", 4);     // 创建 Collection
+coll.insert([0.1, 0.2, 0.3, 0.4]);               // 插入向量
+coll.buildIndex();                               // 构建索引，加速检索
+
+const results = db.search("docs", [0.1, 0.2, 0.3, 0.4], 5); // Top-5 相似向量
 for (const r of results) {
-    console.log(`id=${r.id} distance=${r.distance}`);
+    console.log(`id=${r.id} score=${r.score}`);
 }
 db.close();
 ```
 
-> 具体导出名以 `npm_package/` 实际构建产物为准；如与示例不符请参照该包 README。
+> 包为 ESM（`"type": "module"`），Node.js 示例需用 `import`；
+> 具体导出名以 `npm_package/` 实际构建产物为准。
 
 ---
 

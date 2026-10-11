@@ -1,19 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(jinwo_vecdb C)
 
-# ============================================================
-# ⚠️⚠️⚠️ 同步提醒（AI 工具 / 维护者必读）⚠️⚠️⚠️
-#   本文件与仓库根目录的 CMakeLists.txt 共享同一份 C 源码清单
-#   (JINWO_SOURCES) 与编译宏。根 CMakeLists 用于“本地 C 开发库 +
-#   头文件”构建；本文件用于“Python 轮子”构建（libjinwo + _jinwo）。
-#   两者是同一套源码的两种产物形态。
-#   改动同步清单（任一处修改都必须同步另一处）：
-#     1. JINWO_SOURCES 源文件列表（新增/删除 src/*.c）
-#     2. target_compile_definitions(jinwo ...) 中的 JW_EXPORTS 等宏
-#     3. 平台特殊处理：WIN32 MSVC 子目录 / Linux PREFIX "lib" /
-#        APPLE -undefined dynamic_lookup
-# ============================================================
-
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 

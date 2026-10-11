@@ -18,49 +18,34 @@
 
 ## 快速开始
 
-### 本地构建（C 开发库与头文件）
+JinWo VecDB 提供简单的 API，几行代码即可开始向量检索。
 
-JinWo VecDB 的纯 C 核心（`src/` + `include/`）通过 CMake 跨平台构建，产出本地
-静态/共享库与头文件，供 C/C++ 开发集成使用。构建入口为仓库根目录 `CMakeLists.txt`。
+```bash
+# Python
+pip install jinwo-vecdb
 
-分平台构建步骤（Unix/Linux、macOS、Windows，含 `cmake -G` 生成对应工程文件）请参见：
+# Node.js
+npm install jinwo-vecdb
 
-- 中文：`docs/zh_cn/build_guide.zh_cn.md`
-- English：`docs/en_us/build_guide.en_us.md`
-
-### 基本使用
-
-```c
-#include <jw_vecdb.h>
-
-int main() {
-    // 初始化
-    jw_init();
-    
-    // 创建/打开数据库
-    jw_vecdb_t *db;
-    jw_vecdb_open("my_vectors.jwv", JW_VECDB_CREATE, &db);
-    
-    // 创建Collection
-    jw_collection_t *coll;
-    jw_vecdb_create_collection(db, "documents", 1536, &coll);
-    
-    // 插入向量
-    float vec[1536] = { /* embedding data */ };
-    jw_vid_t vid;
-    jw_collection_insert(coll, vec, &vid);
-    
-    // 搜索相似向量
-    jw_search_result_t results[10];
-    jw_size_t count = jw_collection_search(coll, query_vec, 10, results);
-    
-    // 关闭数据库
-    jw_vecdb_close(db);
-    
-    jw_cleanup();
-    return 0;
-}
+# C / 其他语言：从源码构建（产物为 libjinwo）
+git clone https://gitee.com/pkjinwo/jinwo_vector_db.git   # 国内
+cd jinwo_vector_db && cmake -S . -B build && cmake --build build
 ```
+
+```python
+import jinwo_vecdb
+
+db = jinwo_vecdb.open("my_vectors.jwv")           # 打开/创建数据库
+db.create_collection("documents", 384)            # 创建 Collection（384 维）
+db.insert("documents", [0.1] * 384)               # 插入向量
+results = db.search("documents", query_vec, k=10) # Top-10 相似向量
+for vid, distance in results[:5]:
+    print(f"vid={vid}, distance={distance:.6f}")
+db.close()
+```
+
+**完整多语言快速开始（C / C++ / Python / Go / Android / iOS / Node.js 等）请参阅
+[`docs/zh_cn/usage_examples.zh_cn.md`](docs/zh_cn/usage_examples.zh_cn.md)。**
 
 ## 项目结构
 

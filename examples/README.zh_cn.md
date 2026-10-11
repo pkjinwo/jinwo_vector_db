@@ -58,10 +58,13 @@ examples/
 │   ├── python_demo.py       # Python 演示程序
 │   ├── requirements.txt     # Python 依赖项
 │   └── README.md            # Python 示例说明
-├── go/                      # Go 平台示例
+├── go/                      # Go 平台示例（cgo 链接 libjinwo.a，可选的原生高性能方案）
 │   ├── go_demo.go           # Go 演示程序
 │   ├── go.mod               # Go 模块定义
 │   └── README.md            # Go 示例说明
+├── go_wasm/                 # Go 平台示例（wazero + WASM，零 C 工具链，Go 默认推荐）
+│   ├── go_wasm_demo.go      # Go 演示程序
+│   └── go.mod               # Go 模块定义
 ├── nodejs/                  # Node.js 平台示例
 │   ├── nodejs_demo.js       # Node.js 演示程序
 │   ├── package.json         # Node.js 项目配置
@@ -221,25 +224,40 @@ examples/
 
 1. **前置条件**
    - Python 3.6+
-   - 已构建的 JinWo VecDB 库
+   - 已安装官方包：`pip install jinwo_vecdb`
 
 2. **运行步骤**
    ```bash
-   # 运行 Python 演示
+   # 安装依赖
    cd examples/python
+   pip install -r requirements.txt
+
+   # 运行 Python 演示
    python python_demo.py
    ```
 
-### Go
+### Go（推荐：wazero + WASM，零 C 工具链）
 
 1. **前置条件**
    - Go 1.18+
-   - 已构建的 JinWo VecDB 库
+
+2. **运行步骤**
+   ```bash
+   # 运行 Go 演示（wazero 加载 jinwo.wasm，无需 C 编译器 / 静态库）
+   cd examples/go_wasm
+   go run .
+   ```
+
+### Go（可选：cgo 原生高性能方案）
+
+1. **前置条件**
+   - Go 1.18+
+   - 已构建的 JinWo VecDB 库，以及各平台预编译的 `libjinwo.a` 静态库
    - C 编译器（Linux 上的 gcc，Windows 上的 MinGW）
 
 2. **运行步骤**
    ```bash
-   # 运行 Go 演示
+   # 运行 Go 演示（cgo 链接 libjinwo.a）
    cd examples/go
    go run go_demo.go
    ```
@@ -248,15 +266,14 @@ examples/
 
 1. **前置条件**
    - Node.js 14+
-   - npm 6+
-   - 已构建的 JinWo VecDB 库
+   - 已安装官方包：`npm install jinwo-vecdb`
 
 2. **运行步骤**
    ```bash
    # 安装依赖
    cd examples/nodejs
    npm install
-   
+
    # 运行 Node.js 演示
    npm start
    ```
@@ -396,9 +413,11 @@ examples/
 | Linux | linux_demo.c | C 语言控制台应用，直接调用 C API |
 | Android | MainActivity.java + JNI | Java Android 应用，通过 JNI 调用原生库 |
 | iOS | iOSDemo.swift | Swift iOS 应用，使用 Swift/Objective-C 桥接 |
-| Python | python_demo.py | Python 脚本，使用 ctypes 调用 C API |
-| Go | go_demo.go | Go 程序，使用 cgo 调用 C API |
-| Node.js | nodejs_demo.js | Node.js 脚本，使用 ffi-napi 调用 C API |
+| Python | python_demo.py | Python 脚本，使用官方 jinwo_vecdb 包（高层 API，推荐） |
+| Python | python_demo_ctypes.py | Python 脚本，ctypes 直调编译库（低层 FFI，与 C 示例一致） |
+| Go | go_wasm_demo.go | Go 程序，使用 wazero + WASM 调用 C API（零 C 工具链，推荐） |
+| Go | go_demo.go | Go 程序，使用 cgo 调用 C API（原生高性能，可选） |
+| Node.js | nodejs_demo.js | Node.js 脚本，使用官方 jinwo-vecdb 包（WASM，高层 API） |
 | PHP | php_demo.php | PHP 脚本，使用 FFI 调用 C API |
 | Rust | main.rs | Rust 程序，使用 libc 调用 C API |
 | Kotlin | Main.kt | Kotlin 程序，使用 JNA 调用 C API |

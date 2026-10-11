@@ -71,7 +71,7 @@ TEST(version)
 {
     ASSERT_EQ(JW_VERSION_MAJOR, 0);
     ASSERT_EQ(JW_VERSION_MINOR, 1);
-    ASSERT_EQ(JW_VERSION_PATCH, 34);
+    ASSERT_EQ(JW_VERSION_PATCH, 31);
     ASSERT_TRUE(str_equal(JW_VERSION_STRING, "0.1.34"));
 }
 
@@ -142,11 +142,11 @@ TEST(random_numbers)
 
 TEST(time_functions)
 {
-    jw_time_t t1 = jw_time_now_ms();
+    jw_uint64_t t1 = jw_time_now();
     jw_sleep(10);
-    jw_time_t t2 = jw_time_now_ms();
+    jw_uint64_t t2 = jw_time_now();
 
-    ASSERT_TRUE(t2 >= t1 + 10);
+    ASSERT_TRUE(t2 >= t1 + 10000);
 }
 
 int main(void)

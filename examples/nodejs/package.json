@@ -1,11 +1,11 @@
 {
   "name": "jinwo-vecdb-nodejs-demo",
   "version": "1.0.0",
-  "description": "Node.js demo for JinWo VecDB",
+  "description": "Node.js demo for JinWo VecDB (uses npm package jinwo-vecdb)",
+  "type": "module",
   "main": "nodejs_demo.js",
   "scripts": {
-    "start": "node nodejs_demo.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node nodejs_demo.js"
   },
   "keywords": [
     "vector-database",
@@ -14,10 +14,8 @@
     "nodejs"
   ],
   "author": "JinWo Technology",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
-    "ffi-napi": "^4.0.3",
-    "ref-napi": "^3.0.3",
-    "ref-struct-napi": "^1.1.1"
+    "jinwo-vecdb": "^0.1.36"
   }
 }

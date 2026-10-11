@@ -7,23 +7,23 @@ Pod::Spec.new do |s|
     embedding storage and fast KNN search on mobile devices.
   DESC
   s.homepage     = "https://github.com/pkjinwo/jinwo_vector_db"
-  s.license      = { :type => "MIT", :file => "../../LICENSE" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
   s.author       = { "pkjinwo" => "pkjinwo@users.noreply.github.com" }
   s.source       = { :git => "https://github.com/pkjinwo/jinwo_vector_db.git", :tag => "v#{s.version}" }
 
   s.ios.deployment_target = "13.0"
 
-  # Swift + C sources
+  # Swift + C sources (relative to repo root)
   s.source_files =
-    "Sources/**/*.swift",
-    "../../src/*.c",
-    "../../include/*.h"
+    "bindings/ios/Sources/**/*.swift",
+    "src/*.c",
+    "include/*.h"
 
-  s.public_header_files = "../../include/jw_vecdb.h", "../../include/jw_collection.h"
+  s.public_header_files = "include/*.h"
 
   s.pod_target_xcconfig = {
-    "HEADER_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/../../include",
-    "SWIFT_INCLUDE_PATHS" => "$(PODS_TARGET_SRCROOT)/../../include",
+    "HEADER_SEARCH_PATHS" => "$(PODS_TARGET_SRCROOT)/include",
+    "SWIFT_INCLUDE_PATHS" => "$(PODS_TARGET_SRCROOT)/include",
     "OTHER_CFLAGS" => "-std=c11 -O2"
   }
 

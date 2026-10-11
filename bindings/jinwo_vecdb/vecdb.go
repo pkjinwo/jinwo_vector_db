@@ -5,7 +5,7 @@ Package jinwo_vecdb - JinWo VecDB Go binding
 
 使用示例：
 
-	import vecdb "github.com/pkjinwo/jinwo_vector_db/bindings/go"
+	import vecdb "github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb"
 
 	db, err := vecdb.Open("my_vecs.jwv", vecdb.Create|vecdb.ReadWrite)
 	defer db.Close()
@@ -19,7 +19,16 @@ package jinwo_vecdb
 
 /*
 #cgo CFLAGS: -I${SRCDIR}/../../include
-#cgo LDFLAGS: -lm -lpthread
+
+// 按平台链接预编译静态库 libjinwo.a（位于 lib/<goos>_<goarch>/）。
+// 各平台静态库由 scripts/build_static_libs.sh 生成（也可在 CI 中构建）。
+// 用户无需从源码编译 C 库，只需本机具备 C 链接器即可（类似 Python 的多平台 wheel）。
+#cgo linux,amd64 LDFLAGS: ${SRCDIR}/lib/linux_amd64/libjinwo.a -lm -lpthread
+#cgo linux,arm64 LDFLAGS: ${SRCDIR}/lib/linux_arm64/libjinwo.a -lm -lpthread
+#cgo darwin,amd64 LDFLAGS: ${SRCDIR}/lib/darwin_amd64/libjinwo.a -lm
+#cgo darwin,arm64 LDFLAGS: ${SRCDIR}/lib/darwin_arm64/libjinwo.a -lm
+#cgo windows,amd64 LDFLAGS: ${SRCDIR}/lib/windows_amd64/libjinwo.a -lm -lpthread -lws2_32 -lkernel32
+#cgo windows,arm64 LDFLAGS: ${SRCDIR}/lib/windows_arm64/libjinwo.a -lm -lpthread -lws2_32 -lkernel32
 
 #include <stdlib.h>
 #include <string.h>
