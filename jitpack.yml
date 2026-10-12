@@ -1,8 +1,16 @@
+# JitPack 构建配置：JinWoVecDB Android 库（com.android.library）
+# 仓库根目录的 Gradle 工程在 bindings/android/，故用 install 自定义命令 cd 进去再构建。
+# 自带 native (C/C++) 代码，需要 NDK；AGP 8 若已接受许可会在首次构建时自动下载指定版本 NDK。
 jdk:
   - openjdk17
 
 before_install:
-  - cd bindings/android
+  - export ANDROID_HOME=${ANDROID_HOME:-$HOME/android-sdk}
+  - export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/tools/bin
+  # 接受 Android SDK / NDK / CMake 许可，使 AGP 能自动安装 NDK 26.1.10909125
+  - yes | sdkmanager --licenses || true
+  - sdkmanager "ndk;26.1.10909125" "cmake;3.22.1" || true
 
 install:
-  - ./gradlew :library:assembleRelease
+  - cd bindings/android
+  - ./gradlew :library:install --no-daemon
