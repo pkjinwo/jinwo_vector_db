@@ -1,9 +1,11 @@
 # JitPack 构建配置：JinWoVecDB Android 库（com.android.library）
 # 仓库根目录的 Gradle 工程在 bindings/android/，故用 install 自定义命令 cd 进去再构建。
-# 库自带 native (C/C++) 代码，需要 NDK；依赖构建镜像（Android image）已预装 NDK。
+# 库自带 native (C/C++) 代码，需要 NDK；构建镜像（Android image）已预装 SDK，AGP 会自动下载并安装 NDK。
+# 注意：JitPack 默认 install 会尝试 installDebugAndroidTest（需真机/模拟器），无设备环境会失败，
+# 因此这里显式只做 assembleRelease + 发布到 mavenLocal，不触发设备测试。
 jdk:
   - openjdk17
 
 install:
   - cd bindings/android
-  - ./gradlew :library:install --no-daemon
+  - ./gradlew :library:assembleRelease :library:publishReleasePublicationToMavenLocal --no-daemon
