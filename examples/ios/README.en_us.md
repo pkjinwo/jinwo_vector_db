@@ -1,7 +1,7 @@
 # JinWo VecDB iOS Example
 
-**Version**: v1.0.0
-**Last Updated**: 2026-04-26
+**Version**: 0.1.34
+**Last Updated**: 2026-10-12
 
 ## Overview
 

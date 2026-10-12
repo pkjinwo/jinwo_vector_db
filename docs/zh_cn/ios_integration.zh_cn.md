@@ -1,8 +1,11 @@
 # JinWo VecDB iOS 平台集成指南
 
-**版本**：v1.0.0
-**生成时间**：2026-04-26
+**版本**：0.1.34
+**生成时间**：2026-10-12
 **文档类型**：对外发布
+
+> **已发布到 CocoaPods 公共仓库（2026-10-12）**：`JinWoVecDB` 已通过 `pod trunk push` 公开发布，
+> 可直接在 Podfile 写 `pod 'JinWoVecDB'`（无需指定 git 或版本）安装，详见下方「2.1 CocoaPods 集成」。
 
 ---
 
@@ -48,7 +51,8 @@
    use_frameworks!
    
    target 'YourApp' do
-     pod 'JinWoVecDB', '~> 1.0.0'
+     pod 'JinWoVecDB'          # 已发布到 CocoaPods 公共仓库，一行即可安装
+     # 如需锁定版本可写：pod 'JinWoVecDB', '~> 0.1.34'
    end
    ```
 

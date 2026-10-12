@@ -217,6 +217,17 @@ examples/
    - Need to integrate JinWo VecDB static library into the project
    - Library file should be placed at `../../build/libjw_vecdb.a`
 
+> **Recommended (since 2026-10-12)**: You can also integrate the published `JinWoVecDB` via CocoaPods
+> (no manual static-library build needed):
+> ```ruby
+> # Podfile
+> pod 'JinWoVecDB'
+> ```
+> ```bash
+> pod install
+> ```
+> See [iOS Integration Guide](../../docs/en_us/ios_integration.en_us.md).
+
 ### Python
 
 1. **Prerequisites**

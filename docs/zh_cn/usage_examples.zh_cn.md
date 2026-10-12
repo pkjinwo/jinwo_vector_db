@@ -240,7 +240,7 @@ class JinWoVecDBWrapper {
 
 ## 5. iOS（Swift）
 
-通过 CocoaPods（`pod 'JinWoVecDB'`）或引入 `JinWoVecDB.framework`。
+通过 CocoaPods（`pod 'JinWoVecDB'`，已发布到公共 trunk 仓库，一行即可安装）或引入 `JinWoVecDB.framework`。
 Swift 封装片段（取自 `ios_integration.zh_cn.md`）：
 
 ```swift

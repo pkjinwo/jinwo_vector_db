@@ -204,7 +204,7 @@ Integration (AAR / JitPack / source) — see `docs/en_us/android_integration.en_
 
 ## 5. iOS (Swift)
 
-Via CocoaPods (`pod 'JinWoVecDB'`) or `JinWoVecDB.framework`. Swift wrapper
+Via CocoaPods (`pod 'JinWoVecDB'` — published to the public CocoaPods trunk, installable with a single line) or `JinWoVecDB.framework`. Swift wrapper
 fragment (from `ios_integration.en_us.md`):
 
 ```swift

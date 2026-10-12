@@ -198,57 +198,38 @@ cp -R Build/Products/Release-*.sdk/*.a "${JW_DIR}/lib/ios/"
 
 ## CocoaPods Integration
 
+JinWo VecDB is published to the public CocoaPods trunk, so you can integrate it directly — no local
+checkout or custom podspec needed.
+
 ### Podfile Configuration
 
 Create a `Podfile` in your project root:
 
 ```ruby
-platform :ios, '12.0'
+platform :ios, '13.0'
 use_frameworks!
 
 target 'MyVecDBApp' do
-  # JinWo VecDB - build from local source
-  pod 'JinWoVecDB', :path => './vendor/jinwo_vector_db'
+  # JinWo VecDB - published to the public CocoaPods trunk
+  pod 'JinWoVecDB'
+  # (optionally pin a version, e.g. pod 'JinWoVecDB', '~> 0.1.34')
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
     end
   end
 end
 ```
 
-### Podspec Configuration
+### Podspec (published, for reference)
 
-Create `JinWoVecDB.podspec`:
-
-```ruby
-Pod::Spec.new do |s|
-  s.name             = 'JinWoVecDB'
-  s.version          = '1.0.0'
-  s.summary          = 'JinWo VecDB - Embedded Vector Database for iOS'
-  s.description      = <<-DESC
-    JinWo VecDB is an embedded vector database library for iOS,
-    optimized for mobile and embedded devices.
-  DESC
-  s.homepage         = 'https://jinwo.site'
-  s.license          = { :type => 'Apache 2.0', :file => 'LICENSE' }
-  s.author           = { 'Jinwo' => 'contact@jinwo.site' }
-  s.source           = { :git => 'https://gitee.com/pkjinwo/jinwo_vector_db.git', :tag => s.version.to_s }
-
-  s.ios.deployment_target = '12.0'
-  s.source_files = ['include/*.h', 'src/*.c']
-  s.public_header_files = ['include/*.h']
-  s.library = 'jw_vecdb'
-  s.pod_target_xcconfig = {
-    'HEADER_SEARCH_PATHS' => '"$(PODS_ROOT)/JinWoVecDB/include"',
-    'OTHER_CFLAGS' => '-DJW_IOS -DWITH_SIMD'
-  }
-end
-```
+The official podspec (`bindings/ios/JinWoVecDB.podspec`, version `0.1.34`) is maintained in the repo and
+sources the `v0.1.34` tag from `https://github.com/pkjinwo/jinwo_vector_db.git`. It was published via
+`pod trunk push` on 2026-10-12. You normally do **not** need to write your own podspec.
 
 ---
 

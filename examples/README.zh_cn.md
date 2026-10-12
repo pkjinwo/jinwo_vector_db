@@ -220,6 +220,16 @@ examples/
    - 需要将 JinWo VecDB 静态库集成到项目中
    - 库文件应放置在 `../../build/libjw_vecdb.a`
 
+> **推荐（2026-10-12 起）**：也可通过 CocoaPods 直接集成已发布的 `JinWoVecDB`（无需手动构建静态库）：
+> ```ruby
+> # Podfile
+> pod 'JinWoVecDB'
+> ```
+> ```bash
+> pod install
+> ```
+> 详见 [iOS 集成指南](../../docs/zh_cn/ios_integration.zh_cn.md)。
+
 ### Python
 
 1. **前置条件**
