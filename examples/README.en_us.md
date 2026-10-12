@@ -181,9 +181,17 @@ examples/
 
 ### Android
 
+> **Recommended (since 2026-10-12)**: You can also integrate the published `jinwo_vector_db` via JitPack
+> (no local NDK/SDK build needed):
+> ```gradle
+> // app/build.gradle
+> implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'
+> ```
+> The AAR already bundles the `.so` for four ABIs. See [Android Integration Guide](../../docs/en_us/android_integration.en_us.md).
+
 1. **Prerequisites**
    - Android Studio Hedgehog (2023.1.1) or higher
-   - Android NDK r25+
+   - Android NDK r25+ (only needed when building the example from source locally)
    - Android SDK API 34
 
 2. **Build Steps**

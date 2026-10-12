@@ -235,6 +235,7 @@ class JinWoVecDBWrapper {
 ```
 
 集成方式（AAR / JitPack / 源码）详见 `docs/zh_cn/android_integration.zh_cn.md`。
+JitPack 在线安装：`implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'`（已内含四架构 `.so`）。
 
 ---
 

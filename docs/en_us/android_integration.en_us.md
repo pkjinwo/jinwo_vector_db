@@ -188,6 +188,27 @@ cmake --build build -- -j$(nproc)
 
 ## Gradle Integration
 
+### JitPack (Recommended)
+
+JinWo VecDB is published on JitPack. Add the dependency directly — no manual AAR download needed
+(the AAR already bundles the `.so` for `arm64-v8a` / `armeabi-v7a` / `x86` / `x86_64`):
+
+```groovy
+dependencies {
+    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'
+}
+```
+
+> If the repository is not resolved by default, add it in `settings.gradle`
+> under `dependencyResolutionManagement.repositories`:
+> ```groovy
+> maven { url 'https://jitpack.io' }
+> ```
+
+> Version note: the verified published version on JitPack is currently `0.1.34-android3`
+> (the tag carries a build suffix because JitPack caches builds per tag). For the cleaner `0.1.34`
+> version, log in to jitpack.io and click **Rebuild** on that tag (it already points to the fixed commit).
+
 ### Using Pre-built Library
 
 If you have pre-built JinWo VecDB libraries:
@@ -786,5 +807,5 @@ Use **Android Studio Profiler** to monitor:
 
 ---
 
-**Document Version**: 1.0.0
-**Last Updated**: 2026-04-26
+**Document Version**: 0.1.34
+**Last Updated**: 2026-10-12

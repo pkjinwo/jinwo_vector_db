@@ -1,7 +1,7 @@
 # JinWo VecDB Android 平台集成指南
 
-**版本**：v1.0.0
-**生成时间**：2026-04-26
+**版本**：0.1.34
+**生成时间**：2026-10-12
 **文档类型**：对外发布
 
 ---
@@ -36,23 +36,29 @@
 
 ## 2. 集成方式
 
-### 2.1 AAR 库集成
+### 2.1 AAR 库集成（推荐：JitPack 在线安装）
 
-1. **下载 AAR 库**
-   - 从 GitHub Release 页面下载最新的 `jinwo_vecdb-android-{version}.aar` 文件
+JinWo VecDB 已发布到 JitPack，直接在 `build.gradle` 添加依赖即可（无需手动下载 AAR，已内含 `arm64-v8a` / `armeabi-v7a` / `x86` / `x86_64` 四架构的 `.so`）：
 
-2. **添加到项目**
-   - 将 AAR 文件复制到 `app/libs` 目录
-   - 在 `build.gradle` 文件中添加依赖：
+```groovy
+dependencies {
+    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'
+}
+```
 
-   ```groovy
-   dependencies {
-       implementation files('libs/jinwo_vecdb-android-1.0.0.aar')
-   }
-   ```
+> 若仓库未被默认包含，在 `settings.gradle` 的 `dependencyResolutionManagement.repositories` 中加入：
+> ```groovy
+> maven { url 'https://jitpack.io' }
+> ```
 
-3. **同步项目**
-   - 点击 "Sync Now" 同步项目依赖
+> 版本说明：当前 JitPack 上已验证可用的版本为 `0.1.34-android3`（tag 名带构建序号，因 JitPack 按 tag 缓存构建）。
+> 想要更简洁的 `0.1.34` 版本号，请登录 jitpack.io 对该 tag 点击 **Rebuild** 即可（对应 tag 已指向修复后的提交）。
+
+（备选）手动集成 AAR：
+
+1. **下载 AAR 库**：从 [GitHub Release](https://github.com/pkjinwo/jinwo_vector_db/releases) 下载 `jinwo_vecdb-android-*.aar` 文件；
+2. 将 AAR 复制到 `app/libs` 目录，在 `build.gradle` 中添加 `implementation files('libs/jinwo_vecdb-android-0.1.34.aar')`；
+3. 点击 "Sync Now" 同步项目依赖。
 
 ### 2.2 CMake 集成（源码编译）
 
@@ -492,3 +498,4 @@ android {
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
 | 2026-04-26 | v1.0.0 | 初始版本 |
+| 2026-10-12 | 0.1.34 | 新增 JitPack 在线安装（implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'）；版本对齐 0.1.34 |

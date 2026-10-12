@@ -199,6 +199,7 @@ class JinWoVecDBWrapper {
 ```
 
 Integration (AAR / JitPack / source) — see `docs/en_us/android_integration.en_us.md`.
+JitPack: `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'` (bundles the `.so` for four ABIs).
 
 ---
 
