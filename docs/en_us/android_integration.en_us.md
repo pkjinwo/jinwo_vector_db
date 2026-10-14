@@ -195,7 +195,7 @@ JinWo VecDB is published on JitPack. Add the dependency directly — no manual A
 
 ```groovy
 dependencies {
-    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'
+    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'
 }
 ```
 
@@ -205,9 +205,9 @@ dependencies {
 > maven { url 'https://jitpack.io' }
 > ```
 
-> Version note: the verified published version on JitPack is currently `0.1.34-android3`
-> (the tag carries a build suffix because JitPack caches builds per tag). For the cleaner `0.1.34`
-> version, log in to jitpack.io and click **Rebuild** on that tag (it already points to the fixed commit).
+> Version note: the verified published version on JitPack is `0.1.34-beta` (pre-release;
+> the same code was also published as `0.1.34-android3`, which is equivalent). Switch to the
+> stable `0.1.34` once it is cut.
 
 ### Using Pre-built Library
 

@@ -8,7 +8,7 @@
 This directory contains an Android example for JinWo VecDB, demonstrating how to use Java and JNI to call the C API for the vector database.
 
 > Tip: the demo app depends on the published `jinwo_vector_db` AAR (see [Android Integration Guide](../../docs/en_us/android_integration.en_us.md)).
-> Add `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'` to `app/build.gradle` — no local native build required.
+> Add `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` to `app/build.gradle` — no local native build required.
 
 ## Prerequisites
 

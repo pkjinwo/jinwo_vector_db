@@ -1,3 +1,23 @@
+# JinWo VecDB 当前发布状态（2026-10-14 更新）
+
+> 此节为各语言包管理平台的实时发布状态速查；下方 v1.0.0 为历史完整发布说明。
+
+| 语言 | 发布平台 | 发布方式 | 当前版本 | 状态 |
+|------|----------|----------|----------|------|
+| C / C++ | GitHub（源码 + 预编译 `.so`/`.a`） | CMake 编译 / 直接下载产物 | 0.1.34 | ✅ 可用（非包管理） |
+| Python | PyPI | `twine upload` 上传预编译 wheel | 0.1.33 | ✅ 已发布 |
+| Node.js | npm（WASM 预编译） | `npm publish` | 0.1.36 | ✅ 已发布 |
+| Go | pkg.go.dev（Go module） | GitHub tag + `go get` | 0.1.34 | ✅ 已发布（默认 wasm 绑定） |
+| iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | ✅ 已发布 |
+| Android | JitPack（AAR） | `jitpack.yml` 云端 NDK 编译 + 发布 | 0.1.34-beta | ✅ 已发布 |
+| PHP | 未发布（仅 FFI demo） | 需 Composer + FFI + 预编译 `.so` | — | 🔶 仅示例 |
+| C# | 未发布（仅 csproj demo） | 需 NuGet + RID | — | 🔶 仅示例 |
+| Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | 未发布（仅 README/示例） | — | — | 🔶 仅文档/示例 |
+
+**说明**：核心版本（C 头文件 `JW_VERSION_*`）当前为 **0.1.34**。Android 早期曾以 `0.1.34-android3` 临时发布（JitPack 按 tag 缓存构建、迭代时临时命名），现已统一为规范的预发布版 **`0.1.34-beta`**（两者等价，指向同一修复提交）。Python 当前最新已发布为 0.1.33，待随核心版本升级到 0.1.34 时再发版。
+
+---
+
 # JinWo VecDB v1.0.0 发布说明
 
 **版本**: v1.0.0

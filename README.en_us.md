@@ -251,6 +251,32 @@ Benchmark results in standard desktop environment (128-dimensional vectors):
 | Dart | ✅ Completed | ✅ Provided | ✅ Provided |
 | Julia | ✅ Completed | ✅ Provided | ✅ Provided |
 
+## Published Versions (Package Registries)
+
+The following languages are published to their respective package registries and can be pulled with
+`install` / `get` directly. The remaining languages currently only ship source code and examples and
+are **not** published to any package manager.
+
+| Language | Registry | Publish Method | Current Version | Install Example | Status |
+|----------|----------|---------------|-----------------|-----------------|--------|
+| C / C++ | GitHub (source + prebuilt `.so`/`.a`) | CMake build / direct download | 0.1.34 | `cmake --build` produces `libjinwo` | ✅ Usable (not a package) |
+| Python | PyPI | `twine upload` prebuilt wheel | 0.1.33 | `pip install jinwo-vecdb` | ✅ Published |
+| Node.js | npm (WASM prebuilt) | `npm publish` | 0.1.36 | `npm install jinwo-vecdb` | ✅ Published |
+| Go | pkg.go.dev (Go module) | GitHub tag + `go get` | 0.1.34 | `go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb@v0.1.34` | ✅ Published (wasm binding default, cgo optional) |
+| iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | `pod 'JinWoVecDB'` | ✅ Published |
+| Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34-beta | `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` | ✅ Published |
+| PHP | Not published (FFI demo only) | Needs Composer + FFI + prebuilt `.so` | — | — | 🔶 Demo only |
+| C# | Not published (csproj demo only) | Needs NuGet + RID | — | — | 🔶 Demo only |
+| Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | Not published (README/demo only) | — | — | — | 🔶 Docs/demo only |
+
+> Notes:
+> - **Core version** (C header `JW_VERSION_*`) is currently **0.1.34**.
+> - Android was briefly published as `0.1.34-android3` (a temporary name forced by JitPack's per-tag
+>   build cache during iteration); it has since been unified under the proper pre-release name
+>   **`0.1.34-beta`** (both are equivalent, pointing at the same fixed commit).
+> - Python's latest published version is 0.1.33; it will be re-released at 0.1.34 together with the core bump.
+> - Full install steps: [`docs/en_us/usage_examples.en_us.md`](docs/en_us/usage_examples.en_us.md) and the per-language `*_integration` docs.
+
 ## Contribution Guide
 
 Welcome to contribute code, report issues, or suggest improvements!

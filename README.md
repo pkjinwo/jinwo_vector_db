@@ -222,6 +222,28 @@ jw_vecdb/
 | Dart | ✅ 已完成 | ✅ 已提供 | ✅ 已提供 |
 | Julia | ✅ 已完成 | ✅ 已提供 | ✅ 已提供 |
 
+## 已发布版本（包管理平台）
+
+以下语言已发布到对应包管理平台，可直接 `install` / `get` 引入；其余语言目前仅提供源码与示例，尚未发布到包管理。
+
+| 语言 | 发布平台 | 发布方式 | 当前版本 | 引入方式示例 | 状态 |
+|------|----------|----------|----------|--------------|------|
+| C / C++ | GitHub（源码 + 预编译 `.so`/`.a`） | CMake 编译 / 直接下载产物 | 0.1.34 | `cmake --build` 产物 `libjinwo` | ✅ 可用（非包管理） |
+| Python | PyPI | `twine upload` 上传预编译 wheel | 0.1.33 | `pip install jinwo-vecdb` | ✅ 已发布 |
+| Node.js | npm（WASM 预编译） | `npm publish` | 0.1.36 | `npm install jinwo-vecdb` | ✅ 已发布 |
+| Go | pkg.go.dev（Go module） | GitHub tag + `go get` | 0.1.34 | `go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb@v0.1.34` | ✅ 已发布（默认 wasm 绑定，cgo 可选） |
+| iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | `pod 'JinWoVecDB'` | ✅ 已发布 |
+| Android | JitPack（AAR） | `jitpack.yml` 云端 NDK 编译 + 发布 | 0.1.34-beta | `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` | ✅ 已发布 |
+| PHP | 未发布（仅 FFI demo） | 需 Composer + FFI + 预编译 `.so` | — | — | 🔶 仅示例 |
+| C# | 未发布（仅 csproj demo） | 需 NuGet + RID | — | — | 🔶 仅示例 |
+| Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | 未发布（仅 README/示例） | — | — | — | 🔶 仅文档/示例 |
+
+> 说明：
+> - **核心版本**（C 头文件 `JW_VERSION_*`）当前为 **0.1.34**。
+> - Android 早期曾以 `0.1.34-android3` 临时发布（JitPack 按 tag 缓存构建、迭代时临时命名），现已统一为规范的预发布版 **`0.1.34-beta`**（两者等价，指向同一修复提交）。
+> - Python 当前已发布最新为 0.1.33，待随核心版本升级到 0.1.34 时再发版。
+> - 详细安装步骤见 [`docs/zh_cn/usage_examples.zh_cn.md`](docs/zh_cn/usage_examples.zh_cn.md) 与各语言 `*_integration` 文档。
+
 ## 贡献指南
 
 欢迎贡献代码、报告问题或提出建议！

@@ -8,7 +8,7 @@
 本目录包含 JinWo VecDB 的 Android 示例，演示如何使用 Java 和 JNI 调用 C API 来使用向量数据库。
 
 > 提示：示例 App 依赖已发布的 `jinwo_vector_db` AAR（详见 [Android 集成指南](../../docs/zh_cn/android_integration.zh_cn.md)）。
-> 在 `app/build.gradle` 中用 `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-android3'` 引入即可，
+> 在 `app/build.gradle` 中用 `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` 引入即可，
 > 无需本地编译 native 库。
 
 ## 前置条件
