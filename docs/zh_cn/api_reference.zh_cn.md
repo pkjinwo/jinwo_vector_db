@@ -377,6 +377,10 @@ gcc demo.c -o demo build/libjinwo.dylib -I include        # macOS
 gcc demo.c -o demo build/libjinwo.so   -I include         # Linux
 ```
 
+> ⚠️ C/C++ 本地开发库当前名为 `libjinwo`（已发布）。面向 C#/PHP 等尚未发布语言的
+> 跨平台 FFI 底座统一命名为 `libjinwo_vecdb`，由 `.github/workflows/build_native_lib.yml`
+> 跨平台编译发布，计划在 0.1.35 统一切换。
+
 ---
 
 ## 10. 关于旧文档的更正说明

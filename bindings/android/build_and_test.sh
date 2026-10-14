@@ -40,9 +40,9 @@ g++ -c -O2 -fPIC \
     -o "$BUILD_DIR/jni.o"
 OBJ_FILES+=("$BUILD_DIR/jni.o")
 
-# Link into .dylib
-g++ -shared -o "$BUILD_DIR/libjinwo_vecdb.dylib" "${OBJ_FILES[@]}"
-echo "  -> Built $BUILD_DIR/libjinwo_vecdb.dylib"
+# Link into .dylib (Android 已发布，沿用 libjinwo 命名)
+g++ -shared -o "$BUILD_DIR/libjinwo.dylib" "${OBJ_FILES[@]}"
+echo "  -> Built $BUILD_DIR/libjinwo.dylib"
 
 echo ""
 echo "=== Compiling Java ==="

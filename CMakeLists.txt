@@ -2,8 +2,15 @@
 # JinWo VecDB - 根构建配置（本地 C 开发库 + 头文件）
 #
 # 目的：把纯 C 核心（src/*.c + include/*.h）编译成本地开发库
-#       （libjinwo.a / libjinwo.so / libjinwo.dylib / jinwo.dll）
+#       （libjinwo.a / libjinwo.so / libjinwo.dylib / libjinwo.dll）
 #       并安装头文件，供本地 C/C++ 开发集成使用。
+#
+# ⚠️ 命名过渡（2026-10）：本文件产出“已发布的 C/C++ 本地开发库” libjinwo。
+#    面向尚未发布语言的跨平台 FFI 底座统一命名为 libjinwo_vecdb，
+#    由 .github/workflows/build_native_lib.yml 跨平台编译并发布
+#    （产物 libjinwo_vecdb-<平台>.*，供 C#/PHP 等复用）。
+#    现有已发布语言（C/C++/Go/Python/Android）沿用 libjinwo，
+#    计划在 0.1.35 版本统一切换为 libjinwo_vecdb。
 #
 # ⚠️⚠️⚠️ 同步提醒（AI 工具 / 维护者必读）⚠️⚠️⚠️
 #   本文件与 build_python_pypi/CMakeLists.txt 共享同一份 C 源码清单
@@ -58,22 +65,23 @@ set(JINWO_SOURCES
 )
 
 # ============================================================
-# 共享库（.so / .dylib / .dll）—— 命名与编译宏与 build_python_pypi 对齐
+# 共享库（.so / .dylib / .dll）—— 命名为 libjinwo，作为已发布的
+# C/C++ 本地开发库（与 Go 静态库 libjinwo.a、Python 轮子 libjinwo 同名）。
+# 产出文件：Linux libjinwo.so / macOS libjinwo.dylib / Windows libjinwo.dll
+#
+# ⚠️ 跨平台 FFI 底座（C#/PHP 等尚未发布语言）请改用 libjinwo_vecdb，
+#    由 .github/workflows/build_native_lib.yml 统一产出，0.1.35 起本地库也将改名。
 # ============================================================
 add_library(jinwo SHARED ${JINWO_SOURCES})
 target_compile_definitions(jinwo PRIVATE JW_EXPORTS)
 set_target_properties(jinwo PROPERTIES
     POSITION_INDEPENDENT_CODE ON
-    PREFIX ""  # 去掉 lib 前缀，统一文件名
+    OUTPUT_NAME jinwo
+    PREFIX "lib"  # libjinwo.*（Windows 亦保持 lib 前缀，避免与 jinwo.py 冲突）
 )
-if(WIN32 OR APPLE OR ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    set_target_properties(jinwo PROPERTIES
-        PREFIX "lib"  # Windows/macOS/Linux: libjinwo.*，避免 jinwo.so 与 jinwo.py 冲突
-    )
-endif()
 
 # ============================================================
-# 静态库（.a / .lib）—— 本地 C 开发集成常用
+# 静态库（.a / .lib）—— 本地 C 开发集成常用；Go binding 也链接 libjinwo.a
 # 目标名固定为 jw_vecdb_static，与 tests/CMakeLists.txt 及
 # build_python_pypi/CMakeLists.txt 保持一致（同步提醒见文件顶部）。
 # ============================================================

@@ -15,10 +15,16 @@
 | --- | --- |
 | 共享库（Linux） | `libjinwo.so` |
 | 共享库（macOS） | `libjinwo.dylib` |
-| 共享库（Windows） | `jinwo.dll` |
+| 共享库（Windows） | `libjinwo.dll` |
 | 静态库（Unix/macOS） | `libjinwo.a` |
-| 静态库（Windows） | `jinwo.lib` |
+| 导入库（Windows） | `libjinwo.lib` |
 | 头文件 | `include/` 下的全部 `.h` |
+
+> ⚠️ **命名过渡（2026-10）**：上表 `libjinwo.*` 是已发布语言（C/C++/Go/Python/Android）
+> 正在使用的名字。面向**尚未发布**语言（C#/PHP 等）的跨平台 FFI 底座统一命名为
+> **`libjinwo_vecdb`**，由 CI 工作流 `.github/workflows/build_native_lib.yml`
+> 跨平台编译并发布（产物 `libjinwo_vecdb-<平台>.*` + `include/*.h`），供 PHP(FFI) /
+> C#(DllImport) 复用。计划在 **0.1.35** 版本把所有语言统一切换为 `libjinwo_vecdb`。
 
 ---
 
@@ -44,7 +50,7 @@ cmake --install build --prefix /your/install/path
 ```
 <your-install-path>/
 ├── lib/
-│   ├── libjinwo.so        # 或 .dylib / .dll / .a / .lib
+│   ├── libjinwo.so              # 或 .dylib / .dll（已发布的 C/C++ 本地开发库）
 │   └── libjinwo.a
 └── include/
     ├── jw_vecdb.h
@@ -103,7 +109,7 @@ cmake --install build --prefix C:\jinwo_vecdb
 ```
 
 也可以直接双击 `build\jinwo_vecdb.sln` 用 Visual Studio 打开编译。
-生成的 `jinwo.lib`（静态）与 `jinwo.dll`（动态）位于
+生成的 `libjinwo.lib`（导入库）与 `libjinwo.dll`（动态）位于
 `build\Release\` 下。
 
 ---

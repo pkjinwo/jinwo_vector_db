@@ -300,11 +300,13 @@ db.close();
 
 ## 7. 常见问题
 
-- **库文件名**：本仓库统一产出 `libjinwo.*`（Windows 亦为 `libjinwo.dll` /
-  `libjinwo.lib`）。旧文档出现的 `jinwo_vecdb.dll` / `jinwo_vecdb.lib`
-  已废弃，请勿沿用。
+- **库文件名（跨平台底座）**：面向**尚未发布**语言（C#/PHP 等）的跨平台 FFI 底座
+  统一命名为 `libjinwo_vecdb.*`（Linux `libjinwo_vecdb.so` / macOS `libjinwo_vecdb.dylib` /
+  Windows `libjinwo_vecdb.dll`），由 `.github/workflows/build_native_lib.yml` 跨平台编译并
+  发布，各平台预编译包见 CI 产物 `libjinwo_vecdb-<平台>.tar.gz`。
+  已发布语言（C/C++/Go/Python/Android）当前沿用 `libjinwo`，计划在 0.1.35 统一切到 `libjinwo_vecdb`。
 - **构建命令**：请使用 `cmake -S . -B build`（`-S`/`-B` 显式指定源与构建
   目录），**不要**在仓库内 `mkdir build && cd build && cmake ..`，否则会
   提示找不到 `CMakeLists.txt`。详见 `build_guide.zh_cn.md`。
-- **C# / .NET**：Windows 集成示例的 `DllName` 应改为 `libjinwo` 而非
-  `jinwo_vecdb`，详见 `windows_integration.zh_cn.md` 修正说明。
+- **C# / .NET**：Windows 集成示例的 `DllName` 应为 `libjinwo_vecdb`（跨平台 FFI 底座），
+  详见 `windows_integration.zh_cn.md`。

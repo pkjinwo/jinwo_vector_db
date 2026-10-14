@@ -17,10 +17,17 @@ integrate it into your own C/C++ project or develop on top of the source.
 | --- | --- |
 | Shared lib (Linux) | `libjinwo.so` |
 | Shared lib (macOS) | `libjinwo.dylib` |
-| Shared lib (Windows) | `jinwo.dll` |
+| Shared lib (Windows) | `libjinwo.dll` |
 | Static lib (Unix/macOS) | `libjinwo.a` |
-| Static lib (Windows) | `jinwo.lib` |
+| Import lib (Windows) | `libjinwo.lib` |
 | Headers | all `.h` under `include/` |
+
+> ⚠️ **Naming transition (2026-10)**: the `libjinwo.*` above are what the already
+> published languages (C/C++/Go/Python/Android) use today. The cross-platform FFI
+> base for **not-yet-published** languages (C#/PHP, etc.) is named **`libjinwo_vecdb`**,
+> built and published by the CI workflow `.github/workflows/build_native_lib.yml`
+> (artifacts `libjinwo_vecdb-<platform>.*` + `include/*.h`) for PHP(FFI) / C#(DllImport).
+> All languages are planned to unify on `libjinwo_vecdb` in **0.1.35**.
 
 ---
 
@@ -46,7 +53,7 @@ Installed layout:
 ```
 <your-install-path>/
 ├── lib/
-│   ├── libjinwo.so        # or .dylib / .dll / .a / .lib
+│   ├── libjinwo.so              # or .dylib / .dll (published C/C++ local dev lib)
 │   └── libjinwo.a
 └── include/
     ├── jw_vecdb.h
@@ -105,7 +112,7 @@ cmake --install build --prefix C:\jinwo_vecdb
 ```
 
 Or simply open `build\jinwo_vecdb.sln` in Visual Studio.
-`jinwo.lib` (static) and `jinwo.dll` (dynamic) are produced under
+`libjinwo.lib` (import lib) and `libjinwo.dll` (dynamic) are produced under
 `build\Release\`.
 
 ---

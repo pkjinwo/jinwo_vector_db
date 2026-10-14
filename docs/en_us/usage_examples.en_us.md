@@ -261,11 +261,14 @@ db.close();
 
 ## 7. FAQ
 
-- **Library file name**: this repo consistently produces `libjinwo.*`
-  (Windows: `libjinwo.dll` / `libjinwo.lib`). The old `jinwo_vecdb.dll` /
-  `jinwo_vecdb.lib` names are deprecated — do not use them.
+- **Library file name (cross-platform base)**: the FFI base for **not-yet-published**
+  languages (C#/PHP, etc.) is named `libjinwo_vecdb.*` (Linux `libjinwo_vecdb.so` /
+  macOS `libjinwo_vecdb.dylib` / Windows `libjinwo_vecdb.dll`), built and published by
+  `.github/workflows/build_native_lib.yml` (CI artifacts `libjinwo_vecdb-<platform>.tar.gz`).
+  Already-published languages (C/C++/Go/Python/Android) currently use `libjinwo`;
+  all languages are planned to unify on `libjinwo_vecdb` in 0.1.35.
 - **Build command**: use `cmake -S . -B build` (`-S`/`-B` explicitly set source
   and build dirs). Do **not** run `mkdir build && cd build && cmake ..` inside
   the repo, or you'll get "CMakeLists.txt not found". See `build_guide.en_us.md`.
-- **C# / .NET**: the Windows integration sample's `DllName` should be
-  `libjinwo`, not `jinwo_vecdb`. See `windows_integration.en_us.md` notes.
+- **C# / .NET**: the Windows integration sample's `DllName` is `libjinwo_vecdb`
+  (the FFI base). See `windows_integration.en_us.md` notes.
