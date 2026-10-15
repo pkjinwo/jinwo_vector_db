@@ -21,6 +21,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+# The release-asset upload step needs write access to repo contents.
+permissions:
+  contents: write
+
 jobs:
   linux-x86_64:
     name: Linux x86_64

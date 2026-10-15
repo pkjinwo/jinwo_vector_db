@@ -1,0 +1,11 @@
+# downloaded native lib (fetched by bin/install.php)
+/lib/
+# composer
+/vendor/
+composer.lock
+# local test databases created by the demos
+*.jwv
+*.jwv-*
+vecdb_php/
+php_demo.jwv/
+php_probe.jwv/

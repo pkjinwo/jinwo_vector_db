@@ -1,0 +1,22 @@
+{
+    "name": "jinwo/vecdb",
+    "description": "PHP binding (FFI) for JinWo VecDB — embedded vector database backed by libjinwo",
+    "type": "library",
+    "license": "Apache-2.0",
+    "keywords": ["vector-db", "embedding", "ffi", "similarity-search", "libjinwo", "ann"],
+    "require": {
+        "php": ">=8.0",
+        "ext-ffi": "*"
+    },
+    "autoload": {
+        "psr-4": { "JinWoVecDB\\": "src/" }
+    },
+    "scripts": {
+        "jinwo:install-lib": "@php bin/install.php"
+    },
+    "extra": {
+        "jinwo": {
+            "release": "v0.1.34"
+        }
+    }
+}
