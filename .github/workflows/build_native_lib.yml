@@ -125,7 +125,12 @@ jobs:
         run: |
           mkdir -p pkg/lib pkg/include
           cp build/Release/libjinwo.dll pkg/lib/libjinwo-windows-x86_64.dll
-          cp build/Release/libjinwo.lib pkg/lib/libjinwo-windows-x86_64.lib
+          # The MSVC import library is consumed only by C/C++ linkers; our
+          # FFI / DllImport consumers don't need it, so don't fail the build
+          # if it isn't produced (name may be libjinwo.lib or jinwo.lib).
+          cp build/Release/libjinwo.lib pkg/lib/libjinwo-windows-x86_64.lib 2>/dev/null \
+            || cp build/Release/jinwo.lib pkg/lib/libjinwo-windows-x86_64.lib 2>/dev/null \
+            || true
           cp -r include/* pkg/include/
           tar -C pkg -czf libjinwo-windows-x86_64.tar.gz .
       - name: Upload artifact
