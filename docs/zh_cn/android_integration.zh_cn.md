@@ -42,7 +42,7 @@ JinWo VecDB 已发布到 JitPack，直接在 `build.gradle` 添加依赖即可�
 
 ```groovy
 dependencies {
-    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'
+    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'
 }
 ```
 
@@ -51,7 +51,7 @@ dependencies {
 > maven { url 'https://jitpack.io' }
 > ```
 
-> 版本说明：当前 JitPack 上已验证可用的版本为 `0.1.34-beta`（预发布版；同代码也以 `0.1.34-android3` 发布过，二者等价）。如需正式稳定版，待后续发布 `0.1.34` 时再升级即可。
+> 版本说明：当前 JitPack 上已验证可用的版本为 **`0.1.34.spring`**（全新 tag；因 JitPack 按 tag 缓存构建，`0.1.34` 与 `0.1.34-beta` 已发布/缓存不可复用，故采用 `0.1.34.spring`）。后续核心版本升级时再发新版即可。
 
 （备选）手动集成 AAR：
 
@@ -143,7 +143,7 @@ package com.example.jinwovecdb;
 
 public class JinWoVecDB {
     static {
-        System.loadLibrary("jw_vecdb");
+        System.loadLibrary("jinwo");
     }
     
     // 数据库操作
@@ -497,4 +497,4 @@ android {
 | 日期 | 版本 | 更新内容 |
 |------|------|----------|
 | 2026-04-26 | v1.0.0 | 初始版本 |
-| 2026-10-12 | 0.1.34 | 新增 JitPack 在线安装（implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'）；版本对齐 0.1.34 |
+| 2026-10-12 | 0.1.34 | 新增 JitPack 在线安装（implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'）；版本对齐 0.1.34 |

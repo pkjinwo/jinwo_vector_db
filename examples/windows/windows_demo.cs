@@ -121,7 +121,7 @@ namespace JinWoVecDBDemo
 
     static class NativeMethods
     {
-        private const string DllName = "libjinwo_vecdb";
+        private const string DllName = "libjinwo";
 
         [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         public static extern int jw_vecdb_open(ref IntPtr db, string path, bool create);

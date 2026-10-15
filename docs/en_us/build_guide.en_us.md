@@ -22,12 +22,11 @@ integrate it into your own C/C++ project or develop on top of the source.
 | Import lib (Windows) | `libjinwo.lib` |
 | Headers | all `.h` under `include/` |
 
-> ⚠️ **Naming transition (2026-10)**: the `libjinwo.*` above are what the already
-> published languages (C/C++/Go/Python/Android) use today. The cross-platform FFI
-> base for **not-yet-published** languages (C#/PHP, etc.) is named **`libjinwo_vecdb`**,
-> built and published by the CI workflow `.github/workflows/build_native_lib.yml`
-> (artifacts `libjinwo_vecdb-<platform>.*` + `include/*.h`) for PHP(FFI) / C#(DllImport).
-> All languages are planned to unify on `libjinwo_vecdb` in **0.1.35**.
+> ⚠️ **Single library name `libjinwo` across the project**: the `libjinwo.*` above is
+> the native library name shared by ALL languages (including not-yet-published C#/PHP).
+> The cross-platform prebuilt base is produced by the CI workflow
+> `.github/workflows/build_native_lib.yml` as `libjinwo-<platform>.*` (+ `include/*.h`)
+> for PHP(FFI) / C#(DllImport) FFI reuse.
 
 ---
 

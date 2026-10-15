@@ -20,11 +20,9 @@
 | 导入库（Windows） | `libjinwo.lib` |
 | 头文件 | `include/` 下的全部 `.h` |
 
-> ⚠️ **命名过渡（2026-10）**：上表 `libjinwo.*` 是已发布语言（C/C++/Go/Python/Android）
-> 正在使用的名字。面向**尚未发布**语言（C#/PHP 等）的跨平台 FFI 底座统一命名为
-> **`libjinwo_vecdb`**，由 CI 工作流 `.github/workflows/build_native_lib.yml`
-> 跨平台编译并发布（产物 `libjinwo_vecdb-<平台>.*` + `include/*.h`），供 PHP(FFI) /
-> C#(DllImport) 复用。计划在 **0.1.35** 版本把所有语言统一切换为 `libjinwo_vecdb`。
+> ⚠️ **全项目统一库名 `libjinwo`**：上表 `libjinwo.*` 是所有语言（含未发布的 C#/PHP）
+> 共用的原生库名。跨平台预编译底座由 CI 工作流 `.github/workflows/build_native_lib.yml`
+> 产出 `libjinwo-<平台>.*`（+ `include/*.h`），供 PHP(FFI) / C#(DllImport) 等 FFI 复用。
 
 ---
 

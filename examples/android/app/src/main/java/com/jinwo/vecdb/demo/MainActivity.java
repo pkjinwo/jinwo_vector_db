@@ -113,6 +113,6 @@ public class MainActivity extends AppCompatActivity {
     private native float[] nativeGetSearchDistances(long collectionPtr, float[] query, int k);
 
     static {
-        System.loadLibrary("jw_vecdb");
+        System.loadLibrary("jinwo");
     }
 }

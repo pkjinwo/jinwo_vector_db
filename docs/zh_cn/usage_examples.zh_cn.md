@@ -208,7 +208,7 @@ gcc demo.c -o demo -ljinwo -lm -I/usr/local/include -L/usr/local/lib
 ```kotlin
 // JinWoVecDBWrapper.kt
 class JinWoVecDBWrapper {
-    private val vecdb = JinWoVecDB()   // native 类，System.loadLibrary("jw_vecdb")
+    private val vecdb = JinWoVecDB()   // native 类，System.loadLibrary("jinwo")
     private var dbPtr: Long = 0
     private var colPtr: Long = 0
 
@@ -235,7 +235,7 @@ class JinWoVecDBWrapper {
 ```
 
 集成方式（AAR / JitPack / 源码）详见 `docs/zh_cn/android_integration.zh_cn.md`。
-JitPack 在线安装：`implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'`（已内含四架构 `.so`）。
+JitPack 在线安装：`implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'`（已内含四架构 `.so`）。
 
 ---
 
@@ -300,13 +300,11 @@ db.close();
 
 ## 7. 常见问题
 
-- **库文件名（跨平台底座）**：面向**尚未发布**语言（C#/PHP 等）的跨平台 FFI 底座
-  统一命名为 `libjinwo_vecdb.*`（Linux `libjinwo_vecdb.so` / macOS `libjinwo_vecdb.dylib` /
-  Windows `libjinwo_vecdb.dll`），由 `.github/workflows/build_native_lib.yml` 跨平台编译并
-  发布，各平台预编译包见 CI 产物 `libjinwo_vecdb-<平台>.tar.gz`。
-  已发布语言（C/C++/Go/Python/Android）当前沿用 `libjinwo`，计划在 0.1.35 统一切到 `libjinwo_vecdb`。
+- **库文件名（统一为 libjinwo）**：全项目共用同一个原生库名 `libjinwo`
+  （Linux `libjinwo.so` / macOS `libjinwo.dylib` / Windows `libjinwo.dll`）。
+  跨平台预编译底座由 `.github/workflows/build_native_lib.yml` 产出
+  `libjinwo-<平台>.tar.gz`（含 `libjinwo-<平台>.*` + `include/*.h`），供 PHP(FFI) / C#(DllImport) 等 FFI 复用。
 - **构建命令**：请使用 `cmake -S . -B build`（`-S`/`-B` 显式指定源与构建
   目录），**不要**在仓库内 `mkdir build && cd build && cmake ..`，否则会
   提示找不到 `CMakeLists.txt`。详见 `build_guide.zh_cn.md`。
-- **C# / .NET**：Windows 集成示例的 `DllName` 应为 `libjinwo_vecdb`（跨平台 FFI 底座），
-  详见 `windows_integration.zh_cn.md`。
+- **C# / .NET**：Windows 集成示例的 `DllName` 应为 `libjinwo`，详见 `windows_integration.zh_cn.md`。

@@ -1,17 +1,16 @@
-name: Build Native Lib (libjinwo_vecdb)
+name: Build Native Lib (libjinwo)
 
-# 跨平台底座：把纯 C 核心编译成 libjinwo_vecdb 共享库，供尚未发布语言（C#/PHP 等）通过
-# FFI / DllImport 复用。
-# 流程：先用根 CMakeLists.txt 编译出已发布的本地库 libjinwo.*，再按平台复制/重命名为
-#       libjinwo_vecdb-<平台>.*（同一份 C 源码，文件名按新底座命名规范输出）。
-#   Linux   -> libjinwo_vecdb-linux-<arch>.so
-#   macOS   -> libjinwo_vecdb-darwin-<arch>.dylib (另附 universal)
-#   Windows -> libjinwo_vecdb-windows-x86_64.dll (+ 导入库 .lib)
+# 跨平台底座：把纯 C 核心编译成 libjinwo 共享库，供所有语言（含未发布的 C#/PHP 等）
+# 通过 FFI / DllImport 复用。全项目统一库名 libjinwo（不允许第二套名字；历史上的
+# libjinwo_vecdb 已废弃）。
+# 流程：用根 CMakeLists.txt 编译出 libjinwo.*，再按平台重命名为 libjinwo-<平台>.*。
+#   Linux   -> libjinwo-linux-<arch>.so
+#   macOS   -> libjinwo-darwin-<arch>.dylib (另附 universal)
+#   Windows -> libjinwo-windows-x86_64.dll (+ 导入库 .lib)
 # 每个产物附带 include/*.h 头文件，供 PHP(FFI) / C#(DllImport) 复用。
 # 触发：push / PR / 手动 / release（release 时同时挂到 Release 资源）。
 #
-# ⚠️ 命名过渡：已发布语言（C/C++/Go/Python/Android）仍沿用 libjinwo，
-#    计划在 0.1.35 版本统一切换为 libjinwo_vecdb。
+# ⚠️ 全项目统一库名 libjinwo。
 
 on:
   push:
@@ -35,19 +34,19 @@ jobs:
       - name: Package (lib + headers)
         run: |
           mkdir -p pkg/lib pkg/include
-          cp build/libjinwo.so pkg/lib/libjinwo_vecdb-linux-x86_64.so
+          cp build/libjinwo.so pkg/lib/libjinwo-linux-x86_64.so
           cp -r include/* pkg/include/
-          tar -C pkg -czf libjinwo_vecdb-linux-x86_64.tar.gz .
+          tar -C pkg -czf libjinwo-linux-x86_64.tar.gz .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libjinwo_vecdb-linux-x86_64
-          path: libjinwo_vecdb-linux-x86_64.tar.gz
+          name: libjinwo-linux-x86_64
+          path: libjinwo-linux-x86_64.tar.gz
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: libjinwo_vecdb-linux-x86_64.tar.gz
+          files: libjinwo-linux-x86_64.tar.gz
 
   linux-aarch64:
     name: Linux aarch64
@@ -61,19 +60,19 @@ jobs:
       - name: Package (lib + headers)
         run: |
           mkdir -p pkg/lib pkg/include
-          cp build/libjinwo.so pkg/lib/libjinwo_vecdb-linux-aarch64.so
+          cp build/libjinwo.so pkg/lib/libjinwo-linux-aarch64.so
           cp -r include/* pkg/include/
-          tar -C pkg -czf libjinwo_vecdb-linux-aarch64.tar.gz .
+          tar -C pkg -czf libjinwo-linux-aarch64.tar.gz .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libjinwo_vecdb-linux-aarch64
-          path: libjinwo_vecdb-linux-aarch64.tar.gz
+          name: libjinwo-linux-aarch64
+          path: libjinwo-linux-aarch64.tar.gz
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: libjinwo_vecdb-linux-aarch64.tar.gz
+          files: libjinwo-linux-aarch64.tar.gz
 
   macos:
     name: macOS (x86_64 + arm64 + universal)
@@ -90,23 +89,23 @@ jobs:
           cmake --build build_arm --target jinwo -j4
       - name: Lipo universal + package
         run: |
-          lipo -create build_x86/libjinwo.dylib build_arm/libjinwo.dylib -output libjinwo_vecdb.dylib
+          lipo -create build_x86/libjinwo.dylib build_arm/libjinwo.dylib -output libjinwo.dylib
           mkdir -p pkg/lib pkg/include
-          cp libjinwo_vecdb.dylib            pkg/lib/libjinwo_vecdb-darwin-universal.dylib
-          cp build_x86/libjinwo.dylib  pkg/lib/libjinwo_vecdb-darwin-x86_64.dylib
-          cp build_arm/libjinwo.dylib  pkg/lib/libjinwo_vecdb-darwin-arm64.dylib
+          cp libjinwo.dylib            pkg/lib/libjinwo-darwin-universal.dylib
+          cp build_x86/libjinwo.dylib  pkg/lib/libjinwo-darwin-x86_64.dylib
+          cp build_arm/libjinwo.dylib  pkg/lib/libjinwo-darwin-arm64.dylib
           cp -r include/* pkg/include/
-          tar -C pkg -czf libjinwo_vecdb-darwin-universal.tar.gz .
+          tar -C pkg -czf libjinwo-darwin-universal.tar.gz .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libjinwo_vecdb-darwin-universal
-          path: libjinwo_vecdb-darwin-universal.tar.gz
+          name: libjinwo-darwin-universal
+          path: libjinwo-darwin-universal.tar.gz
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: libjinwo_vecdb-darwin-universal.tar.gz
+          files: libjinwo-darwin-universal.tar.gz
 
   windows:
     name: Windows x86_64
@@ -121,17 +120,17 @@ jobs:
         shell: bash
         run: |
           mkdir -p pkg/lib pkg/include
-          cp build/Release/libjinwo.dll pkg/lib/libjinwo_vecdb-windows-x86_64.dll
-          cp build/Release/libjinwo.lib pkg/lib/libjinwo_vecdb-windows-x86_64.lib
+          cp build/Release/libjinwo.dll pkg/lib/libjinwo-windows-x86_64.dll
+          cp build/Release/libjinwo.lib pkg/lib/libjinwo-windows-x86_64.lib
           cp -r include/* pkg/include/
-          tar -C pkg -czf libjinwo_vecdb-windows-x86_64.tar.gz .
+          tar -C pkg -czf libjinwo-windows-x86_64.tar.gz .
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libjinwo_vecdb-windows-x86_64
-          path: libjinwo_vecdb-windows-x86_64.tar.gz
+          name: libjinwo-windows-x86_64
+          path: libjinwo-windows-x86_64.tar.gz
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: libjinwo_vecdb-windows-x86_64.tar.gz
+          files: libjinwo-windows-x86_64.tar.gz

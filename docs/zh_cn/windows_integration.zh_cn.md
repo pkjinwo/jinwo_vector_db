@@ -49,13 +49,12 @@
 
 ### 2.2 源码编译集成（本地 C 库）
 
-如需从源码编译本地 C 库（产出 `libjinwo_vecdb.lib` / `libjinwo_vecdb.dll` 与头文件），
+如需从源码编译本地 C 库（产出 `libjinwo.lib` / `libjinwo.dll` 与头文件），
 请参见 `docs/zh_cn/build_guide.zh_cn.md`，其中给出各平台（含 Windows
 `cmake -G "Visual Studio 17 2022"`）的标准构建流程。本文不再重复构建步骤。
 
-> 注意：本仓库的跨平台共享底座统一命名为 `libjinwo_vecdb.*`（Linux `libjinwo_vecdb.so` /
-> macOS `libjinwo_vecdb.dylib` / Windows `libjinwo_vecdb.dll`）。下文 C# P/Invoke
-> 的 `DllName` 应为 `"libjinwo_vecdb"`（Windows 上对应 `libjinwo_vecdb.dll`）。
+> 注意：全项目统一库名为 `libjinwo.*`（Linux `libjinwo.so` / macOS `libjinwo.dylib` /
+> Windows `libjinwo.dll`）。下文 C# P/Invoke 的 `DllName` 应为 `"libjinwo"`（Windows 上对应 `libjinwo.dll`）。
 
 ---
 
@@ -290,7 +289,7 @@ namespace JinWoVecDB
 
     internal static class NativeMethods
     {
-        private const string DllName = "libjinwo_vecdb";
+        private const string DllName = "libjinwo";
 
         [DllImport(DllName, CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
         public static extern int jw_vecdb_open(ref IntPtr db, string path, bool create);

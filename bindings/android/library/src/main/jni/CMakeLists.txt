@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project("jinwo_vecdb")
+project("jinwo")
 
 # JinWo VecDB C sources (relative to repo root)
 set(JW_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../..)
@@ -25,15 +25,16 @@ set(JW_SRCS
     ${JW_ROOT}/src/jw_vecdb.c
 )
 
-add_library(jinwo_vecdb SHARED
+# 全项目统一库名：libjinwo（不允许第二套名字）
+add_library(jinwo SHARED
     jinwo_vecdb_jni.cpp
     ${JW_SRCS}
 )
 
-target_include_directories(jinwo_vecdb PRIVATE
+target_include_directories(jinwo PRIVATE
     ${JW_ROOT}/include
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 find_library(log-lib log)
-target_link_libraries(jinwo_vecdb ${log-lib})
+target_link_libraries(jinwo ${log-lib})

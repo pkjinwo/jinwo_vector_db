@@ -347,7 +347,7 @@ done
 // 使用 AndroidNativeTest
 public class NativeTest {
     static {
-        System.loadLibrary("jw_vecdb");
+        System.loadLibrary("jinwo");
     }
 
     public native int testOpenClose();

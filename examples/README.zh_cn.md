@@ -187,7 +187,7 @@ examples/
 > **推荐（2026-10-12 起）**：也可通过 JitPack 直接集成已发布的 `jinwo_vector_db`（无需本地 NDK/SDK 编译）：
 > ```gradle
 > // app/build.gradle
-> implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'
+> implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'
 > ```
 > AAR 已内含四架构 `.so`，详见 [Android 集成指南](../../docs/zh_cn/android_integration.zh_cn.md)。
 

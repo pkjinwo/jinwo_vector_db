@@ -166,13 +166,13 @@ gcc demo.c -o demo -ljinwo -lm -I/usr/local/include -L/usr/local/lib
 
 ## 4. Android (Java / Kotlin)
 
-Load `libjinwo` via JNI (`System.loadLibrary("jw_vecdb")`). Kotlin wrapper
+Load `libjinwo` via JNI (`System.loadLibrary("jinwo")`). Kotlin wrapper
 fragment (from `android_integration.en_us.md`):
 
 ```kotlin
 // JinWoVecDBWrapper.kt
 class JinWoVecDBWrapper {
-    private val vecdb = JinWoVecDB()   // native class, System.loadLibrary("jw_vecdb")
+    private val vecdb = JinWoVecDB()   // native class, System.loadLibrary("jinwo")
     private var dbPtr: Long = 0
     private var colPtr: Long = 0
 
@@ -199,7 +199,7 @@ class JinWoVecDBWrapper {
 ```
 
 Integration (AAR / JitPack / source) — see `docs/en_us/android_integration.en_us.md`.
-JitPack: `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` (bundles the `.so` for four ABIs).
+JitPack: `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'` (bundles the `.so` for four ABIs).
 
 ---
 
@@ -261,14 +261,11 @@ db.close();
 
 ## 7. FAQ
 
-- **Library file name (cross-platform base)**: the FFI base for **not-yet-published**
-  languages (C#/PHP, etc.) is named `libjinwo_vecdb.*` (Linux `libjinwo_vecdb.so` /
-  macOS `libjinwo_vecdb.dylib` / Windows `libjinwo_vecdb.dll`), built and published by
-  `.github/workflows/build_native_lib.yml` (CI artifacts `libjinwo_vecdb-<platform>.tar.gz`).
-  Already-published languages (C/C++/Go/Python/Android) currently use `libjinwo`;
-  all languages are planned to unify on `libjinwo_vecdb` in 0.1.35.
+- **Library file name (single name `libjinwo`)**: all languages share the same native
+  library name `libjinwo` (Linux `libjinwo.so` / macOS `libjinwo.dylib` / Windows `libjinwo.dll`).
+  The cross-platform prebuilt base is produced by `.github/workflows/build_native_lib.yml`
+  as `libjinwo-<platform>.tar.gz` (contains `libjinwo-<platform>.*` + `include/*.h`) for PHP(FFI) / C#(DllImport) reuse.
 - **Build command**: use `cmake -S . -B build` (`-S`/`-B` explicitly set source
   and build dirs). Do **not** run `mkdir build && cd build && cmake ..` inside
   the repo, or you'll get "CMakeLists.txt not found". See `build_guide.en_us.md`.
-- **C# / .NET**: the Windows integration sample's `DllName` is `libjinwo_vecdb`
-  (the FFI base). See `windows_integration.en_us.md` notes.
+- **C# / .NET**: the Windows integration sample's `DllName` is `libjinwo`. See `windows_integration.en_us.md` notes.

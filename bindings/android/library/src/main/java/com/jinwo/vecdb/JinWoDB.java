@@ -17,7 +17,7 @@ package com.jinwo.vecdb;
 public class JinWoDB implements AutoCloseable {
 
     static {
-        System.loadLibrary("jinwo_vecdb");
+        System.loadLibrary("jinwo");
     }
 
     private long ptr;

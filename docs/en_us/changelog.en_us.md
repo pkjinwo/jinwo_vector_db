@@ -9,12 +9,12 @@
 | Node.js | npm (WASM prebuilt) | `npm publish` | 0.1.36 | ✅ Published |
 | Go | pkg.go.dev (Go module) | GitHub tag + `go get` | 0.1.34 | ✅ Published (wasm binding default) |
 | iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | ✅ Published |
-| Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34-beta | ✅ Published |
+| Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34.spring | ✅ Published |
 | PHP | Not published (FFI demo only) | Needs Composer + FFI + prebuilt `.so` | — | 🔶 Demo only |
 | C# | Not published (csproj demo only) | Needs NuGet + RID | — | 🔶 Demo only |
 | Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | Not published (README/demo only) | — | — | 🔶 Docs/demo only |
 
-**Notes**: Core version (C header `JW_VERSION_*`) is currently **0.1.34**. Android was briefly published as `0.1.34-android3` (a temporary name forced by JitPack's per-tag build cache during iteration); it has since been unified under the proper pre-release name **`0.1.34-beta`** (equivalent, same fixed commit). Python's latest published version is 0.1.33; it will be re-released at 0.1.34 with the core bump.
+**Notes**: Core version (C header `JW_VERSION_*`) is currently **0.1.34**. Android is now published under the fresh tag **`0.1.34.spring`** (JitPack caches builds per tag, and `0.1.34`/`0.1.34-beta` were already published/cached and could not be reused). Python's latest published version is 0.1.33; it will be re-released at 0.1.34 with the core bump.
 
 ---
 

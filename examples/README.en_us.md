@@ -185,7 +185,7 @@ examples/
 > (no local NDK/SDK build needed):
 > ```gradle
 > // app/build.gradle
-> implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'
+> implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'
 > ```
 > The AAR already bundles the `.so` for four ABIs. See [Android Integration Guide](../../docs/en_us/android_integration.en_us.md).
 

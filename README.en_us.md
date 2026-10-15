@@ -264,16 +264,15 @@ are **not** published to any package manager.
 | Node.js | npm (WASM prebuilt) | `npm publish` | 0.1.36 | `npm install jinwo-vecdb` | ✅ Published |
 | Go | pkg.go.dev (Go module) | GitHub tag + `go get` | 0.1.34 | `go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb@v0.1.34` | ✅ Published (wasm binding default, cgo optional) |
 | iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | `pod 'JinWoVecDB'` | ✅ Published |
-| Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34-beta | `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'` | ✅ Published |
+| Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34.spring | `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'` | ✅ Published |
 | PHP | Not published (FFI demo only) | Needs Composer + FFI + prebuilt `.so` | — | — | 🔶 Demo only |
 | C# | Not published (csproj demo only) | Needs NuGet + RID | — | — | 🔶 Demo only |
 | Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | Not published (README/demo only) | — | — | — | 🔶 Docs/demo only |
 
 > Notes:
 > - **Core version** (C header `JW_VERSION_*`) is currently **0.1.34**.
-> - Android was briefly published as `0.1.34-android3` (a temporary name forced by JitPack's per-tag
->   build cache during iteration); it has since been unified under the proper pre-release name
->   **`0.1.34-beta`** (both are equivalent, pointing at the same fixed commit).
+> - Android is now published under the fresh tag **`0.1.34.spring`** (JitPack caches builds per tag, and
+>   `0.1.34`/`0.1.34-beta` were already published/cached and could not be reused).
 > - Python's latest published version is 0.1.33; it will be re-released at 0.1.34 together with the core bump.
 > - Full install steps: [`docs/en_us/usage_examples.en_us.md`](docs/en_us/usage_examples.en_us.md) and the per-language `*_integration` docs.
 

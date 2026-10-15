@@ -195,7 +195,7 @@ JinWo VecDB is published on JitPack. Add the dependency directly — no manual A
 
 ```groovy
 dependencies {
-    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34-beta'
+    implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'
 }
 ```
 
@@ -205,9 +205,8 @@ dependencies {
 > maven { url 'https://jitpack.io' }
 > ```
 
-> Version note: the verified published version on JitPack is `0.1.34-beta` (pre-release;
-> the same code was also published as `0.1.34-android3`, which is equivalent). Switch to the
-> stable `0.1.34` once it is cut.
+> Version note: the published version on JitPack is **`0.1.34.spring`** (a fresh tag; JitPack caches
+> builds per tag, and `0.1.34`/`0.1.34-beta` were already published/cached and could not be reused).
 
 ### Using Pre-built Library
 
@@ -415,7 +414,7 @@ package com.example.jinwovecdb;
 
 public class VecDB implements AutoCloseable {
     static {
-        System.loadLibrary("jw_vecdb");
+        System.loadLibrary("jinwo");
         System.loadLibrary("native-lib");
     }
 
@@ -578,7 +577,7 @@ public class VecDBLoader {
 
         try {
             // Load dependencies first
-            System.loadLibrary("jw_vecdb");
+            System.loadLibrary("jinwo");
             // Then load your app's native library
             System.loadLibrary("native-lib");
             initialized = true;
