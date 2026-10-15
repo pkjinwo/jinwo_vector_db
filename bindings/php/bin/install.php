@@ -54,26 +54,47 @@ file_put_contents($tmp, $data);
 $tmpDir = sys_get_temp_dir() . '/jwlib_' . uniqid('', true);
 mkdir($tmpDir);
 
-try {
-    $phar = new PharData($tmp);
-    $phar->extractTo($tmpDir);
-    // The tarball contains lib/ and include/ at its root; flatten lib/* into $libDir.
-    foreach (glob($tmpDir . '/lib/*') as $src) {
-        if (is_file($src)) {
-            copy($src, $libDir . '/' . basename($src));
-        }
+$ok = false;
+
+// Prefer the system tar — it handles the archive's "." entries robustly
+// (PharData::extractTo throws "Cannot extract '.', internal error" on them).
+$tarBin = trim(@shell_exec('command -v tar 2>/dev/null') ?: '');
+if ($tarBin !== '' && is_executable($tarBin)) {
+    exec(escapeshellcmd($tarBin) . ' -xzf ' . escapeshellarg($tmp) . ' -C ' . escapeshellarg($tmpDir) . ' 2>/dev/null', $_, $rc);
+    $ok = ($rc === 0);
+}
+// Fallback to PharData if tar is unavailable.
+if (!$ok) {
+    try {
+        $phar = new PharData($tmp);
+        $phar->extractTo($tmpDir);
+        $ok = true;
+    } catch (\Throwable $e) {
+        fwrite(STDERR, "Extract failed: {$e->getMessage()}\n");
+        @unlink($tmp);
+        exit(1);
     }
-} catch (\Throwable $e) {
-    fwrite(STDERR, "Extract failed: {$e->getMessage()}\n");
-    @unlink($tmp);
-    exit(1);
 }
 
-// cleanup
-array_map('unlink', glob($tmpDir . '/lib/*'));
-@rmdir($tmpDir . '/lib');
-@rmdir($tmpDir . '/include');
-@rmdir($tmpDir);
+// The tarball contains lib/ and include/ at its root; flatten lib/* into $libDir.
+foreach (glob($tmpDir . '/lib/*') as $src) {
+    if (is_file($src)) {
+        copy($src, $libDir . '/' . basename($src));
+    }
+}
+
+// cleanup (recursive, tolerant of nested dirs)
+function jw_rmtree(string $dir): void
+{
+    if (!is_dir($dir)) return;
+    foreach (scandir($dir) ?: [] as $it) {
+        if ($it === '.' || $it === '..') continue;
+        $p = $dir . '/' . $it;
+        if (is_dir($p)) jw_rmtree($p); else @unlink($p);
+    }
+    @rmdir($dir);
+}
+jw_rmtree($tmpDir);
 @unlink($tmp);
 
 if (class_exists(\JinWoVecDB\JinWoVecDB::class)) {
