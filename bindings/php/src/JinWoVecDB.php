@@ -25,6 +25,9 @@ final class JinWoVecDB
 
     private static ?\FFI $ffi = null;
 
+    /** The libjinwo binary actually loaded (composer-downloaded or system C-built). */
+    private static ?string $loadedPath = null;
+
     /** @var \FFI\CData|null underlying jw_vecdb_t* handle */
     private ?object $db = null;
 
@@ -130,9 +133,25 @@ C;
                     'The PHP FFI extension is required. Enable it in php.ini (extension=ffi, ffi.enable=true).'
                 );
             }
-            self::$ffi = \FFI::cdef(self::CDEF, self::resolveLibPath());
+            $libPath = self::resolveLibPath();
+            self::$ffi = \FFI::cdef(self::CDEF, $libPath);
+            self::$loadedPath = $libPath;
         }
         return self::$ffi;
+    }
+
+    /**
+     * Return the libjinwo binary path actually loaded by FFI.
+     *
+     * This is useful to confirm which backend is in use — either the
+     * composer-downloaded prebuilt (e.g. .../lib/libjinwo-darwin-universal.dylib)
+     * or a system-installed libjinwo built from C source (reported as "libjinwo",
+     * resolved by the OS loader). Both are the same C library, just different
+     * distribution channels, so the PHP API behaves identically.
+     */
+    public static function loadedLibPath(): ?string
+    {
+        return self::$loadedPath;
     }
 
     /**
