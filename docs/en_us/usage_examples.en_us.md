@@ -259,6 +259,60 @@ db.close();
 
 ---
 
+## 6.1 PHP (FFI)
+
+Published as the Composer package `jinwo/vecdb`. Under the hood it uses PHP-FFI to
+call the **exact same `libjinwo` C interface as C/C++**, so it is fully compatible
+with building and installing `libjinwo` from C source — whether the backend comes
+from the Composer auto-download or a system-installed `libjinwo`, the API behaves
+identically.
+
+Install:
+
+```bash
+composer require jinwo/vecdb
+# the libjinwo base is auto-downloaded per platform after install; or run manually:
+php vendor/jinwo/vecdb/bin/install.php
+# if libjinwo is already built/installed from C source on the system, skip the
+# download and point to it instead:
+# export JINWO_VECDB_LIB=/usr/local/lib/libjinwo.dylib   # macOS example
+```
+
+Minimal example:
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use JinWoVecDB\JinWoVecDB;
+
+// open/create database (empty path = in-memory)
+$db = new JinWoVecDB('', JinWoVecDB::CREATE | JinWoVecDB::READWRITE);
+
+$db->createCollection('docs', 4);
+
+$vid = $db->insert('docs', [0.1, 0.2, 0.3, 0.4]);
+
+$results = $db->search('docs', [0.1, 0.2, 0.3, 0.4], 3);
+foreach ($results as $r) {
+    echo "id={$r['id']} score={$r['score']}\n";
+}
+
+$db->close();
+```
+
+Troubleshooting: `JinWoVecDB::loadedLibPath()` prints the actual `libjinwo` path
+loaded by FFI, so you can confirm whether the Composer-downloaded prebuilt or a
+system C-built `libjinwo` (reported as `libjinwo`, resolved by the OS loader) is
+in use.
+
+> The prebuilt base (`libjinwo-<platform>.tar.gz`, with `lib/` + `include/*.h`) is
+> published on GitHub Release `v0.1.34`; the FFI type definitions (`jw_str_t` /
+> `jw_search_result`, etc.) strictly match the ABI of `include/jw_types.h` and
+> `include/jw_vecdb.h`.
+
+---
+
 ## 7. FAQ
 
 - **Library file name (single name `libjinwo`)**: all languages share the same native

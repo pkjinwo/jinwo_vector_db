@@ -298,6 +298,49 @@ db.close();
 
 ---
 
+## 6.1 PHP（FFI）
+
+通过 Composer 包 `jinwo/vecdb` 发布。底层用 PHP-FFI **直接调用与 C/C++ 完全相同的 `libjinwo` C 接口**，因此与「从 C 源码构建并安装 `libjinwo`」完全兼容——底座来自 Composer 自动下载还是系统已安装的 `libjinwo`，上层 API 行为一致。
+
+安装：
+
+```bash
+composer require jinwo/vecdb
+# 安装后自动按平台下载 libjinwo 底座；也可手动执行：
+php vendor/jinwo/vecdb/bin/install.php
+# 若系统已用 C 源码编译安装 libjinwo，可跳过下载，改用环境变量指向它：
+# export JINWO_VECDB_LIB=/usr/local/lib/libjinwo.dylib   # macOS 示例
+```
+
+最小示例：
+
+```php
+<?php
+require 'vendor/autoload.php';
+
+use JinWoVecDB\JinWoVecDB;
+
+// 打开/创建数据库（path 空字符串 = 内存库）
+$db = new JinWoVecDB('', JinWoVecDB::CREATE | JinWoVecDB::READWRITE);
+
+$db->createCollection('docs', 4);
+
+$vid = $db->insert('docs', [0.1, 0.2, 0.3, 0.4]);
+
+$results = $db->search('docs', [0.1, 0.2, 0.3, 0.4], 3);
+foreach ($results as $r) {
+    echo "id={$r['id']} score={$r['score']}\n";
+}
+
+$db->close();
+```
+
+排障：`JinWoVecDB::loadedLibPath()` 可打印当前实际加载的 `libjinwo` 路径，用以确认用的是 Composer 下载的预编译底座，还是系统 C 源码安装的 `libjinwo`（显示为 `libjinwo`，由 OS 加载器解析）。
+
+> 预编译底座（`libjinwo-<平台>.tar.gz`，含 `lib/` + `include/*.h`）发布于 GitHub Release `v0.1.34`；FFI 类型定义（`jw_str_t` / `jw_search_result` 等）与 `include/jw_types.h`、`include/jw_vecdb.h` 的 ABI 严格一致。
+
+---
+
 ## 7. 常见问题
 
 - **库文件名（统一为 libjinwo）**：全项目共用同一个原生库名 `libjinwo`

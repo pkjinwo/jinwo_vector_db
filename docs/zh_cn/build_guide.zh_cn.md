@@ -20,7 +20,7 @@
 | 导入库（Windows） | `libjinwo.lib` |
 | 头文件 | `include/` 下的全部 `.h` |
 
-> ⚠️ **全项目统一库名 `libjinwo`**：上表 `libjinwo.*` 是所有语言（含未发布的 C#/PHP）
+> ⚠️ **全项目统一库名 `libjinwo`**：上表 `libjinwo.*` 是所有语言（含 C#/PHP）
 > 共用的原生库名。跨平台预编译底座由 CI 工作流 `.github/workflows/build_native_lib.yml`
 > 产出 `libjinwo-<平台>.*`（+ `include/*.h`），供 PHP(FFI) / C#(DllImport) 等 FFI 复用。
 

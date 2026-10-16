@@ -10,7 +10,7 @@
 | Go | pkg.go.dev (Go module) | GitHub tag + `go get` | 0.1.34 | ✅ Published (wasm binding default) |
 | iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | ✅ Published |
 | Android | JitPack (AAR) | `jitpack.yml` cloud NDK build + publish | 0.1.34.spring | ✅ Published |
-| PHP | Not published (FFI demo only) | Needs Composer + FFI + prebuilt `.so` | — | 🔶 Demo only |
+| PHP | Published (Composer FFI package) | `composer require jinwo/vecdb` (auto-downloads libjinwo per platform) | 0.1.34 | ✅ Published |
 | C# | Not published (csproj demo only) | Needs NuGet + RID | — | 🔶 Demo only |
 | Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | Not published (README/demo only) | — | — | 🔶 Docs/demo only |
 

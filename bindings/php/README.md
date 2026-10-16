@@ -53,3 +53,22 @@ $db->close();
 then the packaged `lib/`, then the system loader). Vectors are passed as
 `float[]`; results come back as `jw_search_result_t` structs read for `id` /
 `score` / `dimension`.
+
+## Compatibility with the C interface
+
+This package does **not** invent its own API — it is a thin FFI wrapper over the
+**same `libjinwo` C interface** that C/C++ (and every other language binding) uses.
+Concretely:
+
+- The FFI type definitions (`jw_str_t`, `jw_search_result`, …) are kept in lock-step
+  with `include/jw_types.h` and `include/jw_vecdb.h` (ABI-strict).
+- The underlying `libjinwo` is identical whether you obtain it by **building from
+  C source** (`cmake` → `libjinwo`) and installing it system-wide, or by letting
+  `bin/install.php` **download the prebuilt** from the GitHub release `v0.1.34`.
+- Therefore, if you already build `libjinwo` from source on your system, just set
+  `JINWO_VECDB_LIB` (or put `libjinwo` on the OS loader path) and skip the download
+  — the PHP API behaves exactly the same. Composer is only the *delivery channel*
+  for the PHP wrapper; the C interface is the *shared base*.
+- `JinWoVecDB::loadedLibPath()` tells you which `libjinwo` is actually loaded:
+  a concrete path means the prebuilt, while the string `libjinwo` means it was
+  resolved by the OS loader from your system (C-source) build.
