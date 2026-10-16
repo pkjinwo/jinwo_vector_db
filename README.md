@@ -234,7 +234,7 @@ jw_vecdb/
 | Go | pkg.go.dev（Go module） | GitHub tag + `go get` | 0.1.34 | `go get github.com/pkjinwo/jinwo_vector_db/bindings/jinwo_vecdb@v0.1.34` | ✅ 已发布（默认 wasm 绑定，cgo 可选） |
 | iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | `pod 'JinWoVecDB'` | ✅ 已发布 |
 | Android | JitPack（AAR） | `jitpack.yml` 云端 NDK 编译 + 发布 | 0.1.34.spring | `implementation 'com.github.pkjinwo:jinwo_vector_db:0.1.34.spring'` | ✅ 已发布 |
-| PHP | Composer（FFI + 预编译底座） | `composer require jinwo/vecdb`，安装时自动按平台下载 `libjinwo` | 0.1.34 | `composer require jinwo/vecdb` | ✅ 已发布 |
+| PHP | Composer（FFI + 预编译底座） | `composer require pkjinwo/vecdb`，安装时自动按平台下载 `libjinwo` | 0.1.34 | `composer require pkjinwo/vecdb` | ✅ 已发布 |
 | C# | 未发布（仅 csproj demo） | 需 NuGet + RID | — | — | 🔶 仅示例 |
 | Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | 未发布（仅 README/示例） | — | — | — | 🔶 仅文档/示例 |
 
@@ -242,7 +242,7 @@ jw_vecdb/
 > - **核心版本**（C 头文件 `JW_VERSION_*`）当前为 **0.1.34**。
 > - Android 统一以全新 tag **`0.1.34.spring`** 发布（JitPack 按 tag 缓存构建，`0.1.34` 与 `0.1.34-beta` 已发布或缓存态不可复用，故改用 `0.1.34.spring`）。
 > - Python 当前已发布最新为 0.1.33，待随核心版本升级到 0.1.34 时再发版。
-> - **PHP 已通过 Composer 包 `jinwo/vecdb` 发布**（仓库 `pkjinwo/jinwo-vecdb-php`）：其底层用 PHP-FFI 调用与 C/C++ **完全相同**的 `libjinwo` C 接口；预编译底座（`libjinwo-<平台>.tar.gz`）由 GitHub Release `v0.1.34` 按平台提供，安装时自动下载。若你已在系统用 C 源码编译并安装 `libjinwo`，PHP 包也可直接复用（无需下载），两种来源完全兼容——因为无论底座来自 Composer 还是 C 源码构建，都是同一个 `libjinwo` C 库。
+> - **PHP 已通过 Composer 包 `pkjinwo/vecdb` 发布**（仓库 `pkjinwo/jinwo-vecdb-php`）：其底层用 PHP-FFI 调用与 C/C++ **完全相同**的 `libjinwo` C 接口；预编译底座（`libjinwo-<平台>.tar.gz`）由 GitHub Release `v0.1.34` 按平台提供，安装时自动下载。若你已在系统用 C 源码编译并安装 `libjinwo`，PHP 包也可直接复用（无需下载），两种来源完全兼容——因为无论底座来自 Composer 还是 C 源码构建，都是同一个 `libjinwo` C 库。
 > - 详细安装步骤见 [`docs/zh_cn/usage_examples.zh_cn.md`](docs/zh_cn/usage_examples.zh_cn.md) 与各语言 `*_integration` 文档。
 
 ## 贡献指南

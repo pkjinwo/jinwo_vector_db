@@ -1,11 +1,11 @@
-# jinwo/vecdb — PHP binding (FFI)
+# pkjinwo/vecdb — PHP binding (FFI)
 
 PHP wrapper for **JinWo VecDB**, an embedded vector database. It talks to the
 cross-platform native library **`libjinwo`** through PHP-FFI (no C extension
 to compile).
 
 > The native lib name is **`libjinwo`** everywhere (no second name). The PHP
-> package name `jinwo/vecdb` is just the Composer identifier — not the lib name.
+> package name `pkjinwo/vecdb` is just the Composer identifier — not the lib name.
 
 ## Requirements
 
@@ -16,8 +16,8 @@ to compile).
 ## Install
 
 ```bash
-composer require jinwo/vecdb
-php vendor/jinwo/vecdb/bin/install.php   # downloads libjinwo into the package lib/
+composer require pkjinwo/vecdb
+php vendor/pkjinwo/vecdb/bin/install.php   # downloads libjinwo into the package lib/
 ```
 
 `bin/install.php` picks the right artifact from the GitHub release `v0.1.34`

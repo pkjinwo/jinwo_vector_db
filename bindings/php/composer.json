@@ -1,5 +1,5 @@
 {
-    "name": "jinwo/vecdb",
+    "name": "pkjinwo/vecdb",
     "description": "PHP binding (FFI) for JinWo VecDB — embedded vector database backed by libjinwo",
     "type": "library",
     "license": "Apache-2.0",

@@ -300,14 +300,14 @@ db.close();
 
 ## 6.1 PHP（FFI）
 
-通过 Composer 包 `jinwo/vecdb` 发布。底层用 PHP-FFI **直接调用与 C/C++ 完全相同的 `libjinwo` C 接口**，因此与「从 C 源码构建并安装 `libjinwo`」完全兼容——底座来自 Composer 自动下载还是系统已安装的 `libjinwo`，上层 API 行为一致。
+通过 Composer 包 `pkjinwo/vecdb` 发布。底层用 PHP-FFI **直接调用与 C/C++ 完全相同的 `libjinwo` C 接口**，因此与「从 C 源码构建并安装 `libjinwo`」完全兼容——底座来自 Composer 自动下载还是系统已安装的 `libjinwo`，上层 API 行为一致。
 
 安装：
 
 ```bash
-composer require jinwo/vecdb
+composer require pkjinwo/vecdb
 # 安装后自动按平台下载 libjinwo 底座；也可手动执行：
-php vendor/jinwo/vecdb/bin/install.php
+php vendor/pkjinwo/vecdb/bin/install.php
 # 若系统已用 C 源码编译安装 libjinwo，可跳过下载，改用环境变量指向它：
 # export JINWO_VECDB_LIB=/usr/local/lib/libjinwo.dylib   # macOS 示例
 ```

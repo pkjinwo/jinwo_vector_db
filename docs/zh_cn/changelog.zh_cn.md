@@ -10,11 +10,11 @@
 | Go | pkg.go.dev（Go module） | GitHub tag + `go get` | 0.1.34 | ✅ 已发布（默认 wasm 绑定） |
 | iOS | CocoaPods trunk | `pod trunk push` | 0.1.34 | ✅ 已发布 |
 | Android | JitPack（AAR） | `jitpack.yml` 云端 NDK 编译 + 发布 | 0.1.34.spring | ✅ 已发布 |
-| PHP | 已发布（Composer FFI 包） | `composer require jinwo/vecdb`，安装时自动按平台下载 libjinwo | 0.1.34 | ✅ 已发布 |
+| PHP | 已发布（Composer FFI 包） | `composer require pkjinwo/vecdb`，安装时自动按平台下载 libjinwo | 0.1.34 | ✅ 已发布 |
 | C# | 未发布（仅 csproj demo） | 需 NuGet + RID | — | 🔶 仅示例 |
 | Rust / Dart / Java / Kotlin / Swift / R / TypeScript / Julia | 未发布（仅 README/示例） | — | — | 🔶 仅文档/示例 |
 
-**说明**：核心版本（C 头文件 `JW_VERSION_*`）当前为 **0.1.34**。Android 统一以全新 tag **`0.1.34.spring`** 发布（JitPack 按 tag 缓存，`0.1.34`/`0.1.34-beta` 已发布或缓存态不可复用，故改用 `0.1.34.spring`）。Python 当前最新已发布为 0.1.33，待随核心版本升级到 0.1.34 时再发版。PHP 已通过 Composer 包 `jinwo/vecdb` 发布（仓库 `pkjinwo/jinwo-vecdb-php`），底层用 FFI 调用与 C/C++ 相同的 `libjinwo` C 接口，与系统 C 源码安装的底座完全兼容。
+**说明**：核心版本（C 头文件 `JW_VERSION_*`）当前为 **0.1.34**。Android 统一以全新 tag **`0.1.34.spring`** 发布（JitPack 按 tag 缓存，`0.1.34`/`0.1.34-beta` 已发布或缓存态不可复用，故改用 `0.1.34.spring`）。Python 当前最新已发布为 0.1.33，待随核心版本升级到 0.1.34 时再发版。PHP 已通过 Composer 包 `pkjinwo/vecdb` 发布（仓库 `pkjinwo/jinwo-vecdb-php`），底层用 FFI 调用与 C/C++ 相同的 `libjinwo` C 接口，与系统 C 源码安装的底座完全兼容。
 
 ---
 
