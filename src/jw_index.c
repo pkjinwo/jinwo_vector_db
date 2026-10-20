@@ -225,8 +225,8 @@ static void pq_push(priority_queue_t *pq, jw_vid_t vid,
         /** 上浮操作: 将新元素移动到正确位置 */
         while (i > 0) {
             jw_size_t parent = (i - 1) / 2;
-            if (pq->items[parent].score <= pq->items[i].score) {
-                break;  /**< 父节点分数更小，不需要继续上浮 */
+            if (pq->items[parent].score >= pq->items[i].score) {
+                break;  /**< 父节点分数不小于子节点，最大堆无需继续上浮 */
             }
             /** 交换父子节点 */
             search_candidate_t tmp = pq->items[parent];
@@ -247,18 +247,18 @@ static void pq_push(priority_queue_t *pq, jw_vid_t vid,
             jw_size_t right = 2 * i + 2;
             jw_size_t smallest = i;
 
-            /** 找到三个节点中最小的 */
+            /** 找到三个节点中最大的 (最大堆: 堆顶为最远候选) */
             if (left < pq->size &&
-                pq->items[left].score < pq->items[smallest].score) {
+                pq->items[left].score > pq->items[smallest].score) {
                 smallest = left;
             }
             if (right < pq->size &&
-                pq->items[right].score < pq->items[smallest].score) {
+                pq->items[right].score > pq->items[smallest].score) {
                 smallest = right;
             }
 
             if (smallest == i) {
-                break;  /**< 已经是最小堆，无需继续下沉 */
+                break;  /**< 已经是最大堆，无需继续下沉 */
             }
 
             /** 交换当前节点与最小子节点 */
@@ -309,6 +309,20 @@ static int compare_results(const void *a, const void *b)
 
     if (ra->score < rb->score) return -1;
     if (ra->score > rb->score) return 1;
+    return 0;
+}
+
+/**
+ * search_candidate_t 比较 (按距离升序)
+ * 用于 HNSW 搜索后对完整结果集排序再取前 k 个
+ */
+static int compare_candidates(const void *a, const void *b)
+{
+    const search_candidate_t *ca = (const search_candidate_t *)a;
+    const search_candidate_t *cb = (const search_candidate_t *)b;
+
+    if (ca->score < cb->score) return -1;
+    if (ca->score > cb->score) return 1;
     return 0;
 }
 
@@ -552,16 +566,17 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
 
     jw_vid_t current = ep_vid;
     jw_vid_t nearest = ep_vid;
-    jw_float32_t nearest_dist = distance_sq(query,
-                             hnsw->nodes[ep_vid]->vec, hnsw->dim);
+    jw_float32_t nearest_dist = jw_vec_distance(query,
+                             hnsw->nodes[ep_vid]->vec, hnsw->dim, hnsw->metric);
     jw_float32_t current_dist;
 
     while (1) {
         jw_vid_t prev_nearest = nearest;
         jw_hnsw_node_t *node = hnsw->nodes[current];
 
-        /** 遍历当前节点的所有邻居 */
-        for (jw_uint32_t i = 0; i < node->link_counts[level] && i < node->max_M; i++) {
+        /** 遍历当前节点的所有邻居 (第0层容量为 max_M0 = 2*M) */
+        jw_uint32_t cap = (level == 0) ? node->max_M0 : node->max_M;
+        for (jw_uint32_t i = 0; i < node->link_counts[level] && i < cap; i++) {
             jw_vid_t neighbor = node->links[level][i];
 
             /** 跳过已删除或无效的邻居 */
@@ -603,7 +618,7 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 }
 
                 /** 计算距离 */
-                current_dist = distance_sq(query, gnb_node->vec, hnsw->dim);
+                current_dist = jw_vec_distance(query, gnb_node->vec, hnsw->dim, hnsw->metric);
 
                 /** 如果找到更近的邻居，更新最近邻 */
                 if (current_dist < nearest_dist) {
@@ -683,7 +698,7 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
 
     /** 初始化: 入口点 */
     visited[visited_count++] = ep_vid;
-    jw_float32_t ep_dist = distance_sq(query, hnsw->nodes[ep_vid]->vec, hnsw->dim);
+    jw_float32_t ep_dist = jw_vec_distance(query, hnsw->nodes[ep_vid]->vec, hnsw->dim, hnsw->metric);
     pq_push(&pq, ep_vid, ep_dist, level);
     todo[todo_count] = ep_vid;
     todo_dist[todo_count] = ep_dist;
@@ -716,16 +731,22 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
          * 终止条件:
          * 当前候选距离 > 结果集中最远的距离 → 不可能有更近的了
          */
-        jw_float32_t max_result_dist = (pq.size > 0) ?
-                                        pq.items[0].score : JW_FLT_MAX;
+        /* 仅在结果集填满(达到 ef_search)后, 才用"最远结果"做提前终止。
+         * 否则结果集尚小, items[0](最大堆堆顶=最远) 只是少量样本的最远值,
+         * 误用作终止阈值会让 BFS 过早结束, 导致召回率随 ef_search 抖动。 */
+        jw_float32_t max_result_dist = JW_FLT_MAX;
+        if (pq.size >= ef_search) {
+            max_result_dist = pq.items[0].score;
+        }
         if (current_dist > max_result_dist) {
             break;
         }
 
-        /** 探索当前候选的邻居 */
+        /** 探索当前候选的邻居 (第0层容量为 max_M0) */
         jw_hnsw_node_t *node = hnsw->nodes[current_vid];
+        jw_uint32_t cap = (level == 0) ? node->max_M0 : node->max_M;
         jw_uint32_t link_end = node->link_counts[level];
-        if (link_end > node->max_M) link_end = node->max_M;
+        if (link_end > cap) link_end = cap;
 
         for (jw_uint32_t i = 0; i < link_end; i++) {
             jw_vid_t neighbor = node->links[level][i];
@@ -765,8 +786,8 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
             if (!is_visited) {
                 visited[visited_count++] = neighbor;
 
-                jw_float32_t dist = distance_sq(query,
-                    nb_node->vec, hnsw->dim);
+                jw_float32_t dist = jw_vec_distance(query,
+                    nb_node->vec, hnsw->dim, hnsw->metric);
 
                 /** 加入结果集 (最大堆) */
                 pq_push(&pq, neighbor, dist, level);
@@ -819,12 +840,12 @@ static void hnsw_select_neighbors(jw_hnsw_node_t **neighbors,
     for (jw_uint32_t i = 0; i < M; i++) {
         jw_uint32_t min_idx = i;
         jw_float32_t min_dist = (neighbors[i] != NULL && neighbors[i]->vec != NULL)
-            ? distance_sq(query, neighbors[i]->vec, hnsw->dim)
+            ? jw_vec_distance(query, neighbors[i]->vec, hnsw->dim, hnsw->metric)
             : JW_FLT_MAX;
 
         for (jw_uint32_t j = i + 1; j < count; j++) {
             jw_float32_t dist = (neighbors[j] != NULL && neighbors[j]->vec != NULL)
-                ? distance_sq(query, neighbors[j]->vec, hnsw->dim)
+                ? jw_vec_distance(query, neighbors[j]->vec, hnsw->dim, hnsw->metric)
                 : JW_FLT_MAX;
             if (dist < min_dist) {
                 min_dist = dist;
@@ -915,6 +936,7 @@ JW_API jw_index_t *jw_index_create(jw_arena_t *arena,
             if (hnsw != NULL) {
                 hnsw->type = config->type;
                 hnsw->quant_type = config->quant;
+                hnsw->metric = config->metric;  /**< 修复: 传递度量类型, 否则 HNSW 始终按 L2 计算 */
                 
                 if (config->type == JW_INDEX_HNSW_PQ) {
                     /** 创建PQ量化器 */
@@ -1079,6 +1101,17 @@ JW_API jw_ivf_index_t *jw_ivf_create(jw_arena_t *arena,
     index->metric = JW_METRIC_L2;
     index->config = *config;
     index->arena = local_arena;
+
+    /* 防御：未显式赋值的 IVF 参数回退到安全默认 */
+    if (index->config.nprobe == 0) {
+        index->config.nprobe = 16;
+    }
+    if (index->config.max_iter == 0) {
+        index->config.max_iter = 100;
+    }
+    if (index->config.seed == 0) {
+        index->config.seed = 42;
+    }
     index->nlist = config->nlist;
     index->trained = JW_FALSE;
     index->quant_type = JW_QUANT_INT8;  /* 默认使用int8量化 */
@@ -1635,18 +1668,18 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                             for (jw_uint32_t k = 0; k < neighbor->link_counts[level]; k++) {
                                 jw_vid_t nv = neighbor->links[level][k];
                                 if (nv < hnsw->capacity && hnsw->nodes[nv] != NULL) {
-                                    jw_float32_t d = distance_sq(neighbor->vec,
+                                    jw_float32_t d = jw_vec_distance(neighbor->vec,
                                                     hnsw->nodes[nv]->vec,
-                                                    hnsw->dim);
+                                                    hnsw->dim, hnsw->metric);
                                     if (d > max_dist) {
                                         max_dist = d;
                                         max_idx = k;
                                     }
                                 }
                             }
-                            jw_float32_t new_dist = distance_sq(neighbor->vec,
+                            jw_float32_t new_dist = jw_vec_distance(neighbor->vec,
                                                            node->vec,
-                                                           hnsw->dim);
+                                                           hnsw->dim, hnsw->metric);
                             if (new_dist < max_dist) {
                                 neighbor->links[level][max_idx] = vid;
                             }
@@ -1965,11 +1998,19 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         hnsw_layer_search(hnsw, query, current_ep, 0, ef_search,
                           layer_results, &result_count, index->arena);
 
-        /** 复制结果到输出数组 */
+        /** 对完整结果集排序后取前 k 个。
+         *  layer_results 是堆序(非有序), 不能直接取前缀; 否则 k>1 时结果错误。 */
+        jw_qsort_simple(layer_results, result_count,
+                        sizeof(search_candidate_t), compare_candidates);
         jw_size_t output_count = (result_count < k) ? result_count : k;
         for (jw_size_t i = 0; i < output_count; i++) {
+            /* 暂存内部距离, 相似度转换延后到最终排序之后 */
+            /* 将内部\"距离\"转换回\"相似度\"语义:
+             *   COSINE -> 余弦相似度 (1 - 余弦距离)
+             *   IP     -> 内积相似度 (距离 = -内积)
+             *   L2     -> 保持平方欧氏距离 (距离越小越近) */
             results[i].id = layer_results[i].vid;
-            results[i].score = layer_results[i].score;
+            results[i].score = layer_results[i].score;  /** 暂存内部距离 */
         }
 
         jw_free(layer_results);
@@ -1977,9 +2018,24 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
 
         jw_rwlock_rdunlock(hnsw->lock);
 
-        /** 按距离排序 */
+        /** 按内部距离升序排最终结果 (compare_results 按 score 升序, 对所有度量一致正确) */
         jw_qsort_simple(results, output_count,
                         sizeof(jw_search_result_t), compare_results);
+
+        /** 将内部"距离"转换回"相似度"语义 (单调变换, 不改变已排顺序):
+         *   COSINE -> 余弦相似度 (1 - 余弦距离)
+         *   IP     -> 内积相似度 (距离 = -内积)
+         *   L2     -> 保持平方欧氏距离 (距离越小越近) */
+        for (jw_size_t i = 0; i < output_count; i++) {
+            jw_float32_t sc = results[i].score;
+            if (hnsw->metric == JW_METRIC_COSINE) {
+                sc = 1.0f - sc;  /**< 余弦相似度 */
+            } else if (hnsw->metric == JW_METRIC_IP) {
+                sc = -sc;         /**< 内积相似度 */
+            }
+            /* L2: 内部距离 jw_vec_distance 已是平方距离, 直接作为 score, 保持兼容 */
+            results[i].score = sc;
+        }
 
         return output_count;
     }
@@ -2099,6 +2155,20 @@ JW_API jw_hnsw_index_t *jw_hnsw_create(jw_arena_t *arena,
     index->metric = JW_METRIC_L2;
     index->config = *config;
     index->arena = local_arena;
+
+    /* 防御：未显式赋值的 HNSW 参数回退到安全默认，避免野值导致内存越界 */
+    if (index->config.M == 0) {
+        index->config.M = 16;
+    }
+    if (index->config.ef_construction == 0) {
+        index->config.ef_construction = 200;
+    }
+    if (index->config.ef_search == 0) {
+        index->config.ef_search = 100;
+    }
+    if (index->config.seed == 0) {
+        index->config.seed = 42;
+    }
     index->ntotal = 0;
     index->capacity = 4096;  /** 初始容量 */
     index->max_level = 0;

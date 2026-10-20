@@ -28,11 +28,20 @@
 static void init_default_index_config(jw_index_config_t *config, jw_dim_t dim)
 {
     jw_memset(config, 0, sizeof(jw_index_config_t));
+    /* 默认使用 IVF（倒排索引）。
+       原因：spring 版本（已验证可用）的默认就是 IVF(nlist=5,nprobe=3) 通过 100 条 E2E。
+       summer 把默认改成 HNSW 且未初始化 M/ef_construction 等参数，导致崩溃且召回错误。
+       故此处恢复为 IVF，并把所有参数完整初始化，避免任何未初始化野值。 */
     config->type = JW_INDEX_IVF;
     config->metric = JW_METRIC_L2;
     config->dim = dim;
+    config->quant = JW_QUANT_NONE;
     config->params.ivf.nlist = 5;
     config->params.ivf.nprobe = 3;
+    config->params.ivf.max_iter = 100;
+    /* 完整初始化 HNSW / PQ 参数，保证用户显式选择 HNSW 时也不会因未初始化而崩溃 */
+    config->params.hnsw = (jw_hnsw_config_t)JW_HNSW_CONFIG_DEFAULT;
+    config->pq = (jw_pq_config_t)JW_PQ_CONFIG_DEFAULT;
 }
 
 /* 扩展记录数组 */
