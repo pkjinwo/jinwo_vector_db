@@ -153,6 +153,7 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
                                    jw_dim_t dim,
                                    jw_uint32_t k,
                                    jw_uint32_t max_iter,
+                                   jw_metric_t metric,
                                    jw_vec_t centroids);
 
 /*
@@ -387,6 +388,7 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
                                    jw_dim_t dim,
                                    jw_uint32_t k,
                                    jw_uint32_t max_iter,
+                                   jw_metric_t metric,
                                    jw_vec_t centroids)
 {
     /** 参数校验: 向量数必须大于聚类数 */
@@ -410,8 +412,8 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
             for (jw_size_t j = 0; j < count; j++) {
                 jw_float32_t min_dist = JW_FLT_MAX;
                 for (jw_uint32_t c = 0; c <= i - 1; c++) {
-                    jw_float32_t d = distance_sq(vectors + j * dim,
-                                                  centroids + c * dim, dim);
+                    jw_float32_t d = jw_vec_distance(vectors + j * dim,
+                                                  centroids + c * dim, dim, metric);
                     if (d < min_dist) min_dist = d;
                 }
                 if (min_dist > max_min_dist) {
@@ -448,7 +450,7 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
             jw_uint32_t min_idx = 0;
 
             for (jw_uint32_t j = 0; j < k; j++) {
-                jw_float32_t dist = distance_sq(vec, centroids + j * dim, dim);
+                jw_float32_t dist = jw_vec_distance(vec, centroids + j * dim, dim, metric);
                 if (dist < min_dist) {
                     min_dist = dist;
                     min_idx = j;
@@ -911,7 +913,7 @@ JW_API jw_index_t *jw_index_create(jw_arena_t *arena,
             if (ivf != NULL) {
                 ivf->type = config->type;
                 ivf->quant_type = config->quant;
-                
+                ivf->metric = config->metric;  /**< 修复: 传递度量类型, 否则 IVF 始终按 L2 计算 */
                 if (config->type == JW_INDEX_IVF_PQ) {
                     /** 创建PQ量化器 */
                     jw_pq_quantizer_t *pq = NULL;
@@ -1239,7 +1241,8 @@ JW_API jw_status_t jw_index_train(jw_index_t *index,
         /** 执行K-means聚类 */
         jw_status_t status = kmeans_cluster(index->arena, vectors, count,
                                             dim, nlist,
-                                            ivf->config.max_iter, centroids);
+                                            ivf->config.max_iter, ivf->metric,
+                                            centroids);
         if (status != JW_SUCCESS) {
             return status;
         }
@@ -1347,7 +1350,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             jw_uint32_t min_idx = 0;
 
             for (jw_uint32_t j = 0; j < ivf->nlist; j++) {
-                jw_float32_t dist = distance_sq(vec, ivf->lists[j].centroid, dim);
+                jw_float32_t dist = jw_vec_distance(vec, ivf->lists[j].centroid, dim, ivf->metric);
                 if (dist < min_dist) {
                     min_dist = dist;
                     min_idx = j;
@@ -1846,7 +1849,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
 
         for (jw_uint32_t i = 0; i < ivf->nlist; i++) {
             centroids[i].idx = i;
-            centroids[i].dist = distance_sq(query, ivf->lists[i].centroid, dim);
+            centroids[i].dist = jw_vec_distance(query, ivf->lists[i].centroid, dim, ivf->metric);
         }
 
         /** 选择最近的nprobe个聚类中心 (简单选择排序) */
@@ -1883,7 +1886,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
                 dist = jw_pq_distance(ivf->pq, query, list->entries[j].code, ivf->metric);
                 } else {
                     /** 使用原始距离计算 */
-                    dist = jw_vec_l2_squared(query, list->entries[j].vec, dim);
+                    dist = jw_vec_distance(query, list->entries[j].vec, dim, ivf->metric);
                 }
                 pq_push(&pq, list->entries[j].vid, dist, 0);
             }
@@ -1903,6 +1906,20 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         /** 按距离排序 */
         jw_qsort_simple(results, result_count,
                         sizeof(jw_search_result_t), compare_results);
+
+        /** 将内部\"距离\"转换为与 HNSW 一致的相似度语义 (单调变换, 不改变排序):
+         *   COSINE -> 余弦相似度 (1 - 余弦距离)
+         *   IP     -> 内积相似度 (距离 = -内积)
+         *   L2     -> 保持原有距离 (内部已是平方/开方距离, 与 HNSW 一致) */
+        for (jw_size_t i = 0; i < result_count; i++) {
+            jw_float32_t sc = results[i].score;
+            if (ivf->metric == JW_METRIC_COSINE) {
+                sc = 1.0f - sc;
+            } else if (ivf->metric == JW_METRIC_IP) {
+                sc = -sc;
+            }
+            results[i].score = sc;
+        }
 
         return result_count;
     }
