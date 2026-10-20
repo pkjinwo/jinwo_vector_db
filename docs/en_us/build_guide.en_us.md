@@ -23,7 +23,7 @@ integrate it into your own C/C++ project or develop on top of the source.
 | Headers | all `.h` under `include/` |
 
 > ⚠️ **Single library name `libjinwo` across the project**: the `libjinwo.*` above is
-> the native library name shared by ALL languages (including not-yet-published C#/PHP).
+> the native library name shared by ALL languages (including not-yet-published C#; PHP is already published on Packagist as `pkjinwo/vecdb`).
 > The cross-platform prebuilt base is produced by the CI workflow
 > `.github/workflows/build_native_lib.yml` as `libjinwo-<platform>.*` (+ `include/*.h`)
 > for PHP(FFI) / C#(DllImport) FFI reuse.

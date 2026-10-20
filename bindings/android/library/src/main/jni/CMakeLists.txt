@@ -36,5 +36,9 @@ target_include_directories(jinwo PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# Android 15+ 16KB 内存页对齐要求：让 .so 按 16KB 对齐，
+# 同时保持对 4KB 页设备的向后兼容（max-page-size 同时满足两者）。
+target_link_options(jinwo PRIVATE "-Wl,-z,max-page-size=16384")
+
 find_library(log-lib log)
 target_link_libraries(jinwo ${log-lib})
