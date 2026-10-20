@@ -149,7 +149,7 @@ TEST(pq_quantization)
     jw_status_t status = jw_pq_create(arena, dim, 4, 8, &pq);
     ASSERT_TRUE(status == JW_SUCCESS);
     
-    status = jw_pq_train(pq, vec, 1);
+    status = jw_pq_train(pq, vec, 1, JW_METRIC_L2);
     ASSERT_TRUE(status == JW_SUCCESS);
     
     jw_uint8_t *quantized = (jw_uint8_t *)jw_arena_alloc(arena, pq->nsub * sizeof(jw_uint8_t));

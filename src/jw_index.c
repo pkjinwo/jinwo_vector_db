@@ -1253,9 +1253,9 @@ JW_API jw_status_t jw_index_train(jw_index_t *index,
                       dim * sizeof(jw_float32_t));
         }
 
-        /** 训练PQ量化器 */
+        /** 训练PQ量化器 (传入度量, 使码本按度量训练) */
         if (index->type == JW_INDEX_IVF_PQ && ivf->pq != NULL) {
-            status = jw_pq_train(ivf->pq, vectors, count);
+            status = jw_pq_train(ivf->pq, vectors, count, ivf->metric);
             if (status != JW_SUCCESS) {
                 return status;
             }
@@ -1269,6 +1269,17 @@ JW_API jw_status_t jw_index_train(jw_index_t *index,
 
         ivf->trained = JW_TRUE;
         return JW_SUCCESS;
+    }
+
+    /** HNSW_PQ: 需要训练PQ码本, 否则码本全零导致量化完全失效 */
+    if (index->type == JW_INDEX_HNSW_PQ) {
+        jw_hnsw_index_t *hnsw = (jw_hnsw_index_t *)index->impl;
+        if (hnsw != NULL && hnsw->pq != NULL) {
+            jw_status_t st = jw_pq_train(hnsw->pq, vectors, count, hnsw->metric);
+            if (st != JW_SUCCESS) {
+                return st;
+            }
+        }
     }
 
     /** HNSW不需要训练 (或使用随机投影树) */

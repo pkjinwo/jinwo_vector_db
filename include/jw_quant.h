@@ -178,6 +178,7 @@ typedef struct jw_pq_quantizer {
     jw_uint32_t k;              /* 每个子空间的聚类数 (2^nbits) */
     jw_vec_t *centroids;        /* 聚类中心 [nsub][k][dim/nsub] */
     jw_dim_t sub_dim;           /* 子向量维度 */
+    jw_metric_t metric;         /* 训练/编码所用的度量 (COSINE 时内部先归一化) */
     jw_arena_t *arena;          /* 内存池 */
 } jw_pq_quantizer_t;
 
@@ -210,7 +211,8 @@ JW_API jw_status_t jw_pq_create(
 JW_API jw_status_t jw_pq_train(
     jw_pq_quantizer_t *pq,
     const jw_float32_t *vectors,
-    jw_size_t count
+    jw_size_t count,
+    jw_metric_t metric
 );
 
 /**

@@ -38,8 +38,12 @@
 
 #include "jw_quant.h"
 #include "jw_math.h"
+#include "jw_vector.h"
 #include <stdio.h>
 #include <string.h>
+
+/* PQ 码本 K-means 迭代次数 (Lloyd 算法) */
+#define JW_PQ_KMEANS_ITERS 25
 
 /*
  * =============================================================================
@@ -346,36 +350,117 @@ JW_API jw_status_t jw_pq_create(
 JW_API jw_status_t jw_pq_train(
     jw_pq_quantizer_t *pq,
     const jw_float32_t *vectors,
-    jw_size_t count
+    jw_size_t count,
+    jw_metric_t metric
 )
 {
     if (pq == NULL || vectors == NULL || count == 0) {
         return JW_INVALID_PARAM;
     }
-    
-    /* 对每个子空间单独进行K-means聚类 */
+
+    pq->metric = metric;
+
+    const jw_dim_t sd = pq->sub_dim;
+    const jw_uint32_t kk = pq->k;
+    const size_t vec_bytes = (size_t)count * pq->dim * sizeof(jw_float32_t);
+
+    /* 余弦度量: 先对全向量归一化, 使码本学习"方向"而非"长度"。
+       不归一化会导致码本按 L2 聚类、而检索按余弦, 召回崩塌。 */
+    jw_cvec_t src = vectors;
+    jw_vec_t norm_buf = NULL;
+    if (metric == JW_METRIC_COSINE) {
+        norm_buf = (jw_vec_t)jw_arena_alloc(pq->arena, vec_bytes);
+        if (norm_buf == NULL) {
+            return JW_OUT_OF_MEMORY;
+        }
+        jw_memcpy(norm_buf, vectors, vec_bytes);
+        for (jw_size_t j = 0; j < count; j++) {
+            jw_vec_t v = norm_buf + j * pq->dim;
+            jw_float32_t n = jw_vec_norm_l2_inline(v, pq->dim);
+            if (n > JW_FLT_EPSILON) {
+                jw_vec_scale(v, pq->dim, 1.0f / n, v);
+            }
+        }
+        src = norm_buf;
+    }
+
+    /* 每个子空间独立做 K-means (Lloyd 算法) */
     for (jw_uint32_t i = 0; i < pq->nsub; i++) {
-        jw_dim_t start = i * pq->sub_dim;
-        
-        /* 提取子向量 */
-        jw_vec_t sub_vecs = (jw_vec_t)jw_arena_alloc(pq->arena, count * pq->sub_dim * sizeof(jw_float32_t));
+        jw_dim_t start = i * sd;
+
+        /* 提取当前子空间的子向量 (连续存储) */
+        jw_vec_t sub_vecs = (jw_vec_t)jw_arena_alloc(pq->arena,
+                              (size_t)count * sd * sizeof(jw_float32_t));
         if (sub_vecs == NULL) {
             return JW_OUT_OF_MEMORY;
         }
-        
         for (jw_size_t j = 0; j < count; j++) {
-            jw_memcpy(sub_vecs + j * pq->sub_dim, vectors + j * pq->dim + start, pq->sub_dim * sizeof(jw_float32_t));
+            jw_memcpy(sub_vecs + j * sd, src + j * pq->dim + start,
+                      sd * sizeof(jw_float32_t));
         }
-        
-        /* 对当前子空间进行K-means聚类 */
-        /* 注意：这里简化实现，实际项目中应该使用更高效的K-means实现 */
-        /* 暂时使用随机初始化聚类中心 */
-        for (jw_uint32_t k = 0; k < pq->k; k++) {
-            jw_size_t idx = (jw_uint32_t)(jw_rand() % count);
-            jw_memcpy(pq->centroids[i] + k * pq->sub_dim, sub_vecs + idx * pq->sub_dim, pq->sub_dim * sizeof(jw_float32_t));
+
+        jw_vec_t cen = pq->centroids[i];
+
+        /* 初始化聚类中心: 随机选取样本点 (count<k 时循环复用, 保证有 k 个中心) */
+        for (jw_uint32_t k = 0; k < kk; k++) {
+            jw_size_t idx = (jw_size_t)(jw_rand() % (unsigned long)count);
+            jw_memcpy(cen + k * sd, sub_vecs + idx * sd, sd * sizeof(jw_float32_t));
+        }
+
+        /* Lloyd 迭代: 分配 -> 重算中心, 直到收敛或达到迭代上限 */
+        jw_uint32_t *assign = (jw_uint32_t *)jw_arena_alloc(pq->arena,
+                                  count * sizeof(jw_uint32_t));
+        jw_float32_t *sums = (jw_float32_t *)jw_arena_alloc(pq->arena,
+                                  (size_t)kk * sd * sizeof(jw_float32_t));
+        jw_uint32_t *cnts = (jw_uint32_t *)jw_arena_alloc(pq->arena,
+                                  kk * sizeof(jw_uint32_t));
+        if (assign == NULL || sums == NULL || cnts == NULL) {
+            return JW_OUT_OF_MEMORY;
+        }
+
+        for (jw_uint32_t iter = 0; iter < JW_PQ_KMEANS_ITERS; iter++) {
+            int changed = 0;
+
+            /* 步骤1: 每个子向量分配到最近的中心 (L2) */
+            for (jw_size_t j = 0; j < count; j++) {
+                jw_cvec_t v = sub_vecs + j * sd;
+                jw_float32_t best = JW_FLT_MAX;
+                jw_uint32_t best_k = 0;
+                for (jw_uint32_t k = 0; k < kk; k++) {
+                    jw_float32_t d = 0.0f;
+                    jw_cvec_t c = cen + k * sd;
+                    for (jw_dim_t d2 = 0; d2 < sd; d2++) {
+                        jw_float32_t diff = v[d2] - c[d2];
+                        d += diff * diff;
+                    }
+                    if (d < best) { best = d; best_k = k; }
+                }
+                if (assign[j] != best_k) { assign[j] = best_k; changed = 1; }
+            }
+
+            if (!changed) {
+                break;  /* 已收敛 */
+            }
+
+            /* 步骤2: 重算中心 = 各簇均值 */
+            jw_memset(sums, 0, (size_t)kk * sd * sizeof(jw_float32_t));
+            jw_memset(cnts, 0, kk * sizeof(jw_uint32_t));
+            for (jw_size_t j = 0; j < count; j++) {
+                jw_uint32_t c = assign[j];
+                cnts[c]++;
+                for (jw_dim_t d2 = 0; d2 < sd; d2++) {
+                    sums[c * sd + d2] += sub_vecs[j * sd + d2];
+                }
+            }
+            for (jw_uint32_t k = 0; k < kk; k++) {
+                if (cnts[k] == 0) continue;
+                for (jw_dim_t d2 = 0; d2 < sd; d2++) {
+                    cen[k * sd + d2] = sums[k * sd + d2] / (jw_float32_t)cnts[k];
+                }
+            }
         }
     }
-    
+
     return JW_SUCCESS;
 }
 
@@ -391,10 +476,32 @@ JW_API void jw_pq_encode(
     if (pq == NULL || vec == NULL || code == NULL) {
         return;
     }
-    
+
+    /* 余弦: 编码前先归一化, 与训练时的预处理保持一致 */
+    jw_cvec_t src = vec;
+    jw_float32_t stack_norm[JW_MAX_VECTOR_DIM];
+    jw_vec_t heap_norm = NULL;
+    if (pq->metric == JW_METRIC_COSINE) {
+        jw_float32_t n = jw_vec_norm_l2_inline(vec, pq->dim);
+        if (n > JW_FLT_EPSILON) {
+            if (pq->dim <= JW_MAX_VECTOR_DIM) {
+                jw_memcpy(stack_norm, vec, pq->dim * sizeof(jw_float32_t));
+                jw_vec_scale(stack_norm, pq->dim, 1.0f / n, stack_norm);
+                src = stack_norm;
+            } else {
+                heap_norm = (jw_vec_t)jw_arena_alloc(pq->arena, pq->dim * sizeof(jw_float32_t));
+                if (heap_norm != NULL) {
+                    jw_memcpy(heap_norm, vec, pq->dim * sizeof(jw_float32_t));
+                    jw_vec_scale(heap_norm, pq->dim, 1.0f / n, heap_norm);
+                    src = heap_norm;
+                }
+            }
+        }
+    }
+
     for (jw_uint32_t i = 0; i < pq->nsub; i++) {
         jw_dim_t start = i * pq->sub_dim;
-        const jw_float32_t *sub_vec = vec + start;
+        const jw_float32_t *sub_vec = src + start;
         const jw_vec_t centroids = pq->centroids[i];
         
         /* 找到最近的聚类中心 */
@@ -469,6 +576,26 @@ JW_API jw_float32_t jw_pq_distance(
     }
     
     if (metric == JW_METRIC_L2) {
+        /* 码本在归一化(COSINE)空间训练时, 查询必须先归一化再算 L2,
+           否则"原始坐标"与"单位球面坐标"量纲错乱, 距离值爆炸(可达1e12量级),
+           导致 IVF/PQ 检索被巨值主导、真结果被挤掉, 召回崩塌。 */
+        if (pq->metric == JW_METRIC_COSINE) {
+            jw_float32_t nq = jw_vec_norm_l2_inline(query, pq->dim);
+            if (nq <= JW_FLT_EPSILON) {
+                return JW_FLT_MAX;
+            }
+            jw_float32_t d = 0.0f;
+            for (jw_uint32_t i = 0; i < pq->nsub; i++) {
+                jw_dim_t start = i * pq->sub_dim;
+                jw_uint32_t centroid_idx = code[i];
+                const jw_vec_t centroid = pq->centroids[i] + centroid_idx * pq->sub_dim;
+                for (jw_dim_t dd = 0; dd < pq->sub_dim; dd++) {
+                    jw_float32_t diff = query[start + dd] / nq - centroid[dd];
+                    d += diff * diff;
+                }
+            }
+            return jw_math_sqrt_f32(d);
+        }
         return jw_math_sqrt_f32(total_dist);
     }
     else if (metric == JW_METRIC_IP) {
