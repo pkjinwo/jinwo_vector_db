@@ -75,46 +75,6 @@ static int is_valid_heap_ptr(const void *ptr) {
     return (ptr != NULL && ((uintptr_t)ptr) >= (uintptr_t)0x10000);
 }
 
-/**
- * 模拟 GDB watchpoint：扫描所有已有节点，检测是否有 vec 被破坏。
- * 在每次向量插入完成后调用，可以精确定位是插入哪个向量时破坏了哪个节点的 vec。
- *
- * @param hnsw   HNSW 索引
- * @param vid    刚刚插入的向量 ID
- */
-static void watch_all_nodes_vec(jw_hnsw_index_t *hnsw, jw_vid_t just_inserted_vid) {
-    const char *field = NULL;
-    for (jw_size_t i = 0; i < hnsw->capacity; i++) {
-        if (hnsw->nodes[i] == NULL) continue;
-
-        jw_hnsw_node_t *n = hnsw->nodes[i];
-        field = NULL;
-
-        if (!is_valid_heap_ptr(n->vec)) {
-            field = "vec";
-        } else if (!is_valid_heap_ptr((const void*)n->links)) {
-            field = "links";
-        } else if (n->max_M == 0 || n->max_M > 4096) {
-            field = "max_M";
-        } else if (n->level > 128) {
-            field = "level";
-        }
-
-        if (field != NULL) {
-            JW_LOGE("WATCHPOINT: node corrupted after inserting vid=%" PRIu64 "!"
-                " CorruptedNode[%zu]=%p vid=%" PRIu64 " field=%s"
-                " vec=%p links=%p max_M=%u max_M0=%u level=%u deleted=%d"
-                " link_counts=%p",
-                (uint64_t)just_inserted_vid,
-                i, (void*)n, (uint64_t)n->vid, field,
-                (void*)n->vec, (void*)n->links,
-                (unsigned)n->max_M, (unsigned)n->max_M0,
-                (unsigned)n->level, (int)n->deleted,
-                (void*)n->link_counts);
-        }
-    }
-}
-
 #if defined(_WIN32) || defined(_WIN64) || defined(WIN32)
 #include <io.h>
 #ifndef ssize_t
@@ -553,7 +513,9 @@ static jw_uint32_t hnsw_generate_level(const jw_hnsw_config_t *config)
      */
     jw_float32_t mult = config->level_mult;
     if (mult <= 0) {
-        mult = 1.0f / jw_math_log_f32((jw_float32_t)config->M);
+        /* M < 2 时 log(M) <= 0 会除零, 兜底用 M=16 的衰减系数 */
+        jw_float32_t M = (config->M >= 2) ? (jw_float32_t)config->M : 16.0f;
+        mult = 1.0f / jw_math_log_f32(M);
     }
 
     jw_uint32_t level = (jw_uint32_t)(-jw_math_log_f32(r) * mult);
@@ -578,8 +540,9 @@ static jw_uint32_t hnsw_generate_level(const jw_hnsw_config_t *config)
  * @param query      查询向量
  * @param ep_vid     入口点向量ID
  * @param level      搜索起始层级
- * @param visited    已访问节点标记数组
- * @param visited_count 已访问节点数量
+ * @param visit_mark 已访问标记数组 (大小=capacity, 调用方负责清零;
+ *                   用 O(1) 标记替代原来的 O(n) 线性查找, 避免插入/查询
+ *                   复杂度退化)
  * @param arena       内存池
  * @return           最近邻的向量ID
  */
@@ -587,8 +550,7 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                                     jw_cvec_t query,
                                     jw_vid_t ep_vid,
                                     jw_uint32_t level,
-                                    jw_vid_t *visited,
-                                    jw_size_t *visited_count,
+                                    jw_uint8_t *visit_mark,
                                     jw_arena_t *arena)
 {
     /** 入口点合法性检查 */
@@ -644,36 +606,26 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
-            /** 检查是否已访问 */
-            jw_bool_t is_visited = JW_FALSE;
-            for (jw_size_t v = 0; v < *visited_count; v++) {
-                if (visited[v] == neighbor) {
-                    is_visited = JW_TRUE;
-                    break;
-                }
+            /** O(1) 已访问判断 (替代原来的线性扫描) */
+            if (visit_mark[neighbor]) {
+                continue;
             }
+            visit_mark[neighbor] = 1;
 
-            if (!is_visited) {
-                /** 标记为已访问 */
-                if (*visited_count < hnsw->capacity) {
-                    visited[(*visited_count)++] = neighbor;
-                }
-
-                /** 计算距离 */
-                current_dist = hnsw_node_dist(hnsw, query, gnb_node);
+            /** 计算距离 */
+            current_dist = hnsw_node_dist(hnsw, query, gnb_node);
 
                 /** 如果找到更近的邻居，更新最近邻 */
                 if (current_dist < nearest_dist) {
                     nearest_dist = current_dist;
                     nearest = neighbor;
                 }
-            }
-        }
+                }
 
-        /** 如果没有找到更近的邻居，搜索结束 */
-        if (nearest == prev_nearest) {
-            break;
-        }
+                /** 如果没有找到更近的邻居，搜索结束 */
+                if (nearest == prev_nearest) {
+                break;
+                }
 
         current = nearest;
     }
@@ -724,10 +676,13 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
         return;
     }
 
-    /** 已访问节点数组 */
-    jw_vid_t *visited = (jw_vid_t *)jw_arena_alloc(arena,
-                         hnsw->capacity * sizeof(jw_vid_t));
-    jw_size_t visited_count = 0;
+    /** 已访问标记数组 (O(1) 判断, 替代原来的线性扫描) */
+    jw_uint8_t *visit_mark = (jw_uint8_t *)jw_arena_alloc(arena, hnsw->capacity);
+    if (visit_mark == NULL) {
+        *result_count = 0;
+        return;
+    }
+    jw_memset(visit_mark, 0, hnsw->capacity);
 
     /** 结果优先队列 (最大堆: 堆顶是ef_search个结果中最远的) */
     priority_queue_t pq;
@@ -741,7 +696,7 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
     jw_size_t todo_count = 0;
 
     /** 初始化: 入口点 */
-    visited[visited_count++] = ep_vid;
+    visit_mark[ep_vid] = 1;
     jw_float32_t ep_dist = hnsw_node_dist(hnsw, query, hnsw->nodes[ep_vid]);
     pq_push(&pq, ep_vid, ep_dist, level);
     todo[todo_count] = ep_vid;
@@ -818,28 +773,21 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
-            /** 检查是否已访问 */
-            jw_bool_t is_visited = JW_FALSE;
-            for (jw_size_t v = 0; v < visited_count; v++) {
-                if (visited[v] == neighbor) {
-                    is_visited = JW_TRUE;
-                    break;
-                }
+            /** O(1) 已访问判断 */
+            if (visit_mark[neighbor]) {
+                continue;
             }
+            visit_mark[neighbor] = 1;
 
-            if (!is_visited) {
-                visited[visited_count++] = neighbor;
+            jw_float32_t dist = hnsw_node_dist(hnsw, query, nb_node);
 
-                jw_float32_t dist = hnsw_node_dist(hnsw, query, nb_node);
+            /** 加入结果集 (最大堆) */
+            pq_push(&pq, neighbor, dist, level);
 
-                /** 加入结果集 (最大堆) */
-                pq_push(&pq, neighbor, dist, level);
-
-                /** 加入待探索列表 */
-                todo[todo_count] = neighbor;
-                todo_dist[todo_count] = dist;
-                todo_count++;
-            }
+            /** 加入待探索列表 */
+            todo[todo_count] = neighbor;
+            todo_dist[todo_count] = dist;
+            todo_count++;
         }
     }
 
@@ -1492,12 +1440,33 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
 
         jw_rwlock_wrlock(hnsw->lock);
 
+        /**
+         * 预扫描本批次的最大 vid, 一次性分配足够大的标记数组。
+         * 必须覆盖扩容后的 capacity (扩容公式为 (vid+1)*2), 否则
+         * visit_mark[neighbor] 会在扩容后越界写。
+         */
+        jw_vid_t batch_max_vid = 0;
+        for (jw_size_t i = 0; i < count; i++) {
+            if (vids[i] > batch_max_vid) {
+                batch_max_vid = vids[i];
+            }
+        }
+        jw_size_t mark_cap = ((jw_size_t)batch_max_vid + 1) * 2;
+        if (mark_cap < hnsw->capacity) {
+            mark_cap = hnsw->capacity;
+        }
+
         /** 预分配批量插入所需的临时数组（只需分配一次） */
-        jw_vid_t *insert_visited = (jw_vid_t *)jw_arena_alloc(index->arena,
-                                     hnsw->capacity * sizeof(jw_vid_t));
+        jw_uint8_t *insert_visit_mark = (jw_uint8_t *)jw_arena_alloc(index->arena,
+                                     mark_cap);
         jw_uint32_t ef_constr = hnsw->config.ef_construction;
         search_candidate_t *insert_layer_results = (search_candidate_t *)jw_arena_alloc(
                 index->arena, ef_constr * sizeof(search_candidate_t));
+
+        if (insert_visit_mark == NULL || insert_layer_results == NULL) {
+            jw_rwlock_wrunlock(hnsw->lock);
+            return JW_OUT_OF_MEMORY;
+        }
 
         for (jw_size_t i = 0; i < count; i++) {
             jw_vid_t vid = vids[i];
@@ -1555,17 +1524,34 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             node->max_M = hnsw->config.M;
             node->max_M0 = hnsw->config.M * 2;  /** 第0层允许更多连接 */
 
-            /** 分配连接表内存 */
+            /** 分配连接表内存 (任一失败都必须解锁返回, 否则后续写 NULL 崩溃) */
             node->links = (jw_vid_t **)jw_arena_alloc(index->arena,
                           (node_level + 1) * sizeof(jw_vid_t *));
             node->link_counts = (jw_uint32_t *)jw_arena_alloc(index->arena,
                                 (node_level + 1) * sizeof(jw_uint32_t));
+            if (node->links == NULL || node->link_counts == NULL) {
+                jw_rwlock_wrunlock(hnsw->lock);
+                return JW_OUT_OF_MEMORY;
+            }
+            int links_alloc_ok = 1;
             for (jw_uint32_t l = 0; l <= node_level; l++) {
                 /* 第0层用 max_M0，其他层用 max_M */
                 jw_uint32_t alloc_M = (l == 0) ? node->max_M0 : node->max_M;
                 node->links[l] = (jw_vid_t *)jw_arena_alloc(index->arena,
                             alloc_M * sizeof(jw_vid_t));
+                if (node->links[l] == NULL) {
+                    links_alloc_ok = 0;
+                    /* 已分配的层保持有效, 未分配的置 NULL, 供统一释放路径判断 */
+                    for (jw_uint32_t l2 = l + 1; l2 <= node_level; l2++) {
+                        node->links[l2] = NULL;
+                    }
+                    break;
+                }
                 node->link_counts[l] = 0;
+            }
+            if (!links_alloc_ok) {
+                jw_rwlock_wrunlock(hnsw->lock);
+                return JW_OUT_OF_MEMORY;
             }
 
             hnsw->nodes[vid] = node;
@@ -1602,9 +1588,15 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                 hnsw->max_level = node_level;
             } else {
                 /** 非首个节点：执行完整的 HNSW 插入 */
-                jw_size_t visited_count = 0;
                 jw_vid_t current_ep = hnsw->entry_point;
                 jw_uint32_t current_max_level = hnsw->max_level;
+
+                /**
+                 * 每个向量都要重置已访问标记。
+                 * 原实现是 visited_count = 0 (每向量重置), 语义必须保持一致,
+                 * 否则后插入的向量会跳过前面的向量访问过的节点, 随规模累积劣化图质量。
+                 */
+                jw_memset(insert_visit_mark, 0, mark_cap);
 
                 /**
                  * 第一阶段: 从顶层向下贪婪搜索
@@ -1612,8 +1604,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                  */
                 for (jw_uint32_t l = current_max_level; l > node_level; l--) {
                     current_ep = hnsw_greedy_search(hnsw, vec, current_ep, l,
-                                                    insert_visited,
-                                                    &visited_count,
+                                                    insert_visit_mark,
                                                     index->arena);
                 }
 
@@ -1770,8 +1761,13 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                 }
             }
 
-            /** 模拟 GDB watchpoint：检查是否有节点被当前插入操作破坏 */
-            watch_all_nodes_vec(hnsw, vid);
+            /**
+             * 性能修复 (2026-10-21): 原先此处调用 watch_all_nodes_vec() 逐节点
+             * 扫描全部 capacity, 使插入复杂度退化为 O(N^2) (实测 N=20000 仅
+             * 143 vec/s)。该函数是早期排查 vec 被破坏问题时的 GDB watchpoint
+             * 模拟, 问题早已定位, 且它对 PQ 模式误报 (所有节点 vec==NULL 会被
+             * 判为"损坏")。故从热路径移除, 函数一并删除。
+             */
         }
 
         jw_rwlock_wrunlock(hnsw->lock);
@@ -1801,6 +1797,10 @@ JW_API jw_status_t jw_index_remove(jw_index_t *index, jw_vid_t vid)
         if (vid < hnsw->capacity && hnsw->nodes[vid] != NULL) {
             /** 直接置空节点的指针, 搜索时会跳过 NULL 节点 */
             hnsw->nodes[vid] = NULL;
+            /** 同步递减计数, 否则 jw_index_get_count 会虚高 */
+            if (hnsw->ntotal > 0) {
+                hnsw->ntotal--;
+            }
 
             /** 如果删除的是入口点, 找新的 */
             if (hnsw->entry_point == vid) {
@@ -2017,25 +2017,24 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         /** 分配临时数组 */
         search_candidate_t *layer_results = (search_candidate_t *)jw_malloc(
                 hnsw->capacity * sizeof(search_candidate_t));
-        jw_vid_t *visited = NULL;
+        jw_uint8_t *visit_mark = NULL;
 
         if (layer_results != NULL) {
-            visited = (jw_vid_t *)jw_malloc(
-                    hnsw->capacity * sizeof(jw_vid_t));
+            visit_mark = (jw_uint8_t *)jw_malloc(hnsw->capacity);
         }
 
-        if (layer_results == NULL || visited == NULL) {
+        if (layer_results == NULL || visit_mark == NULL) {
             if (layer_results != NULL) {
                 jw_free(layer_results);
             }
-            if (visited != NULL) {
-                jw_free(visited);
+            if (visit_mark != NULL) {
+                jw_free(visit_mark);
             }
             jw_rwlock_rdunlock(hnsw->lock);
             return 0;
         }
+        jw_memset(visit_mark, 0, hnsw->capacity);
 
-        jw_size_t visited_count = 0;
         jw_vid_t current_ep = hnsw->entry_point;
         jw_uint32_t max_level = (hnsw->max_level > 0) ? hnsw->max_level : 0;
 
@@ -2057,7 +2056,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
             if (new_ep == ((jw_vid_t)-1)) {
                 /** 没有有效节点，返回空 */
                 jw_free(layer_results);
-                jw_free(visited);
+                jw_free(visit_mark);
                 jw_rwlock_rdunlock(hnsw->lock);
                 return 0;
             }
@@ -2071,7 +2070,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
          */
         for (jw_uint32_t level = max_level; level > 0; level--) {
             current_ep = hnsw_greedy_search(hnsw, query, current_ep,
-                                            level, visited, &visited_count,
+                                            level, visit_mark,
                                             index->arena);
         }
 
@@ -2099,7 +2098,7 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
         }
 
         jw_free(layer_results);
-        jw_free(visited);
+        jw_free(visit_mark);
 
         jw_rwlock_rdunlock(hnsw->lock);
 
@@ -2241,8 +2240,10 @@ JW_API jw_hnsw_index_t *jw_hnsw_create(jw_arena_t *arena,
     index->config = *config;
     index->arena = local_arena;
 
-    /* 防御：未显式赋值的 HNSW 参数回退到安全默认，避免野值导致内存越界 */
-    if (index->config.M == 0) {
+    /* 防御：未显式赋值/非法的 HNSW 参数回退到安全默认，避免野值导致内存越界。
+       M < 2 时 log(M) <= 0, 1/log(M) 会除零产生 inf, 进而使层级计算的
+       (uint32_t)inf 成为未定义行为, 故一并兜底为 16。 */
+    if (index->config.M < 2) {
         index->config.M = 16;
     }
     if (index->config.ef_construction == 0) {
