@@ -157,6 +157,44 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
                                    jw_vec_t centroids);
 
 /*
+ * HNSW_PQ 支持: 判断节点是否携带可用数据
+ * PQ 模式下节点只存 code (vec 为 NULL, 与 IVF_PQ 一致, 用于省内存)
+ */
+static int hnsw_node_usable(const jw_hnsw_index_t *hnsw,
+                            const jw_hnsw_node_t *node)
+{
+    if (node == NULL) {
+        return 0;
+    }
+    if (hnsw->pq != NULL) {
+        return node->code != NULL;
+    }
+    return node->vec != NULL;
+}
+
+/*
+ * HNSW_PQ 支持: 查询向量与节点间的距离
+ *   PQ 模式: 用码本近似距离 (query 为原始向量, node 侧为编码)
+ *   普通模式: 用原始向量精确距离
+ * 插入建边时也可复用本函数, 把"新节点的原始向量"当 query 传入。
+ */
+static jw_float32_t hnsw_node_dist(const jw_hnsw_index_t *hnsw,
+                                   jw_cvec_t query,
+                                   const jw_hnsw_node_t *node)
+{
+    if (hnsw->pq != NULL) {
+        if (node->code != NULL) {
+            return jw_pq_distance(hnsw->pq, query, node->code, hnsw->metric);
+        }
+        return JW_FLT_MAX;
+    }
+    if (node->vec != NULL) {
+        return jw_vec_distance(query, node->vec, hnsw->dim, hnsw->metric);
+    }
+    return JW_FLT_MAX;
+}
+
+/*
  * =============================================================================
  * 向量量化实现
  * =============================================================================
@@ -559,17 +597,19 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
         return ep_vid;
     }
     jw_hnsw_node_t *gep_node = hnsw->nodes[ep_vid];
-    if (gep_node->vec == NULL || !is_valid_heap_ptr(gep_node->vec)) {
-        JW_LOGE("hnsw_greedy_search: BAD ENTRY POINT VEC!"
-            " ep_vid=%" PRIu64 " node=%p vec=%p",
-            (uint64_t)ep_vid, (void*)gep_node, (void*)gep_node->vec);
+    if (!hnsw_node_usable(hnsw, gep_node)) {
+        JW_LOGE("hnsw_greedy_search: BAD ENTRY POINT DATA!"
+            " ep_vid=%" PRIu64 " node=%p vec=%p code=%p",
+            (uint64_t)ep_vid, (void*)gep_node,
+            gep_node ? (void*)gep_node->vec : NULL,
+            gep_node ? (void*)gep_node->code : NULL);
         return ep_vid;
     }
 
     jw_vid_t current = ep_vid;
     jw_vid_t nearest = ep_vid;
-    jw_float32_t nearest_dist = jw_vec_distance(query,
-                             hnsw->nodes[ep_vid]->vec, hnsw->dim, hnsw->metric);
+    jw_float32_t nearest_dist = hnsw_node_dist(hnsw, query,
+                             hnsw->nodes[ep_vid]);
     jw_float32_t current_dist;
 
     while (1) {
@@ -587,12 +627,12 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
-            /** 检查 vec 指针：仅 NULL 不够，还要过滤垃圾小值 */
+            /** 检查数据指针：仅 NULL 不够，还要过滤垃圾小值 */
             jw_hnsw_node_t *gnb_node = hnsw->nodes[neighbor];
-            if (gnb_node->vec == NULL) {
+            if (!hnsw_node_usable(hnsw, gnb_node)) {
                 continue;
             }
-            if (!is_valid_heap_ptr(gnb_node->vec)) {
+            if (hnsw->pq == NULL && !is_valid_heap_ptr(gnb_node->vec)) {
                 JW_LOGE("hnsw_greedy_search: GARBAGE VEC! neighbor=%" PRIu64
                     " node=%p vec=%p vid=%" PRIu64 " level=%u deleted=%d"
                     " links=%p link_counts=%p max_M=%u max_M0=%u",
@@ -620,7 +660,7 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
                 }
 
                 /** 计算距离 */
-                current_dist = jw_vec_distance(query, gnb_node->vec, hnsw->dim, hnsw->metric);
+                current_dist = hnsw_node_dist(hnsw, query, gnb_node);
 
                 /** 如果找到更近的邻居，更新最近邻 */
                 if (current_dist < nearest_dist) {
@@ -674,10 +714,12 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
         return;
     }
     jw_hnsw_node_t *ep_node = hnsw->nodes[ep_vid];
-    if (ep_node->vec == NULL || !is_valid_heap_ptr(ep_node->vec)) {
-        JW_LOGE("hnsw_layer_search: BAD ENTRY POINT VEC!"
-            " ep_vid=%" PRIu64 " node=%p vec=%p",
-            (uint64_t)ep_vid, (void*)ep_node, (void*)ep_node->vec);
+    if (!hnsw_node_usable(hnsw, ep_node)) {
+        JW_LOGE("hnsw_layer_search: BAD ENTRY POINT DATA!"
+            " ep_vid=%" PRIu64 " node=%p vec=%p code=%p",
+            (uint64_t)ep_vid, (void*)ep_node,
+            ep_node ? (void*)ep_node->vec : NULL,
+            ep_node ? (void*)ep_node->code : NULL);
         *result_count = 0;
         return;
     }
@@ -700,7 +742,7 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
 
     /** 初始化: 入口点 */
     visited[visited_count++] = ep_vid;
-    jw_float32_t ep_dist = jw_vec_distance(query, hnsw->nodes[ep_vid]->vec, hnsw->dim, hnsw->metric);
+    jw_float32_t ep_dist = hnsw_node_dist(hnsw, query, hnsw->nodes[ep_vid]);
     pq_push(&pq, ep_vid, ep_dist, level);
     todo[todo_count] = ep_vid;
     todo_dist[todo_count] = ep_dist;
@@ -759,12 +801,12 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                 continue;
             }
 
-            /** 检查 vec 指针：仅 NULL 不够，还要过滤垃圾小值 */
+            /** 检查数据指针：仅 NULL 不够，还要过滤垃圾小值 */
             jw_hnsw_node_t *nb_node = hnsw->nodes[neighbor];
-            if (nb_node->vec == NULL) {
+            if (!hnsw_node_usable(hnsw, nb_node)) {
                 continue;
             }
-            if (!is_valid_heap_ptr(nb_node->vec)) {
+            if (hnsw->pq == NULL && !is_valid_heap_ptr(nb_node->vec)) {
                 JW_LOGE("hnsw_layer_search: GARBAGE VEC! neighbor=%" PRIu64
                     " node=%p vec=%p vid=%" PRIu64 " level=%u deleted=%d"
                     " links=%p link_counts=%p max_M=%u max_M0=%u",
@@ -788,8 +830,7 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
             if (!is_visited) {
                 visited[visited_count++] = neighbor;
 
-                jw_float32_t dist = jw_vec_distance(query,
-                    nb_node->vec, hnsw->dim, hnsw->metric);
+                jw_float32_t dist = hnsw_node_dist(hnsw, query, nb_node);
 
                 /** 加入结果集 (最大堆) */
                 pq_push(&pq, neighbor, dist, level);
@@ -841,13 +882,13 @@ static void hnsw_select_neighbors(jw_hnsw_node_t **neighbors,
     /** 使用简单的选择排序保留最近的M个 */
     for (jw_uint32_t i = 0; i < M; i++) {
         jw_uint32_t min_idx = i;
-        jw_float32_t min_dist = (neighbors[i] != NULL && neighbors[i]->vec != NULL)
-            ? jw_vec_distance(query, neighbors[i]->vec, hnsw->dim, hnsw->metric)
+        jw_float32_t min_dist = hnsw_node_usable(hnsw, neighbors[i])
+            ? hnsw_node_dist(hnsw, query, neighbors[i])
             : JW_FLT_MAX;
 
         for (jw_uint32_t j = i + 1; j < count; j++) {
-            jw_float32_t dist = (neighbors[j] != NULL && neighbors[j]->vec != NULL)
-                ? jw_vec_distance(query, neighbors[j]->vec, hnsw->dim, hnsw->metric)
+            jw_float32_t dist = hnsw_node_usable(hnsw, neighbors[j])
+                ? hnsw_node_dist(hnsw, query, neighbors[j])
                 : JW_FLT_MAX;
             if (dist < min_dist) {
                 min_dist = dist;
@@ -1491,13 +1532,24 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             }
 
             node->vid = vid;
-            node->vec = (jw_vec_t)jw_arena_alloc(index->arena,
-                           dim * sizeof(jw_float32_t));
-            if (node->vec == NULL) {
-                jw_rwlock_wrunlock(hnsw->lock);
-                return JW_OUT_OF_MEMORY;
+            if (hnsw->pq != NULL) {
+                /** HNSW_PQ: 只存 PQ 编码, 不存原始向量 (与 IVF_PQ 一致, 省内存) */
+                node->code = (jw_uint8_t *)jw_arena_alloc(index->arena,
+                                hnsw->pq->nsub * sizeof(jw_uint8_t));
+                if (node->code == NULL) {
+                    jw_rwlock_wrunlock(hnsw->lock);
+                    return JW_OUT_OF_MEMORY;
+                }
+                jw_pq_encode(hnsw->pq, vec, node->code);
+            } else {
+                node->vec = (jw_vec_t)jw_arena_alloc(index->arena,
+                               dim * sizeof(jw_float32_t));
+                if (node->vec == NULL) {
+                    jw_rwlock_wrunlock(hnsw->lock);
+                    return JW_OUT_OF_MEMORY;
+                }
+                jw_memcpy(node->vec, vec, dim * sizeof(jw_float32_t));
             }
-            jw_memcpy(node->vec, vec, dim * sizeof(jw_float32_t));
             node->level = node_level;
             node->max_level = node_level;
             node->max_M = hnsw->config.M;
@@ -1519,11 +1571,17 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
             hnsw->nodes[vid] = node;
             hnsw->ntotal++;
 
-            /** 创建后验证：确认 vec 和 links 都是合法堆地址 */
-            if (!is_valid_heap_ptr(node->vec)) {
+            /** 创建后验证：确认数据指针和 links 都是合法堆地址 */
+            if (hnsw->pq == NULL && !is_valid_heap_ptr(node->vec)) {
                 JW_LOGE("add_batch: NODE CREATED WITH GARBAGE VEC!"
                     " vid=%" PRIu64 " node=%p vec=%p level=%u max_M=%u",
                     (uint64_t)vid, (void*)node, (void*)node->vec,
+                    (unsigned)node->level, (unsigned)node->max_M);
+            }
+            if (hnsw->pq != NULL && node->code == NULL) {
+                JW_LOGE("add_batch: NODE CREATED WITH NULL PQ CODE!"
+                    " vid=%" PRIu64 " node=%p code=%p level=%u max_M=%u",
+                    (uint64_t)vid, (void*)node, (void*)node->code,
                     (unsigned)node->level, (unsigned)node->max_M);
             }
             if (!is_valid_heap_ptr((const void*)node->links)) {
@@ -1588,7 +1646,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                         for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                             if (hnsw->nodes[n] != NULL
                                 && !hnsw->nodes[n]->deleted
-                                && hnsw->nodes[n]->vec != NULL
+                                && hnsw_node_usable(hnsw, hnsw->nodes[n])
                                 && hnsw->nodes[n]->vid != vid
                                 && level <= hnsw->nodes[n]->level) {
                                 existing_count++;
@@ -1606,7 +1664,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                         for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                             if (hnsw->nodes[n] != NULL
                                 && !hnsw->nodes[n]->deleted
-                                && hnsw->nodes[n]->vec != NULL
+                                && hnsw_node_usable(hnsw, hnsw->nodes[n])
                                 && hnsw->nodes[n]->vid != vid
                                 && level <= hnsw->nodes[n]->level) {
                                 all_candidates[ac++] = hnsw->nodes[n];
@@ -1643,7 +1701,7 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                     for (jw_size_t c = 0; c < result_count; c++) {
                         jw_vid_t cvid = insert_layer_results[c].vid;
                         if (cvid < hnsw->capacity && hnsw->nodes[cvid] != NULL
-                            && hnsw->nodes[cvid]->vec != NULL) {
+                            && hnsw_node_usable(hnsw, hnsw->nodes[cvid])) {
                             candidates[valid_count++] = hnsw->nodes[cvid];
                         }
                     }
@@ -1681,19 +1739,18 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                             jw_uint32_t max_idx = 0;
                             for (jw_uint32_t k = 0; k < neighbor->link_counts[level]; k++) {
                                 jw_vid_t nv = neighbor->links[level][k];
-                                if (nv < hnsw->capacity && hnsw->nodes[nv] != NULL) {
-                                    jw_float32_t d = jw_vec_distance(neighbor->vec,
-                                                    hnsw->nodes[nv]->vec,
-                                                    hnsw->dim, hnsw->metric);
+                                if (nv < hnsw->capacity && hnsw->nodes[nv] != NULL
+                                    && hnsw_node_usable(hnsw, hnsw->nodes[nv])) {
+                                    /* 以"新节点原始向量"为查询, 与邻居的其它连接比较 */
+                                    jw_float32_t d = hnsw_node_dist(hnsw, vec,
+                                                    hnsw->nodes[nv]);
                                     if (d > max_dist) {
                                         max_dist = d;
                                         max_idx = k;
                                     }
                                 }
                             }
-                            jw_float32_t new_dist = jw_vec_distance(neighbor->vec,
-                                                           node->vec,
-                                                           hnsw->dim, hnsw->metric);
+                            jw_float32_t new_dist = hnsw_node_dist(hnsw, vec, neighbor);
                             if (new_dist < max_dist) {
                                 neighbor->links[level][max_idx] = vid;
                             }
@@ -1987,11 +2044,11 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
             || current_ep >= hnsw->capacity
             || hnsw->nodes[current_ep] == NULL
             || hnsw->nodes[current_ep]->deleted
-            || hnsw->nodes[current_ep]->vec == NULL) {
+            || !hnsw_node_usable(hnsw, hnsw->nodes[current_ep])) {
             jw_vid_t new_ep = ((jw_vid_t)-1);
             for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                 if (hnsw->nodes[n] != NULL && !hnsw->nodes[n]->deleted
-                    && hnsw->nodes[n]->vec != NULL) {
+                    && hnsw_node_usable(hnsw, hnsw->nodes[n])) {
                     new_ep = hnsw->nodes[n]->vid;
                     hnsw->max_level = hnsw->nodes[n]->level;
                     break;
@@ -2384,33 +2441,15 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
             if (write(fd, &hnsw->config.level_mult, sizeof(jw_float32_t)) != sizeof(jw_float32_t)) { status = JW_IO_ERROR; goto cleanup; }
             if (write(fd, &hnsw->rng_state, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
             
-            /* 写入节点数据 */
-            for (jw_size_t i = 0; i < hnsw->ntotal; i++) {
-                jw_hnsw_node_t *node = hnsw->nodes[i];
-                if (node != NULL) {
-                    if (write(fd, &node->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
-                    if (write(fd, &node->level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                    if (write(fd, node->vec, hnsw->dim * sizeof(jw_float32_t)) != (ssize_t)(hnsw->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
-                    
-                    /* 写入连接 */
-                    for (jw_uint32_t l = 0; l <= node->level; l++) {
-                        if (write(fd, &node->link_counts[l], sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                        for (jw_uint32_t j = 0; j < node->link_counts[l]; j++) {
-                            if (write(fd, &node->links[l][j], sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
-                        }
-                    }
-                }
-            }
-            
-            /* 写入量化器 */
+            /* 先写量化器 (必须在节点数据之前: 加载时需要 nsub 才能解析节点的 PQ 编码) */
             if (hnsw->type == JW_INDEX_HNSW_PQ && hnsw->pq != NULL) {
                 if (write(fd, &hnsw->pq->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
                 if (write(fd, &hnsw->pq->nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
                 if (write(fd, &hnsw->pq->k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
                 if (write(fd, &hnsw->pq->sub_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                
+
                 for (jw_uint32_t i = 0; i < hnsw->pq->nsub; i++) {
-                    if (write(fd, hnsw->pq->centroids[i], hnsw->pq->k * hnsw->pq->sub_dim * sizeof(jw_float32_t)) != 
+                    if (write(fd, hnsw->pq->centroids[i], hnsw->pq->k * hnsw->pq->sub_dim * sizeof(jw_float32_t)) !=
                         (ssize_t)(hnsw->pq->k * hnsw->pq->sub_dim * sizeof(jw_float32_t))) {
                         status = JW_IO_ERROR;
                         goto cleanup;
@@ -2421,6 +2460,29 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
                 if (write(fd, hnsw->sq->mins, hnsw->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(hnsw->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
                 if (write(fd, hnsw->sq->maxs, hnsw->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(hnsw->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
                 if (write(fd, hnsw->sq->scales, hnsw->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(hnsw->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+            }
+
+            /* 写入节点数据 */
+            for (jw_size_t i = 0; i < hnsw->ntotal; i++) {
+                jw_hnsw_node_t *node = hnsw->nodes[i];
+                if (node != NULL) {
+                    if (write(fd, &node->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
+                    if (write(fd, &node->level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                    if (hnsw->pq != NULL) {
+                        /** HNSW_PQ: 写 PQ 编码 (nsub 字节) 而非原始向量 */
+                        if (write(fd, node->code, hnsw->pq->nsub) != (ssize_t)hnsw->pq->nsub) { status = JW_IO_ERROR; goto cleanup; }
+                    } else {
+                        if (write(fd, node->vec, hnsw->dim * sizeof(jw_float32_t)) != (ssize_t)(hnsw->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+                    }
+
+                    /* 写入连接 */
+                    for (jw_uint32_t l = 0; l <= node->level; l++) {
+                        if (write(fd, &node->link_counts[l], sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                        for (jw_uint32_t j = 0; j < node->link_counts[l]; j++) {
+                            if (write(fd, &node->links[l][j], sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
+                        }
+                    }
+                }
             }
             break;
         }
@@ -2639,7 +2701,52 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             hnsw->max_level = max_level;
             hnsw->entry_point = entry_point;
             hnsw->rng_state = rng_state;
-            
+
+            /* 先读量化器 (与保存顺序一致: 节点数据之前; 且需要 nsub 才能解析节点的 PQ 编码) */
+            if (hnsw->type == JW_INDEX_HNSW_PQ) {
+                jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
+
+                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+
+                jw_pq_quantizer_t *pq = NULL;
+                jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
+                if (pq != NULL) {
+                    pq->metric = metric;  /* 恢复训练时的度量, 供 jw_pq_distance 归一化判断 */
+                    hnsw->pq = pq;
+
+                    for (jw_uint32_t i = 0; i < pq_nsub; i++) {
+                        if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) !=
+                            (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
+                            goto cleanup;
+                        }
+                    }
+                }
+            } else if (hnsw->type == JW_INDEX_HNSW_SQ) {
+                jw_uint32_t sq_dim;
+
+                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+
+                jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
+                if (sq != NULL) {
+                    hnsw->sq = sq;
+
+                    if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+
+                    if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+
+                    if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+                }
+            }
+
             /* 读取节点数据 */
             for (jw_size_t i = 0; i < ntotal; i++) {
                 jw_uint64_t vid;
@@ -2671,13 +2778,23 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 node->max_M = M;
                 node->max_M0 = M * 2;
                 
-                /* 读取向量 */
-                node->vec = (jw_vec_t)jw_arena_alloc(arena, dim * sizeof(jw_float32_t));
-                if (node->vec == NULL) {
-                    goto cleanup;
-                }
-                if (read(fd, node->vec, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
-                    goto cleanup;
+                /* 读取数据: PQ 模式读编码, 否则读原始向量 */
+                if (hnsw->pq != NULL) {
+                    node->code = (jw_uint8_t *)jw_arena_alloc(arena, hnsw->pq->nsub);
+                    if (node->code == NULL) {
+                        goto cleanup;
+                    }
+                    if (read(fd, node->code, hnsw->pq->nsub) != (ssize_t)hnsw->pq->nsub) {
+                        goto cleanup;
+                    }
+                } else {
+                    node->vec = (jw_vec_t)jw_arena_alloc(arena, dim * sizeof(jw_float32_t));
+                    if (node->vec == NULL) {
+                        goto cleanup;
+                    }
+                    if (read(fd, node->vec, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
                 }
                 
                 /* 读取连接 */
@@ -2709,50 +2826,6 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 }
                 
                 hnsw->nodes[vid] = node;
-            }
-            
-            /* 读取量化器 */
-            if (hnsw->type == JW_INDEX_HNSW_PQ) {
-                jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
-                
-                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
-                jw_pq_quantizer_t *pq = NULL;
-                jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
-                if (pq != NULL) {
-                    hnsw->pq = pq;
-                    
-                    for (jw_uint32_t i = 0; i < pq_nsub; i++) {
-                        if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) != 
-                            (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
-                            goto cleanup;
-                        }
-                    }
-                }
-            } else if (hnsw->type == JW_INDEX_HNSW_SQ) {
-                jw_uint32_t sq_dim;
-                
-                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
-                jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
-                if (sq != NULL) {
-                    hnsw->sq = sq;
-                    
-                    if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
-                    }
-                    
-                    if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
-                    }
-                    
-                    if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
-                    }
-                }
             }
             break;
         }
@@ -2799,7 +2872,11 @@ JW_API jw_size_t jw_index_get_memory_usage(const jw_index_t *index)
             for (jw_size_t i = 0; i < hnsw->ntotal; i++) {
                 if (hnsw->nodes[i] != NULL) {
                     usage += sizeof(jw_hnsw_node_t);
-                    usage += hnsw->dim * sizeof(jw_float32_t);
+                    if (hnsw->pq != NULL) {
+                        usage += hnsw->pq->nsub * sizeof(jw_uint8_t);
+                    } else {
+                        usage += hnsw->dim * sizeof(jw_float32_t);
+                    }
                 }
             }
             break;
