@@ -45,6 +45,11 @@ add_executable(test_index test_index.c)
 target_link_libraries(test_index PRIVATE jw_vecdb_static)
 add_test(NAME test_index COMMAND test_index)
 
+# jw_index.c 核心逻辑完整测试 (类型×度量矩阵/维度边界/存盘重载/稀疏vid/删除/批量搜索/边界)
+add_executable(test_index_core test_index_core.c)
+target_link_libraries(test_index_core PRIVATE jw_vecdb_static)
+add_test(NAME test_index_core COMMAND test_index_core)
+
 add_executable(test_vecdb test_vecdb.c)
 target_link_libraries(test_vecdb PRIVATE jw_vecdb_static)
 add_test(NAME test_vecdb COMMAND test_vecdb)
@@ -65,7 +70,12 @@ add_executable(test_quantization_serialization_mmap test_quantization_serializat
 target_link_libraries(test_quantization_serialization_mmap PRIVATE jw_vecdb_static)
 add_test(NAME test_quantization_serialization_mmap COMMAND test_quantization_serialization_mmap)
 
-# 性能测试
-add_executable(test_performance performance/test_performance.c)
-target_link_libraries(test_performance PRIVATE jw_vecdb_static)
-add_test(NAME test_performance COMMAND test_performance)
+# 性能测试 (2026-10-22 暂时从构建中移除)
+# 原因: performance/test_performance.c 使用的是过时 API, 从未能编译通过:
+#   - jw_str_t 按值传给期望 const jw_str_t * 的参数
+#   - jw_collection_close() 在库中不存在
+#   - jw_collection_search 第 7 个参数传 int 而非 const jw_search_options_t *
+# 该文件测的是性能而非正确性, 且已长期失效。待重写为当前 API 后再启用。
+# add_executable(test_performance performance/test_performance.c)
+# target_link_libraries(test_performance PRIVATE jw_vecdb_static)
+# add_test(NAME test_performance COMMAND test_performance)

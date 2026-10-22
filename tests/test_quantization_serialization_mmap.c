@@ -194,8 +194,8 @@ static jw_bool_t test_index_serialization(void)
     }
     
     /* 调试信息：检查arena使用情况 */
-    printf("[DEBUG] Arena used after training: %zu bytes\n", arena->used);
-    printf("[DEBUG] Arena size: %zu bytes\n", arena->size);
+    printf("[DEBUG] Arena used after training: %zu bytes\n", arena->total_used);
+    printf("[DEBUG] Arena size: %zu bytes\n", arena->total_size);
     
     /* 检查ivf->sq是否为NULL */
     jw_ivf_index_t *ivf = (jw_ivf_index_t *)index->impl;

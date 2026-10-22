@@ -827,6 +827,15 @@ JW_API const char* jw_strerror(jw_status_t status);
 /* 获取当前时间（秒） */
 JW_API jw_uint64_t jw_time_now(void);
 
+/* 获取当前时间（毫秒）
+ * 修复 (2026-10-22): 该函数在 src/jw_types.c 已实现, 但头文件从未导出,
+ * 导致外部代码无法使用 (本次由 test_types 需要毫秒级时间戳时暴露)。
+ * 注意与 jw_time_now() 的单位区别: 前者毫秒, 后者秒。 */
+JW_API jw_time_t jw_time_now_ms(void);
+
+/* 计算两个毫秒时间戳的差值（毫秒） */
+JW_API jw_time_t jw_time_diff(jw_time_t start, jw_time_t end);
+
 /* 获取平台信息 */
 JW_API const char* jw_platform_name(void);
 JW_API void jw_set_simd_enabled(jw_bool_t enable);

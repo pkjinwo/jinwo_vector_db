@@ -2128,6 +2128,156 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
 }
 
 /**
+ * 范围搜索 (半径检索)
+ *
+ * 返回所有与查询距离在 radius 以内的向量, 结果按距离升序排列。
+ *
+ * 实现策略: 按索引类型分派
+ *   - IVF/IVF_PQ/IVF_SQ: 先按 nprobe 选簇心, 再在候选簇内逐条算精确距离
+ *   - HNSW/HNSW_PQ/HNSW_SQ: 复用 jw_index_search 取足够大的 topK
+ *     (HNSW 无法直接做半径检索, 用 k = capacity 的上限再过滤),
+ *     这样保证结果按距离有序且不遗漏已建图的节点
+ *
+ * @param index    索引指针
+ * @param query   查询向量
+ * @param radius  检索半径 (度量相关: L2 为平方距离, COSINE 为余弦距离, IP 为 -内积)
+ * @param results 输出: 搜索结果数组
+ * @param capacity 结果数组容量
+ * @return 实际返回的结果数量, 参数非法返回 0
+ */
+JW_API jw_size_t jw_index_range_search(const jw_index_t *index,
+                                       jw_cvec_t query,
+                                       jw_float32_t radius,
+                                       jw_search_result_t *results,
+                                       jw_size_t capacity)
+{
+    if (index == NULL || query == NULL || results == NULL || capacity == 0) {
+        return 0;
+    }
+    if (radius < 0.0f) {
+        return 0;
+    }
+
+    switch (index->type) {
+        case JW_INDEX_IVF:
+        case JW_INDEX_IVF_PQ:
+        case JW_INDEX_IVF_SQ: {
+            jw_ivf_index_t *ivf = (jw_ivf_index_t *)index->impl;
+            if (ivf == NULL || ivf->trained != 1) {
+                return 0;
+            }
+
+            /* 选 nprobe 个最近簇心 */
+            jw_uint32_t nprobe = ivf->config.nprobe;
+            if (nprobe > ivf->nlist) {
+                nprobe = ivf->nlist;
+            }
+            if (nprobe == 0) {
+                return 0;
+            }
+
+            jw_uint32_t *probe = (jw_uint32_t *)jw_malloc(nprobe * sizeof(jw_uint32_t));
+            if (probe == NULL) {
+                return 0;
+            }
+            jw_uint32_t actual = jw_ivf_get_nearest_centroids(ivf, query, nprobe, probe);
+
+            /* 在候选簇内收集半径内的向量 */
+            jw_size_t found = 0;
+            for (jw_uint32_t p = 0; p < actual && found < capacity; p++) {
+                jw_ivf_list_t *list = &ivf->lists[probe[p]];
+                for (jw_size_t j = 0; j < list->count && found < capacity; j++) {
+                    jw_ivf_entry_t *entry = &list->entries[j];
+                    jw_float32_t dist;
+                    if (entry->code != NULL && ivf->pq != NULL) {
+                        dist = jw_pq_distance(ivf->pq, query, entry->code, ivf->metric);
+                    } else if (entry->vec != NULL) {
+                        dist = jw_vec_distance(query, entry->vec, ivf->dim, ivf->metric);
+                    } else {
+                        continue;
+                    }
+                    if (dist <= radius) {
+                        results[found].id = entry->vid;
+                        results[found].score = dist;
+                        found++;
+                    }
+                }
+            }
+
+            /* 按距离升序排序 */
+            for (jw_size_t i = 0; i + 1 < found; i++) {
+                jw_size_t m = i;
+                for (jw_size_t j = i + 1; j < found; j++) {
+                    if (results[j].score < results[m].score) {
+                        m = j;
+                    }
+                }
+                if (m != i) {
+                    jw_search_result_t tmp = results[i];
+                    results[i] = results[m];
+                    results[m] = tmp;
+                }
+            }
+
+            jw_free(probe);
+            return found;
+        }
+
+        case JW_INDEX_HNSW:
+        case JW_INDEX_HNSW_PQ:
+        case JW_INDEX_HNSW_SQ: {
+            jw_hnsw_index_t *hnsw = (jw_hnsw_index_t *)index->impl;
+            if (hnsw == NULL) {
+                return 0;
+            }
+
+            /* HNSW 不支持原生半径检索: 取一个足够大的 topK 再按半径过滤。
+               k 上限取 capacity 与 ntotal 的较小值, 保证不会越界。 */
+            jw_size_t k = capacity;
+            if (k > hnsw->ntotal) {
+                k = hnsw->ntotal;
+            }
+            if (k == 0) {
+                return 0;
+            }
+
+            jw_search_result_t *tmp = (jw_search_result_t *)jw_malloc(
+                    k * sizeof(jw_search_result_t));
+            if (tmp == NULL) {
+                return 0;
+            }
+
+            jw_size_t got = jw_index_search(index, query, k, tmp);
+
+            /* 过滤 + 转换: 内部 score 对 COSINE/IP 已是相似度, 需转回距离比较 */
+            jw_size_t found = 0;
+            for (jw_size_t i = 0; i < got && found < capacity; i++) {
+                jw_float32_t dist;
+                if (hnsw->metric == JW_METRIC_COSINE) {
+                    dist = 1.0f - tmp[i].score;   /* 相似度 -> 余弦距离 */
+                } else if (hnsw->metric == JW_METRIC_IP) {
+                    dist = -tmp[i].score;          /* 内积相似度 -> -内积 */
+                } else {
+                    dist = tmp[i].score;           /* L2 平方距离 */
+                }
+                if (dist <= radius) {
+                    results[found].id = tmp[i].id;
+                    results[found].score = tmp[i].score;
+                    found++;
+                }
+            }
+
+            jw_free(tmp);
+            return found;
+        }
+
+        default:
+            return 0;
+    }
+}
+
+
+/**
  * 批量搜索
  *
  * @param index   索引指针
@@ -2193,6 +2343,74 @@ JW_API jw_size_t jw_ivf_get_list_size(const jw_ivf_index_t *index,
         return 0;
     }
     return index->lists[list_idx].count;
+}
+
+/**
+ * 获取与查询最近的 n 个聚类中心 (按距离升序)
+ *
+ * 修复 (2026-10-22): 该 API 在 jw_index.h 声明但从未实现, 导致任何链接
+ * 它的代码都失败 (本次由 jw_index_range_search 引入调用时暴露)。
+ * 实现复用 IVF 搜索的选簇心逻辑。
+ *
+ * @param index IVF索引指针
+ * @param query 查询向量
+ * @param n     需要的聚类中心数量
+ * @param ids   输出: 聚类中心索引数组 (长度 >= n)
+ * @return 实际返回的数量 (0 表示参数非法或未训练)
+ */
+JW_API jw_uint32_t jw_ivf_get_nearest_centroids(const jw_ivf_index_t *index,
+                                                jw_cvec_t query,
+                                                jw_uint32_t n,
+                                                jw_uint32_t *ids)
+{
+    if (index == NULL || query == NULL || ids == NULL || n == 0) {
+        return 0;
+    }
+    if (index->trained != 1 || index->nlist == 0) {
+        return 0;
+    }
+
+    jw_uint32_t cnt = (n < index->nlist) ? n : index->nlist;
+    jw_dim_t dim = index->dim;
+
+    /* 计算所有簇心距离后做选择排序取前 cnt 个 */
+    jw_float32_t *dists = (jw_float32_t *)jw_malloc(index->nlist * sizeof(jw_float32_t));
+    if (dists == NULL) {
+        return 0;
+    }
+    for (jw_uint32_t i = 0; i < index->nlist; i++) {
+        dists[i] = jw_vec_distance(query, index->lists[i].centroid, dim, index->metric);
+    }
+
+    for (jw_uint32_t i = 0; i < cnt; i++) {
+        jw_uint32_t min_idx = i;
+        for (jw_uint32_t j = i + 1; j < index->nlist; j++) {
+            if (dists[j] < dists[min_idx]) {
+                min_idx = j;
+            }
+        }
+        if (min_idx != i) {
+            jw_float32_t td = dists[i]; dists[i] = dists[min_idx]; dists[min_idx] = td;
+        }
+        ids[i] = min_idx;
+    }
+
+    jw_free(dists);
+    return cnt;
+}
+
+/**
+ * 设置 IVF 的 nprobe 参数
+ *
+ * @param index  IVF索引指针
+ * @param nprobe 新的 nprobe 值 (0 表示不限制, 会被钳到 nlist)
+ */
+JW_API void jw_ivf_set_nprobe(jw_ivf_index_t *index, jw_uint32_t nprobe)
+{
+    if (index == NULL) {
+        return;
+    }
+    index->config.nprobe = nprobe;
 }
 
 /*
@@ -2375,6 +2593,25 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
             if (write(fd, &ivf->config.nprobe, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
             if (write(fd, &ivf->config.max_iter, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
             
+            /* 写入量化器 (必须在聚类中心/倒排列表之前, 与加载侧顺序一致)
+             * 修复 2026-10-22: 原实现在倒排列表之后才写, 而加载侧读 entry
+             * 时就需要 ivf->pq/sq 非空才能正确解析, 顺序不一致导致
+             * IVF_PQ 存盘后重载即段错误。 */
+            if (ivf->type == JW_INDEX_IVF_PQ && ivf->pq != NULL) {
+                if (write(fd, &ivf->pq->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, &ivf->pq->nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, &ivf->pq->k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, &ivf->pq->sub_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                for (jw_uint32_t qi = 0; qi < ivf->pq->nsub; qi++) {
+                    if (write(fd, ivf->pq->centroids[qi], ivf->pq->k * ivf->pq->sub_dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->pq->k * ivf->pq->sub_dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+                }
+            } else if (ivf->type == JW_INDEX_IVF_SQ && ivf->sq != NULL) {
+                if (write(fd, &ivf->sq->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, ivf->sq->mins, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, ivf->sq->maxs, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+                if (write(fd, ivf->sq->scales, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
+            }
+
             /* 写入聚类中心 */
             for (jw_uint32_t i = 0; i < ivf->nlist; i++) {
                 if (write(fd, ivf->lists[i].centroid, ivf->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->dim * sizeof(jw_float32_t))) {
@@ -2402,26 +2639,7 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
                 }
             }
             
-            /* 写入量化器 */
-            if (ivf->type == JW_INDEX_IVF_PQ && ivf->pq != NULL) {
-                if (write(fd, &ivf->pq->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, &ivf->pq->nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, &ivf->pq->k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, &ivf->pq->sub_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                
-                for (jw_uint32_t i = 0; i < ivf->pq->nsub; i++) {
-                    if (write(fd, ivf->pq->centroids[i], ivf->pq->k * ivf->pq->sub_dim * sizeof(jw_float32_t)) != 
-                        (ssize_t)(ivf->pq->k * ivf->pq->sub_dim * sizeof(jw_float32_t))) {
-                        status = JW_IO_ERROR;
-                        goto cleanup;
-                    }
-                }
-            } else if (ivf->type == JW_INDEX_IVF_SQ && ivf->sq != NULL) {
-                if (write(fd, &ivf->sq->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, ivf->sq->mins, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, ivf->sq->maxs, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
-                if (write(fd, ivf->sq->scales, ivf->sq->dim * sizeof(jw_float32_t)) != (ssize_t)(ivf->sq->dim * sizeof(jw_float32_t))) { status = JW_IO_ERROR; goto cleanup; }
-            }
+            /* 写入量化器 (已移至聚类中心之前写入, 此处不再重复) */
             break;
         }
         case JW_INDEX_HNSW:
@@ -2559,35 +2777,91 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             ivf->trained = trained;
             ivf->ntotal = 0;
             
+            /* 读取量化器
+             *
+             * 修复 (2026-10-22): 必须在"读取倒排列表"之前完成。
+             * 原实现把量化器放在倒排列表之后, 导致读 entry 时
+             * ivf->pq / ivf->sq 仍为 NULL, 于是落入 else 分支把
+             * PQ 编码/SQ 量化字节当作 dim*4 的浮点向量读入:
+             *   - 字节数错位, 后续全部数据解析错乱
+             *   - entry->code 保持 NULL, 而搜索路径按 IVF_PQ 走
+             *     jw_pq_distance(pq, query, entry->code=NULL) -> SIGSEGV
+             * 实测: IVF_PQ 存盘后重载, 一搜索即段错误 (普通 IVF 正常)。
+             * 这与 HNSW_PQ 的同类顺序 bug 是同一个模式, 当时只修了 HNSW。
+             */
+            if (ivf->type == JW_INDEX_IVF_PQ) {
+                jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
+
+                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+
+                jw_pq_quantizer_t *pq = NULL;
+                jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
+                if (pq != NULL) {
+                    ivf->pq = pq;
+                    pq->metric = metric;  /* 恢复训练度量, 供 jw_pq_distance 归一化判断 */
+
+                    for (jw_uint32_t i = 0; i < pq_nsub; i++) {
+                        if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) !=
+                            (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
+                            goto cleanup;
+                        }
+                    }
+                }
+            } else if (ivf->type == JW_INDEX_IVF_SQ) {
+                jw_uint32_t sq_dim;
+
+                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+
+                jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
+                if (sq != NULL) {
+                    ivf->sq = sq;
+
+                    if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+
+                    if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+
+                    if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
+                        goto cleanup;
+                    }
+                }
+            }
+
             /* 读取聚类中心 */
             for (jw_uint32_t i = 0; i < nlist; i++) {
                 if (read(fd, ivf->lists[i].centroid, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
                     goto cleanup;
                 }
             }
-            
+
             /* 读取倒排列表 */
             for (jw_uint32_t i = 0; i < nlist; i++) {
                 jw_ivf_list_t *list = &ivf->lists[i];
                 jw_uint32_t count;
                 if (read(fd, &count, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
+
                 list->count = count;
                 ivf->ntotal += count;
                 if (count > 0) {
                     /* 扩容列表 */
                     if (list->capacity < count) {
                         list->capacity = count * 2;
-                        list->entries = (jw_ivf_entry_t *)jw_arena_calloc(arena, 
+                        list->entries = (jw_ivf_entry_t *)jw_arena_calloc(arena,
                                          list->capacity, sizeof(jw_ivf_entry_t));
                         if (list->entries == NULL) goto cleanup;
                     }
-                    
+
                     for (jw_size_t j = 0; j < count; j++) {
                         jw_ivf_entry_t *entry = &list->entries[j];
-                        
+
                         if (read(fd, &entry->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
-                        
+
                         if (ivf->type == JW_INDEX_IVF_PQ && ivf->pq != NULL) {
                             entry->code = (jw_uint8_t *)jw_arena_alloc(arena, ivf->pq->nsub);
                             if (entry->code == NULL) goto cleanup;
@@ -2610,50 +2884,6 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                             }
                             entry->code = NULL;
                         }
-                    }
-                }
-            }
-            
-            /* 读取量化器 */
-            if (ivf->type == JW_INDEX_IVF_PQ) {
-                jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
-                
-                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
-                jw_pq_quantizer_t *pq = NULL;
-                jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
-                if (pq != NULL) {
-                    ivf->pq = pq;
-                    
-                    for (jw_uint32_t i = 0; i < pq_nsub; i++) {
-                        if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) != 
-                            (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
-                            goto cleanup;
-                        }
-                    }
-                }
-            } else if (ivf->type == JW_INDEX_IVF_SQ) {
-                jw_uint32_t sq_dim;
-                
-                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
-                jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
-                if (sq != NULL) {
-                    ivf->sq = sq;
-                    
-                    if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
-                    }
-                    
-                    if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
-                    }
-                    
-                    if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
                     }
                 }
             }
