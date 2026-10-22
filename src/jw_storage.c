@@ -651,9 +651,30 @@ JW_API jw_status_t jw_storage_write_vector(jw_storage_t *storage,
 
     /* 写入向量 */
     jw_memcpy(ptr, vec, dim * sizeof(jw_float32_t));
-    
+
     jw_status_t status = jw_storage_write(storage, buffer, total_size, offset);
-    
+
+    /**
+     * 修复 (2026-10-22): offset 语义不一致导致读不回来。
+     *
+     * jw_storage_write 的 offset 出参语义是"追加写后的末尾位置"
+     *   (*offset = write_offset + size)
+     * 而 jw_storage_read_vector 需要的是"该向量的起始位置"。
+     * 二者对同一个 offset 参数给了不同语义, 于是测试里:
+     *   write -> offset = 460 (末尾)
+     *   read(offset=460) -> 越界 -> -1 (JW_UNKNOWN_ERROR)
+     *
+     * 此处把出参改为"起始位置" (即末尾 - 本向量总长), 与读侧对齐,
+     * 也符合 offset 一词的常规含义。
+     * 注意: jw_storage_write 在 offset == NULL 时按追加写处理,
+     * 我们传自己的局部变量再回填, 不影响原语义。
+     */
+    if (status == JW_SUCCESS && offset != NULL) {
+        if (*offset >= total_size) {
+            *offset -= total_size;
+        }
+    }
+
     return status;
 }
 

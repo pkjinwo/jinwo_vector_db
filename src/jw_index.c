@@ -160,6 +160,36 @@ static jw_float32_t hnsw_node_dist(const jw_hnsw_index_t *hnsw,
  * =============================================================================
  */
 
+/**
+ * 计算两个节点之间的距离 (双向, 不依赖"谁是查询")
+ *
+ * 用于 HNSW 插入时的"替换最远连接"决策: 必须站在"被挤占的邻居"视角
+ * 比较它的各条现有连接, 而不是站在新插入向量的视角。
+ *
+ * 优先级: 双方都有原始 vec 时用 jw_vec_distance;
+ *         否则退化为用 a 的 vec/code 作查询算到 b 的距离
+ *         (PQ 模式下 vec 为 NULL, 只能用 code 侧, 结果为近似)。
+ */
+static jw_float32_t hnsw_node_pair_dist(const jw_hnsw_index_t *hnsw,
+                                        const jw_hnsw_node_t *a,
+                                        const jw_hnsw_node_t *b)
+{
+    if (a == NULL || b == NULL) {
+        return JW_FLT_MAX;
+    }
+    if (a->vec != NULL && b->vec != NULL) {
+        return jw_vec_distance(a->vec, b->vec, hnsw->dim, hnsw->metric);
+    }
+    /* 至少一方只有 code (PQ 模式) */
+    if (a->vec != NULL && b->code != NULL && hnsw->pq != NULL) {
+        return jw_pq_distance(hnsw->pq, a->vec, b->code, hnsw->metric);
+    }
+    if (b->vec != NULL && a->code != NULL && hnsw->pq != NULL) {
+        return jw_pq_distance(hnsw->pq, b->vec, a->code, hnsw->metric);
+    }
+    return JW_FLT_MAX;
+}
+
 /*
  * 注意: PQ量化器的创建、训练、编码、距离计算等功能
  * 已在 jw_quant.h/jw_quant.c 中实现。
@@ -791,9 +821,55 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
         }
     }
 
-    /** 复制结果 (最大堆中的条目，需要排序输出) */
-    *result_count = (pq.size < ef_search) ? pq.size : ef_search;
-    for (jw_size_t i = 0; i < *result_count; i++) {
+    /**
+     * 复制结果
+     *
+     * 修复 (2026-10-22): 原先直接拷贝 pq.items[] 数组, 但该数组是**最大堆的
+     * 堆序存储**(items[0] 恒为最远候选), 既未按距离排序, 前 ef 个元素也不是
+     * "最近的 ef 个"。上层 hnsw_select_neighbors 会在这个乱序数组上选最近 M 个,
+     * 于是 ef_construction 越大, 引入的坏候选越多, 构图质量反而越差。
+     *
+     * 实测: 修复前 recall@5 随 ef 增大而**下降** (M=32: ef=32 时 100%,
+     * ef=256 时 60%), 完全违背 HNSW 理论。
+     *
+     * 现改为反复取堆顶(最远)放到末尾, 即堆排序, 得到按距离**升序**的结果数组,
+     * 前 ef 个恰为最近的 ef 个候选。
+     */
+    jw_size_t out_n = (pq.size < ef_search) ? pq.size : ef_search;
+    jw_size_t heap_n = pq.size;
+
+    /* 在 pq.items[0..heap_n) 上原地堆排序 (升序) */
+    for (jw_size_t i = heap_n; i > 0; i--) {
+        /* 堆顶(最远)换到末尾 */
+        search_candidate_t tmp = pq.items[0];
+        pq.items[0] = pq.items[i - 1];
+        pq.items[i - 1] = tmp;
+
+        /* 对剩余 [0, i-1) 重新下沉成最大堆 */
+        jw_size_t idx = 0;
+        while (1) {
+            jw_size_t left = 2 * idx + 1;
+            jw_size_t right = 2 * idx + 2;
+            jw_size_t largest = idx;
+            if (left < i - 1 && pq.items[left].score > pq.items[largest].score) {
+                largest = left;
+            }
+            if (right < i - 1 && pq.items[right].score > pq.items[largest].score) {
+                largest = right;
+            }
+            if (largest == idx) {
+                break;
+            }
+            search_candidate_t t2 = pq.items[idx];
+            pq.items[idx] = pq.items[largest];
+            pq.items[largest] = t2;
+            idx = largest;
+        }
+    }
+
+    /* 排序后 items[0..out_n) 即最近的 out_n 个, 按距离升序 */
+    *result_count = out_n;
+    for (jw_size_t i = 0; i < out_n; i++) {
         results[i] = pq.items[i];
     }
 }
@@ -1728,21 +1804,33 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                             /** 邻居的连接已满，尝试替换最远的连接 */
                             jw_float32_t max_dist = -1.0f;
                             jw_uint32_t max_idx = 0;
+                            int found = 0;
                             for (jw_uint32_t k = 0; k < neighbor->link_counts[level]; k++) {
                                 jw_vid_t nv = neighbor->links[level][k];
                                 if (nv < hnsw->capacity && hnsw->nodes[nv] != NULL
                                     && hnsw_node_usable(hnsw, hnsw->nodes[nv])) {
-                                    /* 以"新节点原始向量"为查询, 与邻居的其它连接比较 */
-                                    jw_float32_t d = hnsw_node_dist(hnsw, vec,
+                                    /**
+                                     * 站在"邻居自身"视角, 比较它的各条现有连接
+                                     * 中谁离它最远, 以便被新连接替换。
+                                     *
+                                     * 修复 (2026-10-22): 原先此处用新插入向量 vec
+                                     * 作查询 (等于问"新节点离 nv 近、还是 nv 离
+                                     * 新节点近"), 判据错乱使替换决策随机化, 破坏
+                                     * 图结构。实测 ef_construction 越大越容易误
+                                     * 替换, 表现为 recall 随 ef 增大而**下降**
+                                     * (M=32: ef=32 时 recall@5=100%, ef=256 时 52%)。
+                                     */
+                                    jw_float32_t d = hnsw_node_pair_dist(hnsw, neighbor,
                                                     hnsw->nodes[nv]);
-                                    if (d > max_dist) {
+                                    if (!found || d > max_dist) {
                                         max_dist = d;
                                         max_idx = k;
+                                        found = 1;
                                     }
                                 }
                             }
-                            jw_float32_t new_dist = hnsw_node_dist(hnsw, vec, neighbor);
-                            if (new_dist < max_dist) {
+                            jw_float32_t new_dist = hnsw_node_pair_dist(hnsw, neighbor, node);
+                            if (found && new_dist < max_dist) {
                                 neighbor->links[level][max_idx] = vid;
                             }
                         }
@@ -1949,12 +2037,30 @@ JW_API jw_size_t jw_index_search(const jw_index_t *index,
             /** 遍历列表中的所有向量 */
             for (jw_size_t j = 0; j < list->count; j++) {
                 jw_float32_t dist;
-                if (ivf->type == JW_INDEX_IVF_PQ && ivf->pq != NULL && list->entries[j].code != NULL) {
+                jw_ivf_entry_t *entry = &list->entries[j];
+                if (entry->code != NULL && ivf->pq != NULL
+                    && ivf->type == JW_INDEX_IVF_PQ) {
                 /** 使用PQ距离计算 */
-                dist = jw_pq_distance(ivf->pq, query, list->entries[j].code, ivf->metric);
-                } else {
+                dist = jw_pq_distance(ivf->pq, query, entry->code, ivf->metric);
+                } else if (entry->code != NULL && ivf->sq != NULL
+                           && ivf->type == JW_INDEX_IVF_SQ) {
+                    /**
+                     * 使用SQ量化距离计算 (int8/uint8 标量量化)
+                     * 修复 (2026-10-22): 原先此分支缺失, IVF_SQ 的 entry
+                     * 只有 code 量化字节、vec 为 NULL, 于是落入下面的 else
+                     * 把 NULL 传给 jw_vec_distance -> 段错误。
+                     * 与 IVF_PQ 的同类缺陷同源, 实测复现:
+                     * test_quantization_serialization_mmap 段错误。
+                     *
+                     * 注意 jw_sq_distance(quant, qvec=量化码, fvec=原始查询, metric)
+                     */
+                    dist = jw_sq_distance(ivf->sq, entry->code, query, ivf->metric);
+                } else if (entry->vec != NULL) {
                     /** 使用原始距离计算 */
-                    dist = jw_vec_distance(query, list->entries[j].vec, dim, ivf->metric);
+                    dist = jw_vec_distance(query, entry->vec, dim, ivf->metric);
+                } else {
+                    /** 数据缺失 (如反序列化失败), 跳过而非解引用 NULL */
+                    continue;
                 }
                 pq_push(&pq, list->entries[j].vid, dist, 0);
             }
@@ -2189,11 +2295,17 @@ JW_API jw_size_t jw_index_range_search(const jw_index_t *index,
                 for (jw_size_t j = 0; j < list->count && found < capacity; j++) {
                     jw_ivf_entry_t *entry = &list->entries[j];
                     jw_float32_t dist;
-                    if (entry->code != NULL && ivf->pq != NULL) {
+                    if (entry->code != NULL && ivf->pq != NULL
+                        && ivf->type == JW_INDEX_IVF_PQ) {
                         dist = jw_pq_distance(ivf->pq, query, entry->code, ivf->metric);
+                    } else if (entry->code != NULL && ivf->sq != NULL
+                               && ivf->type == JW_INDEX_IVF_SQ) {
+                        /* SQ 量化距离: jw_sq_distance(quant, qvec=码, fvec=原始查询, metric) */
+                        dist = jw_sq_distance(ivf->sq, entry->code, query, ivf->metric);
                     } else if (entry->vec != NULL) {
                         dist = jw_vec_distance(query, entry->vec, ivf->dim, ivf->metric);
                     } else {
+                        /* 数据缺失 (反序列化失败等), 跳过而非解引用 NULL */
                         continue;
                     }
                     if (dist <= radius) {
