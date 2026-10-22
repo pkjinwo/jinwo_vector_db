@@ -18,6 +18,7 @@
 
 #include "jw_vector.h"
 #include "jw_types.h"
+#include <stdio.h>   /* jw_vec_print 调试输出 */
 #include "jw_string.h"
 #include "jw_arena.h"
 #include "jw_math.h"
@@ -944,3 +945,364 @@ JW_API void jw_vec_random_gaussian(jw_vec_t vec, jw_dim_t dim,
  * =============================================================================
  */
 
+
+/*
+ * =============================================================================
+ * 统计/工具向量操作 (2026-10-22 补齐)
+ *
+ * 背景: 以下函数在 include/jw_vector.h 中声明却从未实现 (共 24 个),
+ * 属于"设计了 API 但没写实现"的死声明。它们全是纯函数、无外部依赖,
+ * 且是上层统计分析/归一化/调试打印的常用工具, 故补齐实现。
+ * 已由 API 审计脚本确认: 补齐前这些符号在静态库中不存在。
+ * =============================================================================
+ */
+
+/** 找到向量中最大值的索引 */
+JW_API jw_dim_t jw_vec_argmax(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0;
+    }
+    jw_dim_t idx = 0;
+    jw_float32_t best = vec[0];
+    for (jw_dim_t i = 1; i < dim; i++) {
+        if (vec[i] > best) {
+            best = vec[i];
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+/** 找到向量中最小值的索引 */
+JW_API jw_dim_t jw_vec_argmin(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0;
+    }
+    jw_dim_t idx = 0;
+    jw_float32_t best = vec[0];
+    for (jw_dim_t i = 1; i < dim; i++) {
+        if (vec[i] < best) {
+            best = vec[i];
+            idx = i;
+        }
+    }
+    return idx;
+}
+
+/** 计算向量方差 (总体方差, 除以 n) */
+JW_API jw_float32_t jw_vec_variance(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0.0f;
+    }
+    jw_float32_t mean = jw_vec_mean(vec, dim);
+    jw_float32_t acc = 0.0f;
+    for (jw_dim_t i = 0; i < dim; i++) {
+        jw_float32_t d = vec[i] - mean;
+        acc += d * d;
+    }
+    return acc / (jw_float32_t)dim;
+}
+
+/** 计算向量标准差 */
+JW_API jw_float32_t jw_vec_stddev(jw_cvec_t vec, jw_dim_t dim)
+{
+    return jw_math_sqrt_f32(jw_vec_variance(vec, dim));
+}
+
+/** 找到向量中的最大值 */
+JW_API jw_float32_t jw_vec_max(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0.0f;
+    }
+    jw_float32_t m = vec[0];
+    for (jw_dim_t i = 1; i < dim; i++) {
+        if (vec[i] > m) {
+            m = vec[i];
+        }
+    }
+    return m;
+}
+
+/** 找到向量中的最小值 */
+JW_API jw_float32_t jw_vec_min(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0.0f;
+    }
+    jw_float32_t m = vec[0];
+    for (jw_dim_t i = 1; i < dim; i++) {
+        if (vec[i] < m) {
+            m = vec[i];
+        }
+    }
+    return m;
+}
+
+/** 计算向量L1范数 (曼哈顿范数) */
+JW_API jw_float32_t jw_vec_norm_l1(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return 0.0f;
+    }
+    jw_float32_t s = 0.0f;
+    for (jw_dim_t i = 0; i < dim; i++) {
+        s += jw_math_abs_f32(vec[i]);
+    }
+    return s;
+}
+
+/** 验证向量数据有效性 (非空、非 NaN/Inf) */
+JW_API jw_bool_t jw_vec_is_valid(jw_cvec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return JW_FALSE;
+    }
+    for (jw_dim_t i = 0; i < dim; i++) {
+        if (!(vec[i] == vec[i])) {         /* NaN */
+            return JW_FALSE;
+        }
+        if (vec[i] > JW_FLT_MAX || vec[i] < -JW_FLT_MAX) {  /* Inf */
+            return JW_FALSE;
+        }
+    }
+    return JW_TRUE;
+}
+
+/** 检查向量是否已归一化 (L2 范数接近 1) */
+JW_API jw_bool_t jw_vec_is_normalized(jw_cvec_t vec, jw_dim_t dim, jw_float32_t epsilon)
+{
+    if (vec == NULL || dim == 0) {
+        return JW_FALSE;
+    }
+    jw_float32_t n = jw_vec_norm_l2(vec, dim);
+    jw_float32_t diff = n - 1.0f;
+    if (diff < 0.0f) {
+        diff = -diff;
+    }
+    return (diff <= epsilon) ? JW_TRUE : JW_FALSE;
+}
+
+/** 复制向量数据 */
+JW_API void jw_vec_copy_data(jw_vec_t dst, jw_cvec_t src, jw_dim_t dim)
+{
+    if (dst == NULL || src == NULL || dim == 0) {
+        return;
+    }
+    jw_memcpy(dst, src, (jw_size_t)dim * sizeof(jw_float32_t));
+}
+
+/** 计算三维向量叉积 (调用方需保证 dim >= 3) */
+JW_API void jw_vec_cross(jw_cvec_t a, jw_cvec_t b, jw_vec_t result)
+{
+    if (a == NULL || b == NULL || result == NULL) {
+        return;
+    }
+    jw_float32_t x = a[1] * b[2] - a[2] * b[1];
+    jw_float32_t y = a[2] * b[0] - a[0] * b[2];
+    jw_float32_t z = a[0] * b[1] - a[1] * b[0];
+    result[0] = x;
+    result[1] = y;
+    result[2] = z;
+}
+
+/** 计算内积距离 (负内积, 用于最小化) */
+JW_API jw_float32_t jw_vec_distance_ip(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim)
+{
+    return -jw_vec_dot(a, b, dim);
+}
+
+/** 计算 L1 (曼哈顿) 距离 */
+JW_API jw_float32_t jw_vec_distance_l1(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim)
+{
+    if (a == NULL || b == NULL || dim == 0) {
+        return JW_FLT_MAX;
+    }
+    jw_float32_t s = 0.0f;
+    for (jw_dim_t i = 0; i < dim; i++) {
+        s += jw_math_abs_f32(a[i] - b[i]);
+    }
+    return s;
+}
+
+/** 按 L1 范数归一化 (原地) */
+JW_API jw_status_t jw_vec_normalize_l1(jw_vec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return JW_INVALID_PARAM;
+    }
+    jw_float32_t n = jw_vec_norm_l1(vec, dim);
+    if (n <= JW_FLT_EPSILON) {
+        return JW_INVALID_PARAM;   /* 零向量无法归一化 */
+    }
+    jw_vec_scale(vec, dim, 1.0f / n, vec);
+    return JW_SUCCESS;
+}
+
+/** 按 L2 范数归一化 (原地) */
+JW_API jw_status_t jw_vec_normalize_l2(jw_vec_t vec, jw_dim_t dim)
+{
+    if (vec == NULL || dim == 0) {
+        return JW_INVALID_PARAM;
+    }
+    jw_float32_t n = jw_vec_norm_l2(vec, dim);
+    if (n <= JW_FLT_EPSILON) {
+        return JW_INVALID_PARAM;   /* 零向量无法归一化 */
+    }
+    jw_vec_scale(vec, dim, 1.0f / n, vec);
+    return JW_SUCCESS;
+}
+
+/** 除法: result = vec / scalar */
+JW_API void jw_vec_div(jw_cvec_t vec, jw_dim_t dim, jw_float32_t scalar, jw_vec_t result)
+{
+    if (vec == NULL || result == NULL || dim == 0) {
+        return;
+    }
+    if (jw_math_abs_f32(scalar) <= JW_FLT_EPSILON) {
+        /* 除零保护: 结果写 0 而非 Inf/NaN */
+        for (jw_dim_t i = 0; i < dim; i++) {
+            result[i] = 0.0f;
+        }
+        return;
+    }
+    jw_float32_t inv = 1.0f / scalar;
+    for (jw_dim_t i = 0; i < dim; i++) {
+        result[i] = vec[i] * inv;
+    }
+}
+
+/** 打印向量 (调试用) */
+JW_API void jw_vec_print(jw_cvec_t vec, jw_dim_t dim, const char *name)
+{
+    const char *tag = (name != NULL) ? name : "vec";
+    printf("%s[%u] = [", tag, (unsigned)dim);
+    for (jw_dim_t i = 0; i < dim; i++) {
+        printf("%s%.6g", (i == 0) ? "" : ", ", vec[i]);
+    }
+    printf("]\n");
+}
+
+/**
+ * 创建批量向量
+ *
+ * 注意: jw_vec_batch_t.vectors 的类型是 jw_vec_t * (即"向量指针数组"),
+ * 每个元素指向一个 dim 长度的独立向量, 而非扁平的一维 float 数组。
+ * 因此需分两次分配: 先分配指针数组, 再为每个向量分配数据。
+ */
+JW_API jw_status_t jw_vec_batch_create(jw_arena_t *arena, jw_dim_t dimension,
+                                       jw_size_t count, jw_vec_batch_t *batch)
+{
+    if (arena == NULL || batch == NULL || dimension == 0 || count == 0) {
+        return JW_INVALID_PARAM;
+    }
+
+    batch->vectors = (jw_vec_t *)jw_arena_alloc(arena, count * sizeof(jw_vec_t));
+    if (batch->vectors == NULL) {
+        return JW_OUT_OF_MEMORY;
+    }
+
+    for (jw_size_t i = 0; i < count; i++) {
+        batch->vectors[i] = (jw_vec_t)jw_arena_alloc(arena,
+                              (jw_size_t)dimension * sizeof(jw_float32_t));
+        if (batch->vectors[i] == NULL) {
+            /* 已分配的置 NULL, 便于上层安全遍历 */
+            for (jw_size_t j = i; j < count; j++) {
+                batch->vectors[j] = NULL;
+            }
+            return JW_OUT_OF_MEMORY;
+        }
+    }
+
+    batch->dimension = dimension;
+    batch->count = count;
+    batch->capacity = count;
+    return JW_SUCCESS;
+}
+
+/** 批量计算 L2 距离: query 对 batch 中每个向量 */
+JW_API void jw_vec_batch_distance_l2(jw_cvec_t query, const jw_vec_batch_t *batch,
+                                     jw_float32_t *results)
+{
+    if (query == NULL || batch == NULL || results == NULL || batch->vectors == NULL) {
+        return;
+    }
+    for (jw_size_t i = 0; i < batch->count; i++) {
+        if (batch->vectors[i] == NULL) {
+            results[i] = JW_FLT_MAX;
+            continue;
+        }
+        results[i] = jw_vec_distance_l2(query, batch->vectors[i], batch->dimension);
+    }
+}
+
+/** 批量归一化 (原地) */
+JW_API void jw_vec_batch_normalize(jw_vec_batch_t *batch)
+{
+    if (batch == NULL || batch->vectors == NULL) {
+        return;
+    }
+    for (jw_size_t i = 0; i < batch->count; i++) {
+        jw_vec_t v = batch->vectors[i];
+        if (v == NULL) {
+            continue;
+        }
+        jw_float32_t n = jw_vec_norm_l2(v, batch->dimension);
+        if (n > JW_FLT_EPSILON) {
+            jw_vec_scale(v, batch->dimension, 1.0f / n, v);
+        }
+    }
+}
+
+/*
+ * =============================================================================
+ * SIMD 能力查询 (2026-10-22 补齐)
+ *
+ * 说明: 本库的距离计算在 jw_vector.c 中已按编译器自动向量化处理,
+ * 未手写 SIMD intrinsic, 因此这里返回"检测到的能力等级"而非实际启用状态。
+ * =============================================================================
+ */
+
+/** 检测当前CPU支持的SIMD级别 */
+JW_API jw_simd_level_t jw_simd_detect(void)
+{
+#if defined(__ARM_NEON) || defined(__aarch64__)
+    return JW_SIMD_NEON;
+#elif defined(__AVX512F__)
+    return JW_SIMD_AVX512;
+#elif defined(__AVX2__)
+    return JW_SIMD_AVX2;
+#elif defined(__SSE2__) || defined(__x86_64__)
+    return JW_SIMD_SSE2;
+#else
+    return JW_SIMD_NONE;
+#endif
+}
+
+/** 检查SIMD是否启用 (本库始终启用编译器自动向量化) */
+JW_API jw_bool_t jw_simd_is_enabled(void)
+{
+    return JW_TRUE;
+}
+
+/** 启用/禁用SIMD加速 (本库无运行时开关, 保留 API 兼容) */
+JW_API void jw_simd_set_enabled(jw_bool_t enabled)
+{
+    (void)enabled;
+}
+
+/** 获取SIMD级别名称 */
+JW_API const char *jw_simd_level_name(jw_simd_level_t level)
+{
+    switch (level) {
+        case JW_SIMD_NONE:   return "none";
+        case JW_SIMD_SSE2:   return "SSE2";
+        case JW_SIMD_AVX2:   return "AVX2";
+        case JW_SIMD_AVX512: return "AVX512";
+        case JW_SIMD_NEON:   return "NEON";
+        default:             return "unknown";
+    }
+}

@@ -818,7 +818,33 @@ JW_INLINE jw_float64_t jw_swapf64(jw_float64_t val) {
  */
 
 /* 获取版本信息 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_version_string
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API const char* jw_version_string(void);
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_version_number
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_int32_t jw_version_number(void);
 
 /* 获取错误描述 */
@@ -837,6 +863,19 @@ JW_API jw_time_t jw_time_now_ms(void);
 JW_API jw_time_t jw_time_diff(jw_time_t start, jw_time_t end);
 
 /* 获取平台信息 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_platform_name
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API const char* jw_platform_name(void);
 JW_API void jw_set_simd_enabled(jw_bool_t enable);
 JW_API jw_bool_t jw_is_simd_available(void);

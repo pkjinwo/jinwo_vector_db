@@ -50,6 +50,11 @@ add_executable(test_index_core test_index_core.c)
 target_link_libraries(test_index_core PRIVATE jw_vecdb_static)
 add_test(NAME test_index_core COMMAND test_index_core)
 
+# 2026-10-22 补齐的 24 个向量函数测试 (统计/归一化/叉积/批量/SIMD)
+add_executable(test_vector_extra test_vector_extra.c)
+target_link_libraries(test_vector_extra PRIVATE jw_vecdb_static)
+add_test(NAME test_vector_extra COMMAND test_vector_extra)
+
 add_executable(test_vecdb test_vecdb.c)
 target_link_libraries(test_vecdb PRIVATE jw_vecdb_static)
 add_test(NAME test_vecdb COMMAND test_vecdb)

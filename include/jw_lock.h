@@ -157,6 +157,19 @@ JW_API jw_status_t jw_mutex_trylock(jw_mutex_t *mutex);
  * @return JW_SUCCESS 成功
  *         JW_TIMEOUT 超时
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_mutex_timedlock
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_mutex_timedlock(jw_mutex_t *mutex, 
                                        jw_uint32_t timeout_ms);
 
@@ -168,6 +181,19 @@ JW_API jw_status_t jw_mutex_unlock(jw_mutex_t *mutex);
 /**
  * 获取互斥锁类型
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_mutex_get_type
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_lock_type_t jw_mutex_get_type(const jw_mutex_t *mutex);
 
 /*
@@ -208,6 +234,19 @@ JW_API jw_status_t jw_rwlock_tryrdlock(jw_rwlock_t *rwlock);
 /**
  * 带超时获取读锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_rwlock_timedrdlock
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_rwlock_timedrdlock(jw_rwlock_t *rwlock,
                                           jw_uint32_t timeout_ms);
 
@@ -226,6 +265,19 @@ JW_API jw_status_t jw_rwlock_trywrlock(jw_rwlock_t *rwlock);
 /**
  * 带超时获取写锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_rwlock_timedwrlock
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_rwlock_timedwrlock(jw_rwlock_t *rwlock,
                                           jw_uint32_t timeout_ms);
 
@@ -242,6 +294,19 @@ JW_API jw_status_t jw_rwlock_wrunlock(jw_rwlock_t *rwlock);
 /**
  * 通用解锁 (根据当前锁类型自动选择)
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_rwlock_unlock
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_rwlock_unlock(jw_rwlock_t *rwlock);
 
 /*
@@ -296,6 +361,19 @@ JW_API jw_status_t jw_spinlock_unlock(jw_lock_t *lock);
  * @param lock 输出锁指针
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_create
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_lock_create(jw_arena_t *arena,
                                    const jw_lock_attr_t *attr,
                                    jw_lock_t **lock);
@@ -303,32 +381,110 @@ JW_API jw_status_t jw_lock_create(jw_arena_t *arena,
 /**
  * 销毁锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_destroy
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_lock_destroy(jw_lock_t *lock);
 
 /**
  * 加锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_acquire
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_lock_acquire(jw_lock_t *lock);
 
 /**
  * 尝试加锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_try_acquire
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_lock_try_acquire(jw_lock_t *lock);
 
 /**
  * 带超时加锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_acquire_timeout
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_lock_acquire_timeout(jw_lock_t *lock, 
                                             jw_uint32_t timeout_ms);
 
 /**
  * 解锁
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_release
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_lock_release(jw_lock_t *lock);
 
 /**
  * 获取锁类型
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_get_type
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_lock_type_t jw_lock_get_type(const jw_lock_t *lock);
 
 /*
@@ -405,11 +561,37 @@ JW_API jw_status_t jw_sem_wait(jw_sem_t *sem);
 /**
  * 带超时等待
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_sem_timedwait
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_sem_timedwait(jw_sem_t *sem, jw_uint32_t timeout_ms);
 
 /**
  * 尝试等待
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_sem_trywait
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_sem_trywait(jw_sem_t *sem);
 
 /**
@@ -420,6 +602,19 @@ JW_API jw_status_t jw_sem_post(jw_sem_t *sem);
 /**
  * 获取信号量当前值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_sem_get_value
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_uint32_t jw_sem_get_value(jw_sem_t *sem);
 
 /*
@@ -446,11 +641,37 @@ typedef struct jw_atomic_int64 {
 /**
  * 原子读
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_get
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_int32_t jw_atomic_get(jw_atomic_int_t *atomic);
 
 /**
  * 原子写
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_set
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_atomic_set(jw_atomic_int_t *atomic, jw_int32_t value);
 
 /**
@@ -458,11 +679,37 @@ JW_API void jw_atomic_set(jw_atomic_int_t *atomic, jw_int32_t value);
  * 
  * @return 加之前的值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_fetch_add
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_int32_t jw_atomic_fetch_add(jw_atomic_int_t *atomic, jw_int32_t delta);
 
 /**
  * 原子减
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_fetch_sub
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_int32_t jw_atomic_fetch_sub(jw_atomic_int_t *atomic, jw_int32_t delta);
 
 /**
@@ -470,6 +717,19 @@ JW_API jw_int32_t jw_atomic_fetch_sub(jw_atomic_int_t *atomic, jw_int32_t delta)
  * 
  * @return 交换之前的值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_exchange
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_int32_t jw_atomic_exchange(jw_atomic_int_t *atomic, jw_int32_t new_val);
 
 /**
@@ -483,6 +743,19 @@ JW_API jw_int32_t jw_atomic_exchange(jw_atomic_int_t *atomic, jw_int32_t new_val
  * 
  * @return JW_TRUE 成功交换
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_compare_exchange
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_bool_t jw_atomic_compare_exchange(jw_atomic_int_t *atomic,
                                              jw_int32_t expected,
                                              jw_int32_t new_val);
@@ -490,16 +763,55 @@ JW_API jw_bool_t jw_atomic_compare_exchange(jw_atomic_int_t *atomic,
 /**
  * 原子指针读
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_ptr_get
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void* jw_atomic_ptr_get(jw_atomic_ptr_t *atomic);
 
 /**
  * 原子指针写
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_ptr_set
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_atomic_ptr_set(jw_atomic_ptr_t *atomic, void *value);
 
 /**
  * 原子指针比较交换
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_atomic_ptr_compare_exchange
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_bool_t jw_atomic_ptr_compare_exchange(jw_atomic_ptr_t *atomic,
                                                  void *expected,
                                                  void *new_val);
@@ -532,6 +844,19 @@ typedef struct jw_scoped_lock {
 /**
  * 初始化锁属性为默认值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_attr_default
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_lock_attr_default(jw_lock_attr_t *attr);
 
 /*
@@ -564,21 +889,73 @@ typedef jw_uint32_t jw_tls_key_t;
 /**
  * 创建TLS键
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_tls_create
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_tls_create(jw_tls_key_t *key);
 
 /**
  * 销毁TLS键
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_tls_destroy
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_tls_destroy(jw_tls_key_t key);
 
 /**
  * 设置TLS值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_tls_set
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_tls_set(jw_tls_key_t key, void *value);
 
 /**
  * 获取TLS值
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_tls_get
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void* jw_tls_get(jw_tls_key_t key);
 
 /*
@@ -602,6 +979,19 @@ typedef struct jw_lock_info {
 /**
  * 启用死锁检测
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_debug_enable
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_lock_debug_enable(jw_bool_t enable);
 
 /**
@@ -609,16 +999,55 @@ JW_API void jw_lock_debug_enable(jw_bool_t enable);
  * 
  * @param timeout_ms 超时时间 (毫秒)，超过后打印警告
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_set_timeout_warning
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_lock_set_timeout_warning(jw_uint32_t timeout_ms);
 
 /**
  * 打印所有锁的状态
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_lock_dump_all
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_lock_dump_all(void);
 
 /**
  * 调试版加锁 (记录文件和行号)
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_mutex_lock_debug
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_mutex_lock_debug(jw_mutex_t *mutex,
                                         const char *file,
                                         int line);
@@ -635,17 +1064,69 @@ JW_API jw_status_t jw_mutex_lock_debug(jw_mutex_t *mutex,
  */
 
 /* 平台互斥锁初始化 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_mutex_init_platform
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_mutex_init_platform(jw_mutex_t *mutex, 
                                            const jw_lock_attr_t *attr);
 
 /* 平台互斥锁销毁 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_mutex_deinit_platform
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_mutex_deinit_platform(jw_mutex_t *mutex);
 
 /* 平台读写锁初始化 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_rwlock_init_platform
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_rwlock_init_platform(jw_rwlock_t *rwlock,
                                             const jw_lock_attr_t *attr);
 
 /* 平台读写锁销毁 */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_rwlock_deinit_platform
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_rwlock_deinit_platform(jw_rwlock_t *rwlock);
 
 /*

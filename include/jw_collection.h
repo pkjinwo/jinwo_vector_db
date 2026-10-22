@@ -528,6 +528,19 @@ JW_API jw_bool_t jw_collection_has_index(const jw_collection_t *coll);
  * @param index_config 新的索引配置
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_collection_update_index
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_collection_update_index(jw_collection_t *coll,
                                                const jw_index_config_t *index_config);
 
@@ -573,6 +586,19 @@ JW_API jw_status_t jw_collection_get_meta(const jw_collection_t *coll,
  * @param field_name 字段名
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_collection_delete_meta_field
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_collection_delete_meta_field(jw_collection_t *coll,
                                                     jw_vid_t vid,
                                                     const char *field_name);

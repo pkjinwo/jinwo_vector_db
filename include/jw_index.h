@@ -494,6 +494,19 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena, const jw_str_t *filename);
  * @param size    输出缓冲区大小
  * @return JW_SUCCESS 成功，其他值失败
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_index_serialize
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_index_serialize(const jw_index_t *index,
                                        void **buffer,
                                        jw_size_t *size);
@@ -506,6 +519,19 @@ JW_API jw_status_t jw_index_serialize(const jw_index_t *index,
  * @param size   缓冲区大小
  * @return 索引指针，失败返回NULL
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_index_deserialize
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_index_t *jw_index_deserialize(jw_arena_t *arena,
                                          const void *buffer,
                                          jw_size_t size);
@@ -543,6 +569,19 @@ JW_API jw_status_t jw_index_get_stats(const jw_index_t *index,
  * 
  * @param index 索引指针
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_index_print_info
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_index_print_info(const jw_index_t *index);
 
 /*
@@ -623,6 +662,19 @@ JW_API void jw_hnsw_destroy(jw_hnsw_index_t *index);
  * @param index HNSW索引指针
  * @param ef    搜索宽度
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_hnsw_set_ef_search
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API void jw_hnsw_set_ef_search(jw_hnsw_index_t *index, jw_uint32_t ef);
 
 /**
@@ -635,6 +687,19 @@ JW_API void jw_hnsw_set_ef_search(jw_hnsw_index_t *index, jw_uint32_t ef);
  * @param capacity  数组容量
  * @return 实际邻居数量
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_hnsw_get_neighbors
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_uint32_t jw_hnsw_get_neighbors(const jw_hnsw_index_t *index,
                                           jw_vid_t vid,
                                           jw_uint32_t level,

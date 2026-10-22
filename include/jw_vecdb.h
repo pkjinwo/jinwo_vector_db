@@ -275,6 +275,19 @@ JW_API jw_size_t jw_vecdb_list_collections(const jw_vecdb_t *db,
  * @param new_name 新名称
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_rename_collection
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_rename_collection(jw_vecdb_t *db,
                                                const jw_str_t *old_name,
                                                const jw_str_t *new_name);
@@ -351,6 +364,19 @@ JW_API jw_status_t jw_vecdb_insert_batch(jw_vecdb_t *db,
  * @param db 数据库句柄
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_begin_transaction
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_begin_transaction(jw_vecdb_t *db);
 
 /**
@@ -359,6 +385,19 @@ JW_API jw_status_t jw_vecdb_begin_transaction(jw_vecdb_t *db);
  * @param db 数据库句柄
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_commit
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_commit(jw_vecdb_t *db);
 
 /**
@@ -367,6 +406,19 @@ JW_API jw_status_t jw_vecdb_commit(jw_vecdb_t *db);
  * @param db 数据库句柄
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_rollback
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_rollback(jw_vecdb_t *db);
 
 /**
@@ -375,6 +427,19 @@ JW_API jw_status_t jw_vecdb_rollback(jw_vecdb_t *db);
  * @param db 数据库句柄
  * @return JW_TRUE 在事务中
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_in_transaction
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_bool_t jw_vecdb_in_transaction(const jw_vecdb_t *db);
 
 /*
@@ -390,6 +455,19 @@ JW_API jw_bool_t jw_vecdb_in_transaction(const jw_vecdb_t *db);
  * @param dest_path 目标路径
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_backup
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_backup(jw_vecdb_t *db,
                                     const jw_str_t *dest_path);
 
@@ -400,6 +478,19 @@ JW_API jw_status_t jw_vecdb_backup(jw_vecdb_t *db,
  * @param src_path  备份文件路径
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_restore
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_restore(jw_vecdb_t **db,
                                      const jw_str_t *src_path);
 
@@ -411,6 +502,19 @@ JW_API jw_status_t jw_vecdb_restore(jw_vecdb_t **db,
  * @param format 格式 ("json", "csv", "binary")
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_export
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_export(jw_vecdb_t *db,
                                     const jw_str_t *path,
                                     const jw_str_t *format);
@@ -423,6 +527,19 @@ JW_API jw_status_t jw_vecdb_export(jw_vecdb_t *db,
  * @param format 格式
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_import
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_import(jw_vecdb_t *db,
                                     const jw_str_t *path,
                                     const jw_str_t *format);
@@ -484,6 +601,19 @@ JW_API void jw_vecdb_reset_stats(jw_vecdb_t *db);
  * @param db 数据库句柄
  * @return JW_SUCCESS 成功
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_vacuum
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_vacuum(jw_vecdb_t *db);
 
 /**
@@ -492,6 +622,19 @@ JW_API jw_status_t jw_vecdb_vacuum(jw_vecdb_t *db);
  * @param db 数据库句柄
  * @return JW_SUCCESS 校验通过
  */
+/* ------------------------------------------------------------------
+ * [未实现 API] jw_vecdb_verify
+ *
+ * 该函数在头文件中声明, 但库中从未实现 (2026-10-22 API 审计确认)。
+ * 直接调用将导致链接错误 (undefined symbol)。
+ *
+ * 处理方式 (择一):
+ *   1. 业务需要 -> 在对应 src 下的 .c 中补齐实现
+ *   2. 确认不需要 -> 删除本声明, 避免误导使用者
+ *   3. jw_lock.h 中的 jw_lock_ / jw_atomic_ / jw_tls_ 系列是冗余的
+ *      第二套锁 API; 库中实际提供且被全库使用的是
+ *      jw_mutex_ / jw_rwlock_ / jw_spinlock_ / jw_sem_ 系列。
+ * ----------------------------------------------------------------*/
 JW_API jw_status_t jw_vecdb_verify(const jw_vecdb_t *db);
 
 /**
