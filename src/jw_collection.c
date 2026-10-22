@@ -118,22 +118,35 @@ JW_API jw_collection_t *jw_collection_create(jw_arena_t *arena,
     coll->count = 0;
     coll->next_vid = 1;  /* ID从1开始，0表示无效 */
     
-    /* 创建索引 */
+    /* 创建索引
+     *
+     * 修复 (2026-10-22): 原先此处声明栈变量 index_config 后未清零,
+     * 当 config->index_type != JW_INDEX_NONE 时只赋值少数字段,
+     * params 联合体 (hnsw.M/ef_construction/ef_search 或 ivf.nlist/nprobe)
+     * 保留栈垃圾值, 传给 jw_index_create 后导致:
+     *   - nlist/M 为野值时按该值分配, 可能触发巨额分配而挂起或崩溃
+     *   - 这正是"发布安卓后测 128 维(默认维度)出问题"的根因
+     * 该 bug 只影响创建路径; 反序列化路径(本文件 1394 行)本就 memset 正确。
+     *
+     * 现统一先以 init_default_index_config 完整初始化(内部 memset),
+     * 再按用户显式配置覆盖, 保证任何字段都不会残留野值。
+     */
     jw_index_config_t index_config;
+    init_default_index_config(&index_config, config->dimension);
     if (config->index_type != JW_INDEX_NONE) {
         index_config.type = config->index_type;
-        index_config.dim = config->dimension;
         index_config.metric = config->metric;
-        index_config.quant = config->quant;
+    }
+    index_config.dim = config->dimension;
+    index_config.quant = config->quant;
+    /* 仅在用户显式指定时才覆盖 PQ 参数, 否则保留 init_default_index_config
+       给出的合理默认值 (nsub=8/nbits=8), 避免 JW_COLLECTION_CONFIG_DEFAULT
+       未初始化 pq 字段而把默认值冲掉成 0 */
+    if (config->pq.nsub != 0) {
         index_config.pq.nsub = config->pq.nsub;
+    }
+    if (config->pq.nbits != 0) {
         index_config.pq.nbits = config->pq.nbits;
-        index_config.pq.max_iter = 20; /* 默认值 */
-    } else {
-        init_default_index_config(&index_config, config->dimension);
-        index_config.quant = config->quant;
-        index_config.pq.nsub = config->pq.nsub;
-        index_config.pq.nbits = config->pq.nbits;
-        index_config.pq.max_iter = 20; /* 默认值 */
     }
     
     coll->index = jw_index_create(NULL, &index_config);  /* 独立arena，不共享集合arena */
