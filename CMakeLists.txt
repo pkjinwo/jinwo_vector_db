@@ -59,6 +59,11 @@ set(JINWO_SOURCES
     ${PROJECT_ROOT}/src/jw_types.c
     ${PROJECT_ROOT}/src/jw_vecdb.c
     ${PROJECT_ROOT}/src/jw_vector.c
+    # iOS 便捷封装 (jw_ios_* 系列, 15 个 API)。
+    # 注意: 该文件是纯 C, 无任何 iOS/Objective-C 依赖 (只 include 标准头与库头),
+    # 名字里的 ios 只是历史命名。原先是 iOS 的 build_and_test.sh 单独编译它,
+    # 导致其他平台拿不到这组封装。2026-10-23 纳入主构建, 全平台可用。
+    ${PROJECT_ROOT}/src/jw_ios_bridge.c
 )
 
 # ============================================================

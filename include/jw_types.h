@@ -534,7 +534,21 @@ typedef jw_bool_t (*jw_iterator_callback_t)(
 /* 最大路径长度 */
 #define JW_MAX_PATH             260
 
-/* 向量最大维度 */
+/**
+ * 向量维度栈缓冲阈值
+ *
+ * ⚠️ 语义澄清 (2026-10-23): 这个宏**不是维度上限校验**。
+ * 库从不拒绝超过 4096 的维度 (实测 7860 维正常工作), 真正的上限由
+ * jw_dim_t (jw_uint32_t) 与可用内存决定, 每向量占用 = dim * 4 字节。
+ *
+ * 它的唯一用途是决定"栈缓冲还是堆分配": 当维度 <= 4096 时可用固定大小
+ * 的栈数组 (jw_quant.c 的 jw_pq_encode 归一化缓冲), 超过则自动降级到
+ * 堆分配, 因此大维度下同样安全。
+ *
+ * 命名保留 JW_MAX_VECTOR_DIM 是为兼容既有代码, 但请勿把它当作校验依据。
+ * 若需要真正的上限校验, 应在 jw_index_create / jw_collection_create 中
+ * 显式判断并返回 JW_INVALID_PARAM。
+ */
 #define JW_MAX_VECTOR_DIM       4096
 
 /* 最大集合数量 */

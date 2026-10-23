@@ -106,7 +106,6 @@ typedef struct {
 } search_candidate_t;
 
 /* 前向声明 */
-static jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim);
 static jw_status_t kmeans_cluster(jw_arena_t *arena,
                                    jw_cvec_t vectors,
                                    jw_size_t count,
@@ -367,36 +366,6 @@ static int compare_candidates(const void *a, const void *b)
  * 3. 重新计算每个聚类的中心
  * 4. 重复2-3直到收敛或达到最大迭代次数
  */
-
-/**
- * 计算欧氏距离的平方 (避免开方加速计算)
- *
- * @param a     向量A
- * @param b     向量B
- * @param dim   向量维度
- * @return      距离平方
- */
-static jw_float32_t distance_sq(jw_cvec_t a, jw_cvec_t b, jw_dim_t dim)
-{
-    if (a == NULL || b == NULL || dim == 0) {
-        return JW_FLT_MAX;
-    }
-    /** 防御：过滤不是合法堆地址的垃圾指针 */
-    if (!is_valid_heap_ptr(a)) {
-        JW_LOGE("distance_sq: GARBAGE VEC A! a=%p", (const void*)a);
-        return JW_FLT_MAX;
-    }
-    if (!is_valid_heap_ptr(b)) {
-        JW_LOGE("distance_sq: GARBAGE VEC B! b=%p", (const void*)b);
-        return JW_FLT_MAX;
-    }
-    jw_float32_t dist_sq = 0.0f;
-    for (jw_dim_t d = 0; d < dim; d++) {
-        jw_float32_t diff = a[d] - b[d];
-        dist_sq += diff * diff;
-    }
-    return dist_sq;
-}
 
 /**
  * K-means聚类主函数
