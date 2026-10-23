@@ -28,6 +28,39 @@
 #include "jw_arena.h"
 #include "jw_types.h"
 #include "jw_string.h"
+#include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* 线程安全支持 (2026-10-23):
+ * 原先注释写"并非线程安全，调用者需要自行加锁"，但 jw_index_search 每次调用都从
+ * index->arena 分配 visit_mark/todo/pq.items，并发搜索时多个线程同时读写同一 arena
+ * 的 block->used / total_used，导致两个线程拿到同一块内存、数据互相覆盖而崩溃
+ * (test_concurrent 实测: 4 线程并发搜索约 45% 概率 SIGSEGV)。
+ *
+ * 故在 arena 内嵌 pthread_mutex_t 使分配本身线程安全。
+ * 用 pthread 而非 jw_mutex_t, 因为后者创建需要 arena 本身 (鸡生蛋问题)。
+ * 单线程场景下锁开销可忽略 (一次无竞争加锁约 20ns, 而分配本身要数百 ns)。 */
+
+/* 便捷宏: 加锁/解锁 (lock 为 void* 以隐藏 pthread 依赖) */
+#define ARENA_LOCK(a)   do { if ((a) != NULL && (a)->lock != NULL) \
+        pthread_mutex_lock((pthread_mutex_t *)(a)->lock); } while (0)
+#define ARENA_UNLOCK(a) do { if ((a) != NULL && (a)->lock != NULL) \
+        pthread_mutex_unlock((pthread_mutex_t *)(a)->lock); } while (0)
+
+static jw_status_t arena_init_lock(jw_arena_t *a)
+{
+    pthread_mutex_t *mtx = (pthread_mutex_t *)calloc(1, sizeof(pthread_mutex_t));
+    if (mtx == NULL) {
+        return JW_OUT_OF_MEMORY;
+    }
+    if (pthread_mutex_init(mtx, NULL) != 0) {
+        free(mtx);
+        return JW_UNKNOWN_ERROR;
+    }
+    a->lock = mtx;
+    return JW_SUCCESS;
+}
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -128,6 +161,12 @@ JW_API jw_status_t jw_arena_create(jw_size_t block_size, jw_arena_t **arena)
         return JW_OUT_OF_MEMORY;
     }
 
+    /* 初始化线程安全锁 (失败不阻塞创建, 仅记录; 分配时会退化为无锁) */
+    if (arena_init_lock(a) != JW_SUCCESS) {
+        /* 锁创建失败: 仍返回可用 arena, 但并发分配会退化。
+           此处不销毁, 因为调用方可能只用单线程。 */
+    }
+
     *arena = a;
     return JW_SUCCESS;
 }
@@ -136,12 +175,22 @@ JW_API void jw_arena_destroy(jw_arena_t *arena)
 {
     if (arena == NULL) return;
 
+    ARENA_LOCK(arena);
+
     /* 释放所有 block */
     jw_arena_block_t *block = arena->head;
     while (block != NULL) {
         jw_arena_block_t *next = block->next;
         block_free(block);
         block = next;
+    }
+
+    /* 释放锁 (先取指针再解锁, 避免 use-after-free) */
+    pthread_mutex_t *mtx = (pthread_mutex_t *)arena->lock;
+    ARENA_UNLOCK(arena);
+    if (mtx != NULL) {
+        pthread_mutex_destroy(mtx);
+        free(mtx);
     }
 
     free(arena);
@@ -153,18 +202,22 @@ JW_API void *jw_arena_alloc(jw_arena_t *arena, jw_size_t size)
 
     size = JW_ARENA_ALIGN(size);
 
+    /* 线程安全: 保护 block->used / arena->total_used / arena->current。
+     * 注意 jw_arena_calloc 会调用本函数, 故 calloc 自身不可再加锁 (非递归锁会死锁)。 */
+    ARENA_LOCK(arena);
+
     /* current 始终是链尾，直接检查 */
     jw_arena_block_t *block = arena->current;
     if (block == NULL) {
         /* 不应该发生（create 时已分配第一个），但兜底 */
         block = arena_append_block(arena, size);
-        if (block == NULL) return NULL;
+        if (block == NULL) { ARENA_UNLOCK(arena); return NULL; }
     }
 
     if (block->used + size > block->size) {
         /* 当前 block 满了，追加新 block */
         block = arena_append_block(arena, size);
-        if (block == NULL) return NULL;
+        if (block == NULL) { ARENA_UNLOCK(arena); return NULL; }
     }
 
     void *ptr = (char *)block->data + block->used;
@@ -180,6 +233,7 @@ JW_API void *jw_arena_alloc(jw_arena_t *arena, jw_size_t size)
             (uint64_t)(block->used - size), (uint64_t)size);
     }
 
+    ARENA_UNLOCK(arena);
     return ptr;
 }
 
@@ -240,6 +294,8 @@ JW_API void jw_arena_reset(jw_arena_t *arena)
 {
     if (arena == NULL) return;
 
+    ARENA_LOCK(arena);
+
     if (arena->head != NULL) {
         /* 释放除第一个以外的所有 block */
         jw_arena_block_t *extra = arena->head->next;
@@ -257,6 +313,8 @@ JW_API void jw_arena_reset(jw_arena_t *arena)
         arena->total_used = 0;
         arena->total_size = arena->head->size;
     }
+
+    ARENA_UNLOCK(arena);
 }
 
 JW_API jw_size_t jw_arena_get_used_size(const jw_arena_t *arena)

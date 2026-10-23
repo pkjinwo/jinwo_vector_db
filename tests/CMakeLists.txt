@@ -55,6 +55,11 @@ add_executable(test_vector_extra test_vector_extra.c)
 target_link_libraries(test_vector_extra PRIVATE jw_vecdb_static)
 add_test(NAME test_vector_extra COMMAND test_vector_extra)
 
+# 2026-10-23 回归测试: 固化 HANDOFF §7 实测结论 (度量召回/PQ/HNSW_PQ缺陷/边界/性能缩放)
+add_executable(test_regression test_regression.c)
+target_link_libraries(test_regression PRIVATE jw_vecdb_static)
+add_test(NAME test_regression COMMAND test_regression)
+
 add_executable(test_vecdb test_vecdb.c)
 target_link_libraries(test_vecdb PRIVATE jw_vecdb_static)
 add_test(NAME test_vecdb COMMAND test_vecdb)

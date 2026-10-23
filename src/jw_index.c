@@ -608,6 +608,12 @@ static jw_vid_t hnsw_greedy_search(const jw_hnsw_index_t *hnsw,
         jw_vid_t prev_nearest = nearest;
         jw_hnsw_node_t *node = hnsw->nodes[current];
 
+        /* 防御: node 可能已被并发删除置 NULL; 且 link_counts/links 数组只
+         * 分配到 node->level+1, 若 level 越界会读到相邻内存 (竞态崩溃根因) */
+        if (node == NULL || level > node->level) {
+            break;
+        }
+
         /** 遍历当前节点的所有邻居 (第0层容量为 max_M0 = 2*M) */
         jw_uint32_t cap = (level == 0) ? node->max_M0 : node->max_M;
         for (jw_uint32_t i = 0; i < node->link_counts[level] && i < cap; i++) {
@@ -725,6 +731,12 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
                                 hnsw->capacity * sizeof(jw_float32_t));
     jw_size_t todo_count = 0;
 
+    /* 防御: 任一分配失败都不可继续 (否则写 NULL 崩溃) */
+    if (pq.items == NULL || todo == NULL || todo_dist == NULL) {
+        *result_count = 0;
+        return;
+    }
+
     /** 初始化: 入口点 */
     visit_mark[ep_vid] = 1;
     jw_float32_t ep_dist = hnsw_node_dist(hnsw, query, hnsw->nodes[ep_vid]);
@@ -773,6 +785,11 @@ static void hnsw_layer_search(const jw_hnsw_index_t *hnsw,
 
         /** 探索当前候选的邻居 (第0层容量为 max_M0) */
         jw_hnsw_node_t *node = hnsw->nodes[current_vid];
+        /* 防御: node 可能已被并发删除置 NULL; 且 link_counts/links 数组只
+         * 分配到 node->level+1, 若 level 越界会读到相邻内存 (竞态崩溃根因) */
+        if (node == NULL || level > node->level) {
+            continue;
+        }
         jw_uint32_t cap = (level == 0) ? node->max_M0 : node->max_M;
         jw_uint32_t link_end = node->link_counts[level];
         if (link_end > cap) link_end = cap;
@@ -1747,6 +1764,11 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                                                 (jw_uint32_t)existing_count : max_links;
                         for (jw_uint32_t c = 0; c < link_count; c++) {
                             jw_hnsw_node_t *nb = all_candidates[c];
+                            /* 防御: 候选节点层级可能低于当前 level, 其 link_counts
+                             * 数组只分配到 nb->level+1, 越界写会破坏相邻内存 */
+                            if (level > nb->level) {
+                                continue;
+                            }
                             jw_uint32_t nb_max = (level == 0) ?
                                                 nb->max_M0 : nb->max_M;
 
@@ -1786,9 +1808,15 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                     /** 建立双向连接 */
                     jw_uint32_t link_count = (valid_count < max_links) ?
                                             valid_count : max_links;
-                    for (jw_uint32_t c = 0; c < link_count; c++) {
+                    for (jw_size_t c = 0; c < link_count; c++) {
                         jw_hnsw_node_t *neighbor = candidates[c];
                         jw_vid_t nvid = neighbor->vid;
+
+                        /* 防御: 候选节点层级可能低于当前 level, 其 link_counts
+                         * 数组只分配到 neighbor->level+1, 越界写会破坏相邻内存 */
+                        if (level > neighbor->level) {
+                            continue;
+                        }
 
                         /** node -> neighbor */
                         if (node->link_counts[level] < max_links) {
