@@ -1910,6 +1910,11 @@ JW_API jw_status_t jw_index_remove(jw_index_t *index, jw_vid_t vid)
         jw_hnsw_index_t *hnsw = (jw_hnsw_index_t *)index->impl;
         jw_rwlock_wrlock(hnsw->lock);
 
+        /* 未找到时返回 JW_NOT_FOUND (与 IVF 分支一致)。
+         * 修复 (2026-10-23): 原先无条件 return JW_SUCCESS, 删除不存在的
+         * vid 也报成功, 调用方无法区分"删掉了"和"本来就没有"。 */
+        jw_status_t ret = JW_NOT_FOUND;
+
         if (vid < hnsw->capacity && hnsw->nodes[vid] != NULL) {
             /** 直接置空节点的指针, 搜索时会跳过 NULL 节点 */
             hnsw->nodes[vid] = NULL;
@@ -1930,15 +1935,62 @@ JW_API jw_status_t jw_index_remove(jw_index_t *index, jw_vid_t vid)
                     }
                 }
             }
+            ret = JW_SUCCESS;
         }
 
         jw_rwlock_wrunlock(hnsw->lock);
-        return JW_SUCCESS;
+        return ret;
     }
 
     if (index->type == JW_INDEX_IVF || index->type == JW_INDEX_IVF_PQ || index->type == JW_INDEX_IVF_SQ) {
-        /** IVF删除通过上层 collection 的 records 移动实现，此处为占位 */
-        return JW_SUCCESS;
+        /**
+         * IVF 删除 (2026-10-23 实现, 修复空实现缺陷)
+         *
+         * 原先是空实现 (直接 return JW_SUCCESS), 导致:
+         *   - ntotal 不递减, jw_index_get_count 虚高
+         *   - 已删向量仍留在倒排列表里, 搜索继续返回它
+         *   - jw_collection_search 无兜底过滤, 上层直接拿到已删数据
+         *
+         * 实现: 遍历各倒排列表, 找到 vid 后用 memmove 前移移除,
+         * 同步递减 list->count 与 ivf->ntotal。
+         * 持 list->lock 保证与并发搜索互斥。
+         */
+        jw_ivf_index_t *ivf = (jw_ivf_index_t *)index->impl;
+        if (ivf == NULL) {
+            return JW_INVALID_PARAM;
+        }
+
+        jw_mutex_lock(ivf->lock);
+
+        jw_bool_t found = JW_FALSE;
+        for (jw_uint32_t li = 0; li < ivf->nlist && !found; li++) {
+            jw_ivf_list_t *list = &ivf->lists[li];
+            if (list->entries == NULL || list->count == 0) {
+                continue;
+            }
+
+            jw_rwlock_wrlock(list->lock);
+            for (jw_size_t j = 0; j < list->count; j++) {
+                if (list->entries[j].vid == vid) {
+                    /* 前移移除该条目 (保持数组紧凑) */
+                    if (j + 1 < list->count) {
+                        jw_memmove(&list->entries[j],
+                                   &list->entries[j + 1],
+                                   (list->count - j - 1) * sizeof(jw_ivf_entry_t));
+                    }
+                    list->count--;
+                    if (ivf->ntotal > 0) {
+                        ivf->ntotal--;
+                    }
+                    found = JW_TRUE;
+                    break;
+                }
+            }
+            jw_rwlock_wrunlock(list->lock);
+        }
+
+        jw_mutex_unlock(ivf->lock);
+        return found ? JW_SUCCESS : JW_NOT_FOUND;
     }
 
     return JW_SUCCESS;

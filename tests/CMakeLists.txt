@@ -45,6 +45,16 @@ add_executable(test_index test_index.c)
 target_link_libraries(test_index PRIVATE jw_vecdb_static)
 add_test(NAME test_index COMMAND test_index)
 
+# 并发测试 (多线程读写/搜索/删除, 验证锁正确性) —— 2026-10-23 补注册
+add_executable(test_concurrent test_concurrent.c)
+target_link_libraries(test_concurrent PRIVATE jw_vecdb_static)
+add_test(NAME test_concurrent COMMAND test_concurrent)
+
+# 删除功能测试 (2026-10-23: 修复 IVF 删除空实现后新增)
+add_executable(test_delete test_delete.c)
+target_link_libraries(test_delete PRIVATE jw_vecdb_static)
+add_test(NAME test_delete COMMAND test_delete)
+
 # jw_index.c 核心逻辑完整测试 (类型×度量矩阵/维度边界/存盘重载/稀疏vid/删除/批量搜索/边界)
 add_executable(test_index_core test_index_core.c)
 target_link_libraries(test_index_core PRIVATE jw_vecdb_static)
