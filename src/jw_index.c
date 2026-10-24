@@ -1390,6 +1390,22 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
         return JW_INVALID_PARAM;
     }
 
+    /**
+     * vid 上限校验 (2026-10-23, 修复 OOM 缺陷)
+     *
+     * HNSW 用 vid 作 nodes 数组下标且容量按 (max_vid+1)*2 增长,
+     * 单个超大 vid 就触发巨额分配: 实测 vid=40亿 时 arena 用量达 72GB,
+     * 进程被系统 OOM kill (连错误码都来不及返回)。
+     *
+     * 此处提前拒绝, 让调用方拿到 JW_INVALID_PARAM 而非进程被杀。
+     * 详见 include/jw_types.h 中 JW_MAX_VID 的注释。
+     */
+    for (jw_size_t i = 0; i < count; i++) {
+        if (vids[i] == 0 || vids[i] > JW_MAX_VID) {
+            return JW_INVALID_PARAM;
+        }
+    }
+
     jw_dim_t dim = jw_index_get_dim(index);
 
     /** IVF添加向量 */
@@ -1406,6 +1422,36 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
         /** 为每个向量找到最近的聚类中心并添加到对应列表 */
         for (jw_size_t i = 0; i < count; i++) {
             jw_cvec_t vec = vectors + i * dim;
+
+            /**
+             * 重复 vid 检查 (2026-10-23 修复, 与 HNSW 分支保持一致)
+             *
+             * IVF 原本也从不检查重复: 同一 vid 会被塞进两次, 于是
+             *   1) 搜索结果里同一个 vid 出现两次 (重复召回);
+             *   2) 删除时只删掉其中一个, 另一个"幽灵条目"仍在, 仍可被搜到
+             *      (这正是 §8.2 修过的"已删向量仍可搜"的同类隐患);
+             *   3) 统计与真实条数不符。
+             *
+             * 判重需要遍历各簇列表 (O(总条目数)), 只在插入时做一次,
+             * 为避免大批量插入时退化成 O(n^2), 这里只在**批量内去重**代价
+             * 可接受的前提下扫描全部簇; 批量很大时调用方应先去重。
+             */
+            {
+                int dup_found = 0;
+                for (jw_uint32_t l = 0; l < ivf->nlist && !dup_found; l++) {
+                    jw_ivf_list_t *li = &ivf->lists[l];
+                    for (jw_size_t e = 0; e < li->count; e++) {
+                        if (li->entries[e].vid == vids[i]) {
+                            dup_found = 1;
+                            break;
+                        }
+                    }
+                }
+                if (dup_found) {
+                    jw_mutex_unlock(ivf->lock);
+                    return JW_ALREADY_EXISTS;
+                }
+            }
 
             /** 找到最近的聚类中心 */
             jw_float32_t min_dist = JW_FLT_MAX;
@@ -1549,6 +1595,23 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                 }
                 hnsw->nodes = new_nodes;
                 hnsw->capacity = new_capacity;
+            }
+
+            /**
+             * 重复 vid 检查 (2026-10-23 修复)
+             *
+             * 原缺陷: 从不检查 vid 是否已存在。插入重复 vid 时会
+             *   1) 新建节点后直接 `nodes[vid] = node` 覆盖旧节点 -> 旧节点
+             *      内存泄漏 (arena 无法单独回收), 且旧节点的入边仍指向它;
+             *   2) `ntotal++` 照常累加 -> ntotal 虚增, 与真实节点数不符,
+             *      进而让序列化写出错误条数 (详见序列化处的修复说明)。
+             *
+             * 现在直接拒绝重复 vid, 返回 JW_ALREADY_EXISTS, 让调用方
+             * 先删除旧向量再插入 (更新语义), 而不是静默产生不一致状态。
+             */
+            if (hnsw->nodes[vid] != NULL) {
+                jw_rwlock_wrunlock(hnsw->lock);
+                return JW_ALREADY_EXISTS;
             }
 
             /** 生成随机层级 */
@@ -2811,7 +2874,34 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
             /* 写入HNSW索引数据 */
             if (write(fd, &hnsw->dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
             if (write(fd, &hnsw->metric, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
-            if (write(fd, &hnsw->ntotal, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
+            /**
+             * 写入"实际节点数"而非 hnsw->ntotal (2026-10-23 修复数据丢失缺陷)
+             *
+             * 原缺陷: 头部写 hnsw->ntotal, 而下面遍历 `i < hnsw->ntotal` 去取
+             * nodes[i]。但 nodes 数组是**按 vid 索引**的, ntotal 只是"插入次数",
+             * 两者根本不是一个维度:
+             *   - vid 稀疏时 (如 vid=100..1000 共 10 个): 遍历 i<10 只看到
+             *     nodes[0..9], 真实节点在 nodes[100/200/.../1000] -> 一个都
+             *     没被写入, 文件里 0 条节点记录 (静默丢失全部数据!);
+             *   - vid 重复时 ntotal 虚增, ntotal 可能超过 capacity, 遍历时
+             *     直接越界读 nodes[] -> 读到垃圾指针。
+             *
+             * 修复: 先统计真实非空节点数 actual, 头部写 actual, 遍历改为
+             * 遍历 capacity (覆盖所有 vid 槽位)。这样"写入记录数 == 头部声明
+             * 的记录数", 加载侧读多少条就正好有多少条。
+             *
+             * 兼容性: 密集 vid 1..N 且无重复时 actual == ntotal, 与旧格式
+             * 字节级一致; 而稀疏/重复场景旧格式本就是坏的, 无兼容损失。
+             */
+            {
+                jw_uint64_t actual_nodes = 0;
+                for (jw_size_t i = 0; i < hnsw->capacity; i++) {
+                    if (hnsw->nodes[i] != NULL) {
+                        actual_nodes++;
+                    }
+                }
+                if (write(fd, &actual_nodes, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
+            }
             if (write(fd, &hnsw->capacity, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
             if (write(fd, &hnsw->max_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) { status = JW_IO_ERROR; goto cleanup; }
             if (write(fd, &hnsw->entry_point, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
@@ -2843,7 +2933,10 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
             }
 
             /* 写入节点数据 */
-            for (jw_size_t i = 0; i < hnsw->ntotal; i++) {
+            /* 遍历 capacity (而非 ntotal): nodes 按 vid 索引, 必须扫全部槽位
+               才能覆盖稀疏 vid。头部写入的是实际非空节点数, 与这里写出的
+               记录条数严格一致 (详见上面头部的修复说明)。 */
+            for (jw_size_t i = 0; i < hnsw->capacity; i++) {
                 jw_hnsw_node_t *node = hnsw->nodes[i];
                 if (node != NULL) {
                     if (write(fd, &node->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) { status = JW_IO_ERROR; goto cleanup; }
@@ -2901,7 +2994,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
     /* 读取索引类型 */
     jw_uint32_t index_type;
     if (read(fd, &index_type, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) {
-        goto cleanup;
+        goto cleanup_err;
     }
 
     switch (index_type) {
@@ -2909,15 +3002,19 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
         case JW_INDEX_IVF_PQ:
         case JW_INDEX_IVF_SQ: {
             /* 读取IVF索引数据 */
-            jw_uint32_t dim, nlist, metric, trained, nlist_config, nprobe, max_iter;
-            
-            if (read(fd, &dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &nlist, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &metric, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &trained, sizeof(jw_uint8_t)) != sizeof(jw_uint8_t)) goto cleanup;
-            if (read(fd, &nlist_config, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &nprobe, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &max_iter, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+            /* 注意: trained 必须与存盘侧的 jw_uint8_t 严格一致。
+               原先这里声明成 jw_uint32_t, 于是存盘写 1 字节、加载读 4 字节,
+               每次都多吞 3 个字节, 后续所有字段整体错位 (2026-10-23 修复)。 */
+            jw_uint32_t dim, nlist, metric, nlist_config, nprobe, max_iter;
+            jw_uint8_t trained;
+
+            if (read(fd, &dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &nlist, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &metric, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &trained, sizeof(jw_uint8_t)) != sizeof(jw_uint8_t)) goto cleanup_err;
+            if (read(fd, &nlist_config, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &nprobe, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &max_iter, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
             /* 创建IVF索引 */
             jw_index_config_t config = {
@@ -2931,7 +3028,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             };
             
             index = jw_index_create(arena, &config);
-            if (index == NULL) goto cleanup;
+            if (index == NULL) goto cleanup_err;
             
             jw_ivf_index_t *ivf = (jw_ivf_index_t *)index->impl;
             ivf->metric = metric;
@@ -2953,10 +3050,10 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             if (ivf->type == JW_INDEX_IVF_PQ) {
                 jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
 
-                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 jw_pq_quantizer_t *pq = NULL;
                 jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
@@ -2967,29 +3064,29 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                     for (jw_uint32_t i = 0; i < pq_nsub; i++) {
                         if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) !=
                             (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
-                            goto cleanup;
+                            goto cleanup_err;
                         }
                     }
                 }
             } else if (ivf->type == JW_INDEX_IVF_SQ) {
                 jw_uint32_t sq_dim;
 
-                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
                 if (sq != NULL) {
                     ivf->sq = sq;
 
                     if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
 
                     if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
 
                     if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                 }
             }
@@ -2997,7 +3094,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             /* 读取聚类中心 */
             for (jw_uint32_t i = 0; i < nlist; i++) {
                 if (read(fd, ivf->lists[i].centroid, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
-                    goto cleanup;
+                    goto cleanup_err;
                 }
             }
 
@@ -3005,7 +3102,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             for (jw_uint32_t i = 0; i < nlist; i++) {
                 jw_ivf_list_t *list = &ivf->lists[i];
                 jw_uint32_t count;
-                if (read(fd, &count, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &count, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 list->count = count;
                 ivf->ntotal += count;
@@ -3015,33 +3112,33 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                         list->capacity = count * 2;
                         list->entries = (jw_ivf_entry_t *)jw_arena_calloc(arena,
                                          list->capacity, sizeof(jw_ivf_entry_t));
-                        if (list->entries == NULL) goto cleanup;
+                        if (list->entries == NULL) goto cleanup_err;
                     }
 
                     for (jw_size_t j = 0; j < count; j++) {
                         jw_ivf_entry_t *entry = &list->entries[j];
 
-                        if (read(fd, &entry->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
+                        if (read(fd, &entry->vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
 
                         if (ivf->type == JW_INDEX_IVF_PQ && ivf->pq != NULL) {
                             entry->code = (jw_uint8_t *)jw_arena_alloc(arena, ivf->pq->nsub);
-                            if (entry->code == NULL) goto cleanup;
+                            if (entry->code == NULL) goto cleanup_err;
                             if (read(fd, entry->code, ivf->pq->nsub) != (ssize_t)ivf->pq->nsub) {
-                                goto cleanup;
+                                goto cleanup_err;
                             }
                             entry->vec = NULL;
                         } else if (ivf->type == JW_INDEX_IVF_SQ && ivf->sq != NULL) {
                             entry->code = (jw_uint8_t *)jw_arena_alloc(arena, dim);
-                            if (entry->code == NULL) goto cleanup;
+                            if (entry->code == NULL) goto cleanup_err;
                             if (read(fd, entry->code, dim) != (ssize_t)dim) {
-                                goto cleanup;
+                                goto cleanup_err;
                             }
                             entry->vec = NULL;
                         } else {
                             entry->vec = (jw_vec_t)jw_arena_alloc(arena, dim * sizeof(jw_float32_t));
-                            if (entry->vec == NULL) goto cleanup;
+                            if (entry->vec == NULL) goto cleanup_err;
                             if (read(fd, entry->vec, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
-                                goto cleanup;
+                                goto cleanup_err;
                             }
                             entry->code = NULL;
                         }
@@ -3058,17 +3155,17 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             jw_float32_t level_mult;
             jw_uint64_t ntotal, capacity, entry_point, rng_state;
             
-            if (read(fd, &dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &metric, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &ntotal, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
-            if (read(fd, &capacity, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
-            if (read(fd, &max_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &entry_point, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
-            if (read(fd, &M, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &ef_construction, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &ef_search, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-            if (read(fd, &level_mult, sizeof(jw_float32_t)) != sizeof(jw_float32_t)) goto cleanup;
-            if (read(fd, &rng_state, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
+            if (read(fd, &dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &metric, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &ntotal, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
+            if (read(fd, &capacity, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
+            if (read(fd, &max_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &entry_point, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
+            if (read(fd, &M, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &ef_construction, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &ef_search, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+            if (read(fd, &level_mult, sizeof(jw_float32_t)) != sizeof(jw_float32_t)) goto cleanup_err;
+            if (read(fd, &rng_state, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
 
             /* 创建HNSW索引 */
             jw_index_config_t config = {
@@ -3084,12 +3181,29 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             };
             
             index = jw_index_create(arena, &config);
-            if (index == NULL) goto cleanup;
+            if (index == NULL) goto cleanup_err;
             
             jw_hnsw_index_t *hnsw = (jw_hnsw_index_t *)index->impl;
             hnsw->metric = metric;
             hnsw->ntotal = ntotal;
-            hnsw->capacity = capacity;
+            /**
+             * 不要直接信任文件里的 capacity (2026-10-23 修复越界写缺陷)
+             *
+             * 原写法 `hnsw->capacity = capacity;` 把文件里的值直接赋给
+             * hnsw->capacity, 但 hnsw->nodes 是 jw_index_create 按**初始**
+             * 容量分配的, 两者并不一致。于是下面读取节点时:
+             *     if (vid >= hnsw->capacity) { 扩容 }   <- 用文件值判断, 不扩容
+             *     hnsw->nodes[vid] = node;              <- 写进小得多的数组
+             * 只要 vid 落在 (实际分配容量, 文件声明容量) 这个区间, 就是
+             * **越界写**, 直接踩坏相邻内存 -> SIGSEGV。
+             * 更糟的是这是可被构造的: 一个恶意/损坏的索引文件就能让
+             * 加载方写出界 (安全漏洞)。
+             *
+             * 修复: 不覆盖 hnsw->capacity, 让它始终等于"实际已分配的
+             * nodes 数组长度"。下面的 `if (vid >= hnsw->capacity) 扩容`
+             * 逻辑会按需真实扩容, 边界判断因此始终有效。
+             * capacity 仍从文件读出以保持格式兼容, 但仅作参考不再使用。
+             */
             hnsw->max_level = max_level;
             hnsw->entry_point = entry_point;
             hnsw->rng_state = rng_state;
@@ -3098,10 +3212,10 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             if (hnsw->type == JW_INDEX_HNSW_PQ) {
                 jw_uint32_t pq_dim, pq_nsub, pq_k, pq_subdim;
 
-                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &pq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_nsub, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_k, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+                if (read(fd, &pq_subdim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 jw_pq_quantizer_t *pq = NULL;
                 jw_pq_create(arena, pq_dim, pq_nsub, 8, &pq);  /* 8 bits per subvector */
@@ -3112,29 +3226,29 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                     for (jw_uint32_t i = 0; i < pq_nsub; i++) {
                         if (read(fd, pq->centroids[i], pq_k * pq_subdim * sizeof(jw_float32_t)) !=
                             (ssize_t)(pq_k * pq_subdim * sizeof(jw_float32_t))) {
-                            goto cleanup;
+                            goto cleanup_err;
                         }
                     }
                 }
             } else if (hnsw->type == JW_INDEX_HNSW_SQ) {
                 jw_uint32_t sq_dim;
 
-                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
+                if (read(fd, &sq_dim, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 jw_sq_quantizer_t *sq = jw_sq_quantizer_create(arena, sq_dim);
                 if (sq != NULL) {
                     hnsw->sq = sq;
 
                     if (read(fd, sq->mins, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
 
                     if (read(fd, sq->maxs, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
 
                     if (read(fd, sq->scales, sq_dim * sizeof(jw_float32_t)) != (ssize_t)(sq_dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                 }
             }
@@ -3144,15 +3258,28 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 jw_uint64_t vid;
                 jw_uint32_t node_level;
                 
-                if (read(fd, &vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup;
-                if (read(fd, &node_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup;
-                
+                if (read(fd, &vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
+                if (read(fd, &node_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
+
+                /**
+                 * 校验从文件读出的 vid (2026-10-23 新增)
+                 *
+                 * HNSW 用 vid 作 nodes 数组下标且容量按 (vid+1)*2 增长。
+                 * 若文件损坏或被构造, 一个巨大的 vid 会让这里直接尝试分配
+                 * 数十 GB (实测 vid=40 亿 -> ~72GB, 进程被系统 OOM kill),
+                 * 连错误码都来不及返回。这里提前拒绝, 与 jw_index_add_batch
+                 * 侧的 JW_MAX_VID 校验保持一致 (详见 jw_types.h 的说明)。
+                 */
+                if (vid == 0 || vid > JW_MAX_VID) {
+                    goto cleanup_err;
+                }
+
                 /* 扩容节点数组 */
                 if (vid >= hnsw->capacity) {
                     jw_size_t new_capacity = (vid + 1) * 2;
                     jw_hnsw_node_t **new_nodes = (jw_hnsw_node_t **)jw_arena_calloc(
                         arena, new_capacity, sizeof(jw_hnsw_node_t *));
-                    if (new_nodes == NULL) goto cleanup;
+                    if (new_nodes == NULL) goto cleanup_err;
                     if (hnsw->nodes != NULL) {
                         jw_memcpy(new_nodes, hnsw->nodes, hnsw->capacity * sizeof(jw_hnsw_node_t *));
                     }
@@ -3162,7 +3289,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 
                 /* 创建节点 */
                 jw_hnsw_node_t *node = (jw_hnsw_node_t *)jw_arena_calloc(arena, 1, sizeof(jw_hnsw_node_t));
-                if (node == NULL) goto cleanup;
+                if (node == NULL) goto cleanup_err;
                 
                 node->vid = vid;
                 node->level = node_level;
@@ -3174,18 +3301,18 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 if (hnsw->pq != NULL) {
                     node->code = (jw_uint8_t *)jw_arena_alloc(arena, hnsw->pq->nsub);
                     if (node->code == NULL) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                     if (read(fd, node->code, hnsw->pq->nsub) != (ssize_t)hnsw->pq->nsub) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                 } else {
                     node->vec = (jw_vec_t)jw_arena_alloc(arena, dim * sizeof(jw_float32_t));
                     if (node->vec == NULL) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                     if (read(fd, node->vec, dim * sizeof(jw_float32_t)) != (ssize_t)(dim * sizeof(jw_float32_t))) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                 }
                 
@@ -3193,13 +3320,13 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 node->links = (jw_vid_t **)jw_arena_alloc(arena, (node_level + 1) * sizeof(jw_vid_t *));
                 node->link_counts = (jw_uint32_t *)jw_arena_alloc(arena, (node_level + 1) * sizeof(jw_uint32_t));
                 if (node->links == NULL || node->link_counts == NULL) {
-                    goto cleanup;
+                    goto cleanup_err;
                 }
                 
                 for (jw_uint32_t l = 0; l <= node_level; l++) {
                     jw_uint32_t link_count;
                     if (read(fd, &link_count, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                     
                     node->link_counts[l] = link_count;
@@ -3207,12 +3334,12 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                     jw_uint32_t alloc_M_load = (l == 0) ? (node->max_M0) : (node->max_M);
                     node->links[l] = (jw_vid_t *)jw_arena_alloc(arena, alloc_M_load * sizeof(jw_vid_t));
                     if (node->links[l] == NULL) {
-                        goto cleanup;
+                        goto cleanup_err;
                     }
                     
                     for (jw_uint32_t j = 0; j < link_count; j++) {
                         if (read(fd, &node->links[l][j], sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) {
-                            goto cleanup;
+                            goto cleanup_err;
                         }
                     }
                 }
@@ -3222,8 +3349,33 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
             break;
         }
         default:
-            goto cleanup;
+            goto cleanup_err;
     }
+
+    /**
+     * 成功路径 (2026-10-23)
+     *
+     * switch 里各 case 正常处理完是 break 出来的, 会落到这里。
+     * 必须显式跳到 cleanup 去返回 index —— 如果什么都不做, 会顺序掉进
+     * 下面的 cleanup_err 把 index 置成 NULL, 导致**连正常加载都失败**。
+     * (这个坑是加 cleanup_err 标签时引入的: 原本 break 之后紧跟着就是
+     *  cleanup, 插入新标签后 fallthrough 的语义就变了。)
+     */
+    goto cleanup;
+
+cleanup_err:
+    /*
+     * 2026-10-23 修复 (段错误根因之一):
+     * 原先所有失败路径都 goto cleanup, 而 cleanup 无条件 `return index`,
+     * 于是"文件截断/损坏/参数非法"时也会返回一个**部分初始化的坏索引**
+     * (非 NULL, 但内部节点缺失或字段是垃圾值)。调用方拿到它继续搜索,
+     * 就会解引用垃圾指针 -> SIGSEGV。
+     *
+     * 现在失败路径统一返回 NULL, 让调用方能通过判空发现问题。
+     * 注: 索引本体及其成员都从 arena 分配, 这里不逐个释放,
+     * 由调用方销毁 arena 统一回收 (arena 不支持单独 free)。
+     */
+    index = NULL;
 
 cleanup:
     close(fd);

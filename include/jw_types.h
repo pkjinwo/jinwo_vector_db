@@ -557,6 +557,29 @@ typedef jw_bool_t (*jw_iterator_callback_t)(
 /* 默认向量维度 */
 #define JW_DEFAULT_VECTOR_DIM   128
 
+/**
+ * 向量 ID (vid) 上限
+ *
+ * ⚠️ 为什么需要这个上限 (2026-10-23 新增, 修复 OOM 缺陷):
+ * HNSW 索引用 vid 直接作为 nodes 数组下标, 且容量按 (max_vid+1)*2 增长,
+ * 每个槽位 8 字节。因此单个超大 vid 就会触发巨额分配:
+ *   vid = 100万     -> 约 18 MB
+ *   vid = 1亿       -> 约 1.8 GB
+ *   vid = 40亿      -> 约 72 GB   (必然被系统 OOM kill, 进程直接死)
+ * 实测复现: 单个 vid=4000000000 的向量使 arena 已用量达 72GB。
+ *
+ * 这是可用性缺陷 (DoS 向量): 一个畸形/恶意 vid 就能让进程挂掉,
+ * 而非返回错误码。故在此设上限, 越界时返回 JW_INVALID_PARAM 让调用方
+ * 有机会处理, 而不是被 kill。
+ *
+ * 取值依据: 1 千万 * 16 字节 (HNSW capacity 放大) ≈ 160MB, 是移动端
+ * 单进程可安全承受的量级。IVF 索引不受此限 (按簇分配, 不用 vid 下标)。
+ *
+ * 若业务确实需要更大的稀疏 ID (如数据库主键), 请在外层做 ID 重映射
+ * (把自己的 ID 映射到 [1, JW_MAX_VID] 区间), 库内只存映射后的紧凑 ID。
+ */
+#define JW_MAX_VID              10000000
+
 /* 默认搜索返回数量 */
 #define JW_DEFAULT_TOP_K        10
 

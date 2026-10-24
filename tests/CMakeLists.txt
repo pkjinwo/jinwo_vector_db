@@ -90,6 +90,13 @@ add_executable(test_quantization_serialization_mmap test_quantization_serializat
 target_link_libraries(test_quantization_serialization_mmap PRIVATE jw_vecdb_static)
 add_test(NAME test_quantization_serialization_mmap COMMAND test_quantization_serialization_mmap)
 
+# 存盘/加载与 vid 健壮性回归测试 (2026-10-23 新增)
+# 锁死四个缺陷: 稀疏 vid 序列化丢数据 / 加载时 capacity 越界写 /
+# 损坏文件返回坏索引 / 重复 vid 与超大 vid 未校验
+add_executable(test_save_load test_save_load.c)
+target_link_libraries(test_save_load PRIVATE jw_vecdb_static)
+add_test(NAME test_save_load COMMAND test_save_load)
+
 # 性能测试 (2026-10-22 暂时从构建中移除)
 # 原因: performance/test_performance.c 使用的是过时 API, 从未能编译通过:
 #   - jw_str_t 按值传给期望 const jw_str_t * 的参数
