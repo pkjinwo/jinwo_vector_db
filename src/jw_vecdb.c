@@ -765,7 +765,16 @@ JW_API const char *jw_vecdb_get_error_message(const jw_vecdb_t *db)
     if (db != NULL && db->error_msg[0] != '\0') {
         return db->error_msg;
     }
-    return jw_strerror(db->last_error);
+    /**
+     * db 可能已经是 NULL —— 上面第 765 行自己都判了 `db != NULL`,
+     * 说明这条路径确实可能带 NULL 进来, 但原写在 return 时忘了判,
+     * 直接解引用 db->last_error -> SIGSEGV。
+     *
+     * 紧邻的 jw_vecdb_get_last_error() 用的是
+     *     (db != NULL) ? db->last_error : JW_UNKNOWN_ERROR
+     * 这里保持同样的口径。(2026-10-25 静态分析发现)
+     */
+    return jw_strerror((db != NULL) ? db->last_error : JW_UNKNOWN_ERROR);
 }
 
 JW_API const char *jw_vecdb_strerror(jw_status_t status)

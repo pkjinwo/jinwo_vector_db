@@ -399,7 +399,21 @@ static jw_status_t kmeans_cluster(jw_arena_t *arena,
      * 第一个中心随机选择，后续中心按概率加权选择距离现有中心更远的点
      */
     for (jw_uint32_t i = 0; i < k; i++) {
-        jw_size_t idx;
+        /**
+         * idx 必须初始化 (2026-10-25 修复)
+         *
+         * 原写法是未初始化的 `jw_size_t idx;`。i==0 分支一定会赋值,
+         * 但 K-means++ 分支只在 `min_dist > max_min_dist` 成立时才赋值,
+         * 而 max_min_dist 初值是 0.0f、min_dist 又恒 >= 0 —— 当所有点
+         * 都与已有中心重合时 (训练数据全是零向量 / 大量重复点 /
+         * 去重后的数据), `0 > 0` 恒不成立, idx 从头到尾没被赋值,
+         * 于是 `vectors + idx * dim` 用**栈上的垃圾值**当偏移去读取,
+         * 轻则读出垃圾向量污染聚类中心, 重则访问非法地址 SIGSEGV。
+         *
+         * 初始化为 0: 这种退化情形下取第 0 个训练点作为中心,
+         * 语义合理且安全。
+         */
+        jw_size_t idx = 0;
         if (i == 0) {
             /** 第一个中心: 随机选择 */
             idx = (jw_uint32_t)(jw_rand() % count);
@@ -1776,6 +1790,22 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                         jw_hnsw_node_t **all_candidates = (jw_hnsw_node_t **)jw_arena_alloc(
                                 index->arena,
                                 existing_count * sizeof(jw_hnsw_node_t *));
+                        /**
+                         * arena 会按需 malloc 新 block 自动增长 (不是固定大小
+                         * 的内存池), 但在**系统内存真正不足**时 alloc 依然会
+                         * 返回 NULL, 而下面直接用 all_candidates[ac++] 写入
+                         * 就会解引用 NULL -> SIGSEGV。(2026-10-25 静态分析发现)
+                         *
+                         * 此处 existing_count 已保证 >= 1 (上面 ==0 时已 continue),
+                         * 故不会把 "申请 0 字节返回 NULL" 误判成 OOM。
+                         *
+                         * 注意: 走到这里仍持有 hnsw 写锁 (1563 加锁, 各 unlock
+                         * 只发生在失败分支), 返回前必须先解锁, 否则会死锁。
+                         */
+                        if (all_candidates == NULL) {
+                            jw_rwlock_wrunlock(hnsw->lock);
+                            return JW_OUT_OF_MEMORY;
+                        }
                         jw_size_t ac = 0;
                         for (jw_size_t n = 0; n < hnsw->capacity; n++) {
                             if (hnsw->nodes[n] != NULL
@@ -1818,6 +1848,20 @@ JW_API jw_status_t jw_index_add_batch(jw_index_t *index,
                     jw_hnsw_node_t **candidates = (jw_hnsw_node_t **)jw_arena_alloc(
                             index->arena,
                             result_count * sizeof(jw_hnsw_node_t *));
+                    /**
+                     * 同上: 系统内存不足导致 alloc 返回 NULL 时, 下面
+                     * candidates[valid_count++] 会解引用 NULL -> SIGSEGV。
+                     * (2026-10-25 静态分析发现)
+                     *
+                     * 走到这一分支意味着 result_count != 0 (==0 已走上面那个分支),
+                     * 所以 size > 0, 不存在 "申请 0 字节" 的误判。
+                     *
+                     * 此处仍持有写锁, 返回前必须解锁, 否则死锁。
+                     */
+                    if (candidates == NULL) {
+                        jw_rwlock_wrunlock(hnsw->lock);
+                        return JW_OUT_OF_MEMORY;
+                    }
                     jw_uint32_t valid_count = 0;
                     for (jw_size_t c = 0; c < result_count; c++) {
                         jw_vid_t cvid = insert_layer_results[c].vid;

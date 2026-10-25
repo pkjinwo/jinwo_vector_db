@@ -984,7 +984,15 @@ JW_API jw_str_t *jw_strreplace(jw_arena_t *arena, const jw_str_t *str, const jw_
     
     result->ptr = jw_arena_calloc(arena, len, sizeof(char));
     if (!result->ptr) {
-        result = NULL;
+        /**
+         * 原来这里写的是 `result = NULL;` 而没有 return ——
+         * 于是代码继续往下走到 `char *dest = result->ptr;`, 对一个刚被
+         * 置成 NULL 的指针解引用 -> SIGSEGV。
+         *
+         * arena 分配失败时这里必须立刻返回 NULL, 让调用方拿到错误码,
+         * 而不是崩溃。(2026-10-25 静态分析发现)
+         */
+        return NULL;
     }
     
     /* 执行替换 */

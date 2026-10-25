@@ -128,9 +128,24 @@ static jw_arena_block_t *arena_append_block(jw_arena_t *arena, jw_size_t min_siz
     /* 追加到链尾 */
     if (arena->head == NULL) {
         arena->head = block;
-    } else {
+    } else if (arena->current != NULL) {
         /* current 始终指向链尾 */
         arena->current->next = block;
+    } else {
+        /**
+         * head 非空但 current 为空 —— 链表状态不自洽。
+         *
+         * 正常路径到不了这里: jw_arena_create 会同时建立 head 与 current,
+         * 且本函数全程在 ARENA_LOCK 保护下调用, 不存在并发撕裂
+         * (参见 jw_arena_alloc 中 "create 时已分配第一个, 但兜底" 的说明)。
+         *
+         * 但既然上面已经有了 head==NULL 的兜底分支, current 也应当对称地
+         * 防御 —— 结构体一旦被别处写坏, 这里就是 NULL 解引用崩溃。
+         * 释放刚申请的 block 并返回 NULL (让调用方拿到分配失败),
+         * 比对 NULL 解引用要好。(2026-10-25 静态分析)
+         */
+        block_free(block);
+        return NULL;
     }
 
     arena->current = block;
