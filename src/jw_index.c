@@ -3253,12 +3253,47 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 }
             }
 
-            /* 读取节点数据 */
+            /**
+             * 读取节点数据
+             *
+             * nodes_loaded 记录实际成功加载的节点数, 与头部声称的 ntotal
+             * 分开统计 —— 见下面关于「干净 EOF 兼容」的说明。
+             */
+            jw_uint64_t nodes_loaded = 0;
             for (jw_size_t i = 0; i < ntotal; i++) {
                 jw_uint64_t vid;
                 jw_uint32_t node_level;
-                
-                if (read(fd, &vid, sizeof(jw_uint64_t)) != sizeof(jw_uint64_t)) goto cleanup_err;
+
+                /**
+                 * 干净 EOF 的向后兼容 (2026-10-23)
+                 *
+                 * 头部记录的节点数与实际写出的节点记录条数**历史上一向可能不等**:
+                 * 旧版本写头部用的是「插入次数」hnsw->ntotal, 而写记录时遍历
+                 * `i < hnsw->ntotal`, 于是 vid >= ntotal 的节点一条都写不出去。
+                 * 例: 50 个节点 vid=1..50, ntotal=50, 遍历只到 i=49, vid=50 的
+                 * 节点漏掉, 实际只写出 49 条记录, 但头部仍声称 50。
+                 *
+                 * 因此加载旧版本文件时, 第 ntotal 次读取会遇到「干净 EOF」
+                 * (read 返回 0 字节, 整条记录都不存在)。这里把它和「真损坏」
+                 * 区分开:
+                 *
+                 *   - read 返回 0 (干净 EOF):            判定为历史格式的计数
+                 *     偏差, 按已读到的节点数正常结束, 并把 hnsw->ntotal 修正
+                 *     为真实值。丢失的那一条在旧版本存盘时就已经写不进文件了,
+                 *     无法找回, 但其余节点是完好的, 值得救回来。
+                 *   - read 返回 0 与记录长度之间 (部分读取): 记录只写了一部分,
+                 *     说明文件被截断在数据中间, 是真正的损坏 -> 拒绝加载。
+                 *
+                 * 只在这里容忍: 一旦开始读某条记录, 其后的任何读取不足都视为
+                 * 损坏, 这样仍能拦住绝大多数截断/损坏文件。
+                 */
+                ssize_t got_vid = read(fd, &vid, sizeof(jw_uint64_t));
+                if (got_vid == 0) {
+                    /* 干净 EOF: 兼容历史文件, 提前正常结束 */
+                    break;
+                }
+                if (got_vid != (ssize_t)sizeof(jw_uint64_t)) goto cleanup_err;
+
                 if (read(fd, &node_level, sizeof(jw_uint32_t)) != sizeof(jw_uint32_t)) goto cleanup_err;
 
                 /**
@@ -3345,7 +3380,18 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
                 }
                 
                 hnsw->nodes[vid] = node;
+                nodes_loaded++;
             }
+
+            /**
+             * 用实际加载到的节点数修正 ntotal (2026-10-23)
+             *
+             * 正常情况下 nodes_loaded == 头部声称的 ntotal, 赋值等幂;
+             * 遇到历史格式的「干净 EOF」时只是少加载了几条, 此时必须修正,
+             * 否则 ntotal 会虚报一���写不进来的节点数, 让上层以为数据齐全,
+             * 又退化成「静默不一致」的老毛病。
+             */
+            hnsw->ntotal = nodes_loaded;
             break;
         }
         default:
