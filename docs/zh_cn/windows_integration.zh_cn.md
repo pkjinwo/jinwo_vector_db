@@ -53,8 +53,9 @@
 请参见 `docs/zh_cn/build_guide.zh_cn.md`，其中给出各平台（含 Windows
 `cmake -G "Visual Studio 17 2022"`）的标准构建流程。本文不再重复构建步骤。
 
-> 注意：全项目统一库名为 `libjinwo.*`（Linux `libjinwo.so` / macOS `libjinwo.dylib` /
-> Windows `libjinwo.dll`）。下文 C# P/Invoke 的 `DllName` 应为 `"libjinwo"`（Windows 上对应 `libjinwo.dll`）。
+> 注意：本仓库统一产出 `libjinwo.*`（Windows 亦为 `libjinwo.dll` /
+> `libjinwo.lib`）。下文 C# P/Invoke 的 `DllName` 必须为 `"libjinwo"`，
+> 旧文档的 `"jinwo_vecdb.dll"` 已废弃。
 
 ---
 

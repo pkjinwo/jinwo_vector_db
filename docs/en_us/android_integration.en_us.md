@@ -206,7 +206,7 @@ dependencies {
 > ```
 
 > Version note: the published version on JitPack is **`0.1.34.spring`** (a fresh tag; JitPack caches
-> builds per tag, and `0.1.34`/`0.1.34-beta` were already published/cached and could not be reused).
+> builds per tag, and `0.1.34`/`0.1.34-android3`/`0.1.34-beta` were already published/cached and could not be reused).
 
 ### Using Pre-built Library
 

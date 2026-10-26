@@ -51,7 +51,8 @@ dependencies {
 > maven { url 'https://jitpack.io' }
 > ```
 
-> 版本说明：当前 JitPack 上已验证可用的版本为 **`0.1.34.spring`**（全新 tag；因 JitPack 按 tag 缓存构建，`0.1.34` 与 `0.1.34-beta` 已发布/缓存不可复用，故采用 `0.1.34.spring`）。后续核心版本升级时再发新版即可。
+> 版本说明：当前 JitPack 上已验证可用的版本为 **`0.1.34.spring`**（全新 tag；因 JitPack 按 tag 缓存构建，`0.1.34`/`0.1.34-android3`/`0.1.34-beta` 已发布/缓存不可复用，故采用 `0.1.34.spring`）。后续核心版本升级时再发新版即可。
+> 想要更简洁的 `0.1.34` 版本号，请登录 jitpack.io 对该 tag 点击 **Rebuild** 即可（对应 tag 已指向修复后的提交）。
 
 （备选）手动集成 AAR：
 
