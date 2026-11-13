@@ -28,9 +28,20 @@ JinWo VecDB - Python 绑定
     db.close()
 """
 
-from .jinwo import JinWoDB, Collection
+from .jinwo import JinWoDB, Collection, _get_version
 
-__version__ = "0.1.33"
+# 版本号直接取自 C 核心 (jw_vecdb_version)，与 include/jw_types.h 的 JW_VERSION_* 恒一致，
+# 避免这里硬编码造成漂移（曾因硬编码停留在 0.1.33 与实际发布版本脱节）。
+try:
+    import re as _re
+    _m = _re.search(r"(\d+\.\d+\.\d+)", _get_version())
+    __version__ = _m.group(1) if _m else _get_version()
+except Exception:
+    try:
+        from importlib.metadata import version as _pkg_version
+        __version__ = _pkg_version("jinwo_vecdb")
+    except Exception:
+        __version__ = "unknown"
 
 __all__ = ["JinWoDB", "Collection", "open", "__version__"]
 
