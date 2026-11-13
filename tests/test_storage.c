@@ -64,7 +64,11 @@ TEST(storage_basic)
     jw_arena_t *arena = create_test_arena();
     ASSERT_NOT_NULL(arena);
 
-    jw_storage_t *storage = jw_storage_open(arena, "test_storage", JW_STORAGE_CREATE);
+    /* ⚠️ 存储文件名不能与可执行文件同名 (test_storage)：
+     * ctest 的工作目录是 build/tests，JW_STORAGE_CREATE 会截断同名文件，
+     * 把刚链接好的 Mach-O 二进制当存储文件覆写掉 → 下次 ctest 必报 BAD_COMMAND/Not Run。
+     * 这正是 HANDOFF §8.7 "test_storage 构建产物反复损坏" 三次复发的真根因 (2026-11-13 定位)。 */
+    jw_storage_t *storage = jw_storage_open(arena, "test_storage_db", JW_STORAGE_CREATE);
     ASSERT_NOT_NULL(storage);
 
     jw_status_t result = jw_storage_close(storage);

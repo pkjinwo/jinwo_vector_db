@@ -28,9 +28,14 @@
 #include "jw_arena.h"
 #include "jw_types.h"
 #include "jw_string.h"
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef JW_WIN32
+#include <windows.h>   /* CRITICAL_SECTION (MSVC 无 pthread.h) */
+#else
+#include <pthread.h>
+#endif
 
 /* 线程安全支持 (2026-10-23):
  * 原先注释写"并非线程安全，调用者需要自行加锁"，但 jw_index_search 每次调用都从
@@ -38,18 +43,37 @@
  * 的 block->used / total_used，导致两个线程拿到同一块内存、数据互相覆盖而崩溃
  * (test_concurrent 实测: 4 线程并发搜索约 45% 概率 SIGSEGV)。
  *
- * 故在 arena 内嵌 pthread_mutex_t 使分配本身线程安全。
- * 用 pthread 而非 jw_mutex_t, 因为后者创建需要 arena 本身 (鸡生蛋问题)。
+ * 故在 arena 内嵌互斥锁使分配本身线程安全。
+ * 用平台原语而非 jw_mutex_t, 因为后者创建需要 arena 本身 (鸡生蛋问题)。
+ * Windows 走 CRITICAL_SECTION (与 jw_lock.c 同款跨平台模式)，其余平台走 pthread。
+ * ⚠️ 此前无条件 #include <pthread.h>，导致 MSVC (Windows wheel/native lib CI) 编译失败，
+ *    0.1.35 发布时在 build_wheels/CI-Windows/build_native_lib 三处同步暴露 (§14.2)。
  * 单线程场景下锁开销可忽略 (一次无竞争加锁约 20ns, 而分配本身要数百 ns)。 */
 
-/* 便捷宏: 加锁/解锁 (lock 为 void* 以隐藏 pthread 依赖) */
+/* 便捷宏: 加锁/解锁 (lock 为 void* 以隐藏平台锁类型依赖) */
+#ifdef JW_WIN32
+#define ARENA_LOCK(a)   do { if ((a) != NULL && (a)->lock != NULL) \
+        EnterCriticalSection((CRITICAL_SECTION *)(a)->lock); } while (0)
+#define ARENA_UNLOCK(a) do { if ((a) != NULL && (a)->lock != NULL) \
+        LeaveCriticalSection((CRITICAL_SECTION *)(a)->lock); } while (0)
+#else
 #define ARENA_LOCK(a)   do { if ((a) != NULL && (a)->lock != NULL) \
         pthread_mutex_lock((pthread_mutex_t *)(a)->lock); } while (0)
 #define ARENA_UNLOCK(a) do { if ((a) != NULL && (a)->lock != NULL) \
         pthread_mutex_unlock((pthread_mutex_t *)(a)->lock); } while (0)
+#endif
 
 static jw_status_t arena_init_lock(jw_arena_t *a)
 {
+#ifdef JW_WIN32
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)calloc(1, sizeof(CRITICAL_SECTION));
+    if (cs == NULL) {
+        return JW_OUT_OF_MEMORY;
+    }
+    InitializeCriticalSection(cs);
+    a->lock = cs;
+    return JW_SUCCESS;
+#else
     pthread_mutex_t *mtx = (pthread_mutex_t *)calloc(1, sizeof(pthread_mutex_t));
     if (mtx == NULL) {
         return JW_OUT_OF_MEMORY;
@@ -60,10 +84,8 @@ static jw_status_t arena_init_lock(jw_arena_t *a)
     }
     a->lock = mtx;
     return JW_SUCCESS;
+#endif
 }
-#include <stdlib.h>
-#include <string.h>
-#include <inttypes.h>
 
 #ifdef __ANDROID__
 #include <android/log.h>
@@ -201,12 +223,21 @@ JW_API void jw_arena_destroy(jw_arena_t *arena)
     }
 
     /* 释放锁 (先取指针再解锁, 避免 use-after-free) */
+#ifdef JW_WIN32
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)arena->lock;
+    ARENA_UNLOCK(arena);
+    if (cs != NULL) {
+        DeleteCriticalSection(cs);
+        free(cs);
+    }
+#else
     pthread_mutex_t *mtx = (pthread_mutex_t *)arena->lock;
     ARENA_UNLOCK(arena);
     if (mtx != NULL) {
         pthread_mutex_destroy(mtx);
         free(mtx);
     }
+#endif
 
     free(arena);
 }

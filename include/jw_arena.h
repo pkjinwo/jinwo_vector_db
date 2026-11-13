@@ -74,9 +74,9 @@ typedef struct jw_arena_t {
     jw_size_t total_used;          /* 所有 block 的总已用大小 */
     const char *name;              /* arena 名称（调试用） */
     /* 线程安全: 分配时保护 block->used / arena->total_used 等共享状态。
-     * 用内嵌 pthread_mutex_t 而非 jw_mutex_t, 因为后者创建需要 arena
+     * 用内嵌平台互斥锁（Windows: CRITICAL_SECTION, 其他: pthread_mutex_t）而非 jw_mutex_t, 因为后者创建需要 arena
      * 本身 (鸡生蛋问题), 且此锁必须零依赖、可静态初始化。 */
-    void *lock;                    /* pthread_mutex_t* (jw_arena_create 时创建) */
+    void *lock;                    /* 平台互斥锁指针 (Windows: CRITICAL_SECTION*, 其他: pthread_mutex_t*) */
 } jw_arena_t;
 
 /*
