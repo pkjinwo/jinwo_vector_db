@@ -9,7 +9,7 @@ description = "JinWo VecDB - 嵌入式向量数据库，零配置、零依赖、
 readme = "README.md"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "灵活就业码农"}
+    {name = "王小波"}
 ]
 keywords = ["vector", "database", "embedding", "ann", "search", "vector-db"]
 classifiers = [

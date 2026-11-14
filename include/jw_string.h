@@ -26,8 +26,8 @@
  *   - 字符串分割
  *   - 字符串转换
  * 
- * 版本: 0.1.32
- * 作者: 灵活就业码农
+ * 版本: 0.1.35 (核心版本统一见 include/jw_types.h 的 JW_VERSION_STRING, 此处不再单独维护)
+ * 作者: 王小波
  */
 
 #ifndef JW_STRING_H
