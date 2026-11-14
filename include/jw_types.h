@@ -23,7 +23,7 @@
  * 本文件定义了JinWo VecDB所需的所有基础类型，确保跨平台兼容性。
  * 支持平台: Linux, Android, iOS, macOS, Windows, WebAssembly (Emscripten)
  * 
- * 版本: 0.1.35 (核心版本统一见 include/jw_types.h 的 JW_VERSION_STRING, 此处不再单独维护)
+ * 版本: 0.1.36 (核心版本统一见 include/jw_types.h 的 JW_VERSION_STRING, 此处不再单独维护)
  * 作者: 王小波
  * 创建日期: 2026-04-23
  */
@@ -129,8 +129,8 @@ JW_BEGIN_DECL
 
 #define JW_VERSION_MAJOR       0
 #define JW_VERSION_MINOR       1
-#define JW_VERSION_PATCH       35
-#define JW_VERSION_STRING      "0.1.35"
+#define JW_VERSION_PATCH       36
+#define JW_VERSION_STRING      "0.1.36"
 #define JW_VERSION_NUM         (JW_VERSION_MAJOR * 10000 + \
                                  JW_VERSION_MINOR * 100 + \
                                  JW_VERSION_PATCH)

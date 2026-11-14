@@ -221,6 +221,87 @@ JW_API jw_status_t jw_collection_insert(jw_collection_t *coll,
     return jw_collection_insert_with_meta(coll, vec, NULL, 0, vid);
 }
 
+/*
+ * 内部公共插入路径 (2026-11-14 从 insert_with_meta 抽出, HANDOFF §15):
+ * 调用方必须已持有 coll->lock 写锁。specified_vid == 0 时自动分配 ID,
+ * 否则按指定 vid 插入 (upsert 语义: vid 不存在时也要落到调用者指定的 vid)。
+ */
+static jw_status_t collection_insert_locked(jw_collection_t *coll,
+                                            jw_cvec_t vec,
+                                            const jw_meta_field_t *fields,
+                                            jw_size_t field_count,
+                                            jw_vid_t specified_vid,
+                                            jw_vid_t *vid)
+{
+    /* 扩展记录数组 */
+    jw_status_t status = expand_records(coll);
+    if (status != JW_SUCCESS) {
+        return status;
+    }
+
+    /* 分配ID */
+    jw_vid_t new_vid;
+    if (specified_vid != 0) {
+        new_vid = specified_vid;
+        if (new_vid >= coll->next_vid) {
+            coll->next_vid = new_vid + 1;   /* 保证后续自动分配不与已用 vid 冲突 */
+        }
+    } else {
+        new_vid = coll->next_vid++;
+    }
+
+    /* 创建记录 */
+    jw_record_t *record = &coll->records[coll->count];
+    record->vid = new_vid;
+    record->vec = jw_vec_copy(coll->arena, vec, coll->dim);
+
+    if (record->vec == NULL) {
+        return JW_OUT_OF_MEMORY;
+    }
+
+    /* 复制元数据 */
+    if (fields != NULL && field_count > 0) {
+        record->fields = jw_arena_alloc(coll->arena, field_count * sizeof(jw_meta_field_t));
+        if (record->fields != NULL) {
+            jw_memcpy(record->fields, fields, field_count * sizeof(jw_meta_field_t));
+            record->field_count = field_count;
+        }
+    }
+
+    coll->count++;
+    coll->update_time = jw_time_now();
+
+    /* 添加到索引 */
+    if (coll->index != NULL && coll->index_enabled && coll->count >= coll->index_threshold) {
+        jw_status_t add_status = jw_index_add(coll->index, new_vid, vec);
+        if (add_status == JW_INDEX_NOT_READY) {
+            /* 索引未训练，自动训练 */
+            jw_cvec_t vectors = jw_arena_alloc(coll->arena, coll->count * coll->dim * sizeof(jw_float32_t));
+            jw_vid_t *vids = jw_arena_alloc(coll->arena, coll->count * sizeof(jw_vid_t));
+
+            if (vectors != NULL && vids != NULL) {
+                for (jw_size_t i = 0; i < coll->count; i++) {
+                    jw_memcpy((void*)(vectors + i * coll->dim), coll->records[i].vec,
+                           coll->dim * sizeof(jw_float32_t));
+                    vids[i] = coll->records[i].vid;
+                }
+
+                jw_status_t train_status = jw_index_train(coll->index, vectors, coll->count);
+                if (train_status == JW_SUCCESS) {
+                    /* 训练成功后重新添加 */
+                    jw_index_add_batch(coll->index, vids, vectors, coll->count);
+                }
+            }
+        }
+    }
+
+    if (vid != NULL) {
+        *vid = new_vid;
+    }
+
+    return JW_SUCCESS;
+}
+
 JW_API jw_status_t jw_collection_insert_with_meta(jw_collection_t *coll,
                                                    jw_cvec_t vec,
                                                    const jw_meta_field_t *fields,
@@ -230,72 +311,14 @@ JW_API jw_status_t jw_collection_insert_with_meta(jw_collection_t *coll,
     if (coll == NULL || vec == NULL) {
         return JW_INVALID_PARAM;
     }
-    
+
     jw_rwlock_wrlock(coll->lock);
-    
-    /* 扩展记录数组 */
-    jw_status_t status = expand_records(coll);
-    if (status != JW_SUCCESS) {
-        jw_rwlock_wrunlock(coll->lock);
-        return status;
-    }
-    
-    /* 分配ID */
-    jw_vid_t new_vid = coll->next_vid++;
-    
-    /* 创建记录 */
-    jw_record_t *record = &coll->records[coll->count];
-    record->vid = new_vid;
-    record->vec = jw_vec_copy(coll->arena, vec, coll->dim);
-    
-    if (record->vec == NULL) {
-        jw_rwlock_wrunlock(coll->lock);
-        return JW_OUT_OF_MEMORY;
-    }
-    
-    /* 复制元数据 */
-    if (fields != NULL && field_count > 0) {
-        record->fields = jw_arena_alloc(coll->arena, field_count * sizeof(jw_meta_field_t));
-        if (record->fields != NULL) {
-            jw_memcpy(record->fields, fields, field_count * sizeof(jw_meta_field_t));
-            record->field_count = field_count;
-        }
-    }
-    
-    coll->count++;
-    coll->update_time = jw_time_now();
-    
-    /* 添加到索引 */
-    if (coll->index != NULL && coll->index_enabled && coll->count >= coll->index_threshold) {
-        jw_status_t add_status = jw_index_add(coll->index, new_vid, vec);
-        if (add_status == JW_INDEX_NOT_READY) {
-            /* 索引未训练，自动训练 */
-            jw_cvec_t vectors = jw_arena_alloc(coll->arena, coll->count * coll->dim * sizeof(jw_float32_t));
-            jw_vid_t *vids = jw_arena_alloc(coll->arena, coll->count * sizeof(jw_vid_t));
-            
-            if (vectors != NULL && vids != NULL) {
-                for (jw_size_t i = 0; i < coll->count; i++) {
-                    jw_memcpy((void*)(vectors + i * coll->dim), coll->records[i].vec,
-                           coll->dim * sizeof(jw_float32_t));
-                    vids[i] = coll->records[i].vid;
-                }
-                
-                jw_status_t train_status = jw_index_train(coll->index, vectors, coll->count);
-                if (train_status == JW_SUCCESS) {
-                    /* 训练成功后重新添加 */
-                    jw_index_add_batch(coll->index, vids, vectors, coll->count);
-                }
-            }
-        }
-    }
-    
+
+    jw_status_t status = collection_insert_locked(coll, vec, fields, field_count, 0, vid);
+
     jw_rwlock_wrunlock(coll->lock);
-    
-    if (vid != NULL) {
-        *vid = new_vid;
-    }
-    
-    return JW_SUCCESS;
+
+    return status;
 }
 
 JW_API jw_status_t jw_collection_insert_record(jw_collection_t *coll,
@@ -346,9 +369,13 @@ JW_API jw_status_t jw_collection_upsert(jw_collection_t *coll,
     if (coll == NULL || vec == NULL) {
         return JW_INVALID_PARAM;
     }
-    
+    /* vid=0 约定为无效 ID (见 jw_collection_create: next_vid 从 1 开始) */
+    if (vid == 0) {
+        return JW_INVALID_PARAM;
+    }
+
     jw_rwlock_wrlock(coll->lock);
-    
+
     /* 查找是否已存在 */
     for (jw_size_t i = 0; i < coll->count; i++) {
         if (coll->records[i].vid == vid) {
@@ -359,12 +386,14 @@ JW_API jw_status_t jw_collection_upsert(jw_collection_t *coll,
             return JW_SUCCESS;
         }
     }
-    
-    /* 不存在则插入 */
-    jw_rwlock_wrunlock(coll->lock);
-    
-    jw_vid_t new_vid;
-    return jw_collection_insert(coll, vec, &new_vid);
+
+    /* 不存在则按指定 vid 插入 (2026-11-14 修复 HANDOFF §15:
+     * 原实现丢弃调用者的 vid, 走自动分配, "upsert" 退化为普通插入) */
+    {
+        jw_status_t status = collection_insert_locked(coll, vec, NULL, 0, vid, NULL);
+        jw_rwlock_wrunlock(coll->lock);
+        return status;
+    }
 }
 
 /*

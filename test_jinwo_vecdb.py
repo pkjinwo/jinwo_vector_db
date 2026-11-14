@@ -608,10 +608,9 @@ finally:
         sys.exit(1)
     print()
 
-    # Test 12c: upsert 指定新 vid 语义探测（2026-11-14 新发现缺陷, HANDOFF §15 登记, 待修）
-    # 当前行为: update 不存在的 vid 时, C 层 jw_collection_upsert 走自动分配 vid 的插入,
-    # 调用者指定的 vid 被丢弃 → get(指定 vid) 返回 None。修复后本测试会自动变为 [OK]。
-    print("[Test 12c] Upsert new-vid semantics probe (known bug §15, tolerated)")
+    # Test 12c: upsert 指定新 vid 语义（§15 已于 0.1.36 修复）:
+    # update 不存在的 vid 时, C 层 jw_collection_upsert 必须按指定 vid 落库。
+    print("[Test 12c] Upsert new-vid semantics (§15 fix verification)")
     print("-" * 40)
     try:
         probe_coll = "reg_upsert_probe"
