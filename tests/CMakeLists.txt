@@ -55,6 +55,11 @@ add_executable(test_delete test_delete.c)
 target_link_libraries(test_delete PRIVATE jw_vecdb_static)
 add_test(NAME test_delete COMMAND test_delete)
 
+# vecdb 级重开持久化测试 (2026-11-14: HANDOFF §16, Windows 缺 _O_BINARY 导致 reopen 后集合为空)
+add_executable(test_vecdb_reopen test_vecdb_reopen.c)
+target_link_libraries(test_vecdb_reopen PRIVATE jw_vecdb_static)
+add_test(NAME test_vecdb_reopen COMMAND test_vecdb_reopen)
+
 # jw_index.c 核心逻辑完整测试 (类型×度量矩阵/维度边界/存盘重载/稀疏vid/删除/批量搜索/边界)
 add_executable(test_index_core test_index_core.c)
 target_link_libraries(test_index_core PRIVATE jw_vecdb_static)

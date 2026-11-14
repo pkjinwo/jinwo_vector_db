@@ -39,6 +39,10 @@ typedef int mode_t;
 #ifndef MAP_SHARED
 #define MAP_SHARED 1
 #endif
+/* 2026-11-14 (HANDOFF §16): Windows CRT 默认文本模式, 不加 _O_BINARY 会把
+ * .jwcol 二进制数据中的 0x0A 翻译成 0x0D 0x0A, 重开数据库时加载必然失败
+ * (表现为 reopen 后 Collections 为空) */
+#define O_BINARY _O_BINARY
 
 static void *jw_mmap_wrapper(void *addr, size_t length, int prot, int flags, int fd, jw_off_t offset)
 {
@@ -106,6 +110,9 @@ static int jw_fsync_wrapper(int fd)
 #else
 #include <sys/mman.h>
 #include <unistd.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 #endif
 
 /*
@@ -278,6 +285,7 @@ JW_API jw_storage_t *jw_storage_create(jw_arena_t *arena,
                 break;
         }
         
+        flags |= O_BINARY;   /* §16: Windows 必须显式二进制模式 */
         storage->fd = open(config->path.ptr, flags, mode);
         if (storage->fd < 0) {
             jw_mutex_destroy((jw_mutex_t *)storage->lock);

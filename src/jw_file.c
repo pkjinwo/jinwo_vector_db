@@ -147,8 +147,14 @@ int closedir(DIR *dir)
 #define lseek _lseek
 #define unlink _unlink
 #define mkdir(path, mode) _mkdir(path)
+/* 2026-11-14 (HANDOFF §16): Windows CRT 默认文本模式, 必须显式 _O_BINARY,
+ * 否则二进制数据中的 0x0A 被翻译成 0x0D 0x0A 导致文件损坏 */
+#define O_BINARY _O_BINARY
 #else
 #include <unistd.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 #include <dirent.h>
 #endif
 
@@ -181,6 +187,8 @@ JW_API jw_os_handle_t jw_file_open(const jw_str_t *path, const jw_str_t *mode)
         flags = O_RDWR | O_CREAT | O_TRUNC;
     }
     
+    flags |= O_BINARY;   /* §16: Windows 必须显式二进制模式 */
+
     int fd = open(jw_str_cstr(path), flags, 0644);
     if (fd < 0) {
         return JW_INVALID_OS_HANDLE;

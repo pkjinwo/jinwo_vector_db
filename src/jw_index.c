@@ -85,8 +85,14 @@ typedef SSIZE_T ssize_t;
 #define read  _read
 #define write _write
 #define lseek _lseeki64
+/* 2026-11-14 (HANDOFF §16): Windows CRT 默认文本模式, 不加 _O_BINARY 会把
+ * 二进制数据中的 0x0A 翻译成 0x0D 0x0A, 破坏索引文件, 重载必然失败 */
+#define O_BINARY _O_BINARY
 #else
 #include <unistd.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
 #endif
 
 /*
@@ -2832,7 +2838,7 @@ JW_API jw_status_t jw_index_save(const jw_index_t *index,
     }
 
     /* 直接打开文件 */
-    int fd = open(filename->ptr, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    int fd = open(filename->ptr, O_RDWR | O_CREAT | O_TRUNC | O_BINARY, 0644);
     if (fd < 0) {
         return JW_IO_ERROR;
     }
@@ -3028,7 +3034,7 @@ JW_API jw_index_t *jw_index_load(jw_arena_t *arena,
     }
 
     /* 直接打开文件 */
-    int fd = open(filename->ptr, O_RDONLY);
+    int fd = open(filename->ptr, O_RDONLY | O_BINARY);
     if (fd < 0) {
         return NULL;
     }
