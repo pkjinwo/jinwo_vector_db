@@ -11,6 +11,7 @@ import time
 import shutil
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 def print_debug_info():
@@ -513,6 +514,118 @@ finally:
         print(f"[FAIL]  {e}")
         db.close()
         sys.exit(1)
+    print()
+
+    # ============================================================
+    # 0.1.35 回归测试（2026-11-14 新增）
+    # §4.8: 未初始化 index_config 导致创建集合挂起（默认 128 维最先被测到）
+    # §9/§11: HNSW 稀疏 vid 存盘重载静默丢数据（vid > 插入总数时还原率骤降甚至崩溃）
+    # ============================================================
+    print("=" * 60)
+    print("  v0.1.35 REGRESSION TESTS (HANDOFF §4.8 / §9 / §11)")
+    print("=" * 60)
+    print()
+
+    def _hang_guard(seconds=60, label=""):
+        """挂起哨兵: 被测操作若超时未返回, 视为挂起并立即退出（避免 CI 卡死）"""
+        timer = threading.Timer(
+            seconds,
+            lambda: (
+                print(f"\n[FAIL] HANG detected after {seconds}s (regression: {label})"),
+                os._exit(1),
+            ),
+        )
+        timer.daemon = True
+        return timer
+
+    # Test 12a: §4.8 —— 多维度创建集合 + 插入 + 查询, 全部必须在时限内完成
+    # (127/128/129 为默认索引配置的边界维度, 128 是默认维度本身; 1536 是常见嵌入维度)
+    print("[Test 12a] Dim sweep 127/128/129/1536 (§4.8 hang regression)")
+    print("-" * 40)
+    try:
+        for dim in (127, 128, 129, 1536):
+            coll_name_dim = f"reg_dim_{dim}"
+            timer = _hang_guard(60, f"§4.8 create/insert/search dim={dim}")
+            timer.start()
+            try:
+                db.create_collection(coll_name_dim, dim)
+                for i in range(30):
+                    db.insert(coll_name_dim, [float(i + j) for j in range(dim)])
+                results = db.search(coll_name_dim, [float(10 + j) for j in range(dim)], k=5)
+                if len(results) < 1:
+                    print(f"[FAIL]  dim={dim}: search returned 0 results")
+                    db.close()
+                    sys.exit(1)
+                print(f"[OK]  dim={dim}: create+insert(30)+search passed (top1 vid={results[0][0]})")
+            finally:
+                timer.cancel()
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        db.close()
+        sys.exit(1)
+    print()
+
+    # Test 12b: §9/§11 —— 存盘 → 重载 → 数据一条不丢（静默丢数据回归）
+    # 注: §11 原始缺陷（HNSW 稀疏 vid 存盘重载丢失）的触发依赖"指定 vid 插入",
+    #     但 Python 层 update() 的 upsert 存在已知缺陷（见 Test 12c）不能用,
+    #     C 层等价场景由 tests/test_index_core.c 的稀疏 vid 存盘重载用例覆盖（ctest）。
+    #     此处用 upsert 产生的记录验证"存盘重载一条不丢"。
+    print("[Test 12b] Save/reload no data loss (§11 regression)")
+    print("-" * 40)
+    sparse_coll = "reg_sparse_vid"
+    sparse_vecs = [
+        [float(10 % 97) + j / 1000 for j in range(32)],
+        [float(1000 % 97) + j / 1000 for j in range(32)],
+        [float(100000 % 97) + j / 1000 for j in range(32)],
+    ]
+    try:
+        db.create_collection(sparse_coll, 32)
+        for vec in sparse_vecs:
+            db.insert(sparse_coll, vec)
+        db.sync()
+        db.close()
+        time.sleep(0.5)
+        db = jinwo_vecdb.open(db_path)   # 重载, 后续 Test 13 关闭的是这个新句柄
+        coll = db.get_collection(sparse_coll)
+        cnt = coll.count if coll is not None else -1
+        if cnt != len(sparse_vecs):
+            print(f"[FAIL]  After reload count={cnt}, expected {len(sparse_vecs)} (silent data loss)")
+            db.close()
+            sys.exit(1)
+        for i, vec in enumerate(sparse_vecs):
+            results = db.search(sparse_coll, vec, k=1)
+            if not results or results[0][1] > 1e-4:
+                print(f"[FAIL]  Record {i+1} not retrievable after reload (silent data loss)")
+                db.close()
+                sys.exit(1)
+        print(f"[OK]  Save/reload: {len(sparse_vecs)}/{len(sparse_vecs)} records retrievable (count={cnt})")
+    except Exception as e:
+        print(f"[FAIL]  {e}")
+        try:
+            db.close()
+        except Exception:
+            pass
+        sys.exit(1)
+    print()
+
+    # Test 12c: upsert 指定新 vid 语义探测（2026-11-14 新发现缺陷, HANDOFF §15 登记, 待修）
+    # 当前行为: update 不存在的 vid 时, C 层 jw_collection_upsert 走自动分配 vid 的插入,
+    # 调用者指定的 vid 被丢弃 → get(指定 vid) 返回 None。修复后本测试会自动变为 [OK]。
+    print("[Test 12c] Upsert new-vid semantics probe (known bug §15, tolerated)")
+    print("-" * 40)
+    try:
+        probe_coll = "reg_upsert_probe"
+        db.create_collection(probe_coll, 16)
+        probe_vec = [1.5] * 16
+        db.update(probe_coll, 42, probe_vec)   # 42 尚不存在 → 期望 upsert 创建 vid=42
+        got = db.get(probe_coll, 42)
+        if got is not None and all(abs(a - b) <= 1e-4 for a, b in zip(got, probe_vec)):
+            print("[OK]  upsert honored specified vid=42 (§15 bug fixed)")
+        else:
+            print("[WARN] Known bug §15: upsert on nonexistent vid drops the specified vid")
+            print("       (auto-assigns a new vid instead; see HANDOFF §15, fix pending)")
+    except Exception as e:
+        print(f"[WARN] probe failed: {e} (§15 known bug tolerated)")
     print()
 
     # Test 13: Close
