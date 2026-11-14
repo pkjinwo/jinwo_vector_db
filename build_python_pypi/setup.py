@@ -53,7 +53,11 @@ class CMakeBuild(build_ext):
             # 根据 Python 解释器的位数动态选择架构
             import struct
             arch = "x64" if struct.calcsize("P") == 8 else "Win32"
-            cmake_args += ["-G", "Visual Studio 17 2022", "-A", arch]
+            # 2026-11-14: 不再硬编码 "-G Visual Studio 17 2022"。
+            # GitHub windows-latest 镜像已切换为 windows-2025-vs2026（只装 VS 2026），
+            # 硬编码 VS17 会报 "could not find any instance of Visual Studio"。
+            # 改为让 CMake 自动选择已安装的最新 VS 生成器，-A 仅指定平台架构。
+            cmake_args += ["-A", arch]
 
         def _run_cmake(cmd, cwd, step_name):
             """运行 cmake，成功时简洁输出，失败时打印详细错误"""
