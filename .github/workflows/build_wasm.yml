@@ -1,0 +1,62 @@
+name: Build WASM (libjinwo)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'wasm-*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup emsdk
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+          actions-cache: true
+
+      - name: Verify emcc
+        run: emcc --version
+
+      - name: Build jinwo.wasm
+        run: |
+          cd npm_package
+          bash build.sh
+
+      - name: Smoke test (node)
+        run: |
+          cd npm_package
+          npm install --no-save typescript >/dev/null 2>&1 || true
+          node test_wasm.mjs
+
+      - name: Package
+        run: |
+          cd npm_package/wasm
+          tar czf ../../jinwo-wasm-node.tar.gz jinwo.wasm jinwo.js jinwo.d.ts
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jinwo-wasm
+          path: npm_package/wasm/jinwo.wasm
+          if-no-files-found: error
+
+      - name: Upload full tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: jinwo-wasm-tarball
+          path: jinwo-wasm-node.tar.gz
+          if-no-files-found: error
+
+      - name: Attach to release (only on wasm-* tag)
+        if: startsWith(github.ref, 'refs/tags/wasm-')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: jinwo-wasm-node.tar.gz

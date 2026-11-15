@@ -25,7 +25,7 @@
  *   - 目录操作
  *   - 文件路径操作
  * 
- * 版本: 0.1.36 (核心版本统一见 include/jw_types.h 的 JW_VERSION_STRING, 此处不再单独维护)
+ * 版本: 0.1.37 (核心版本统一见 include/jw_types.h 的 JW_VERSION_STRING, 此处不再单独维护)
  * 作者: 王小波
  */
 
