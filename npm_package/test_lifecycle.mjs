@@ -158,8 +158,6 @@ async function test() {
   results = db3.search(COLL_NAME, newQuery, 5);
   log(`[OK] 查询新数据返回 ${results.length} 条结果`);
   assert(results.length === 5, `查询新数据应返回 5 条, 实际 ${results.length}`);
-    log(`  #${i + 1}: vid=${results[i].id}, score=${results[i].score.toFixed(6)}`);
-  }
 
   // Delete 新插入的前 10 条
   for (let i = 0; i < 10; i++) {
