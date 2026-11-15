@@ -4,6 +4,7 @@
  * 运行: node test_wasm.js
  */
 import { open } from './dist/index.js';
+import assert from 'node:assert/strict';
 
 async function test() {
   console.log('=== JinWo VecDB WASM 测试 ===\n');
