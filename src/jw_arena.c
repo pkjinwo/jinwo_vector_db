@@ -30,6 +30,7 @@
 #include "jw_string.h"
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>   /* 2026-11-15: PRIu64 需要, NDK/独立编译单元下缺它直接编译失败 (JitPack 0.1.36 构建实锤) */
 
 #ifdef JW_WIN32
 #include <windows.h>   /* CRITICAL_SECTION (MSVC 无 pthread.h) */
